@@ -1,0 +1,56 @@
+import { Component, StrictMode, type ReactNode } from 'react'
+import { createRoot } from 'react-dom/client'
+import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom'
+import App from './App'
+import SimulatorPage from './pages/SimulatorPage'
+import LessonsPage from './pages/LessonsPage'
+import LessonView from './pages/LessonView'
+import ReferencePage from './pages/ReferencePage'
+import './styles/global.css'
+
+const router = createBrowserRouter([
+  {
+    path: '/',
+    element: <App />,
+    children: [
+      { index: true, element: <SimulatorPage /> },
+      { path: 'lessons', element: <LessonsPage /> },
+      { path: 'lessons/:id', element: <LessonView /> },
+      { path: 'reference', element: <ReferencePage /> },
+      { path: '*', element: <Navigate to="/" replace /> },
+    ],
+  },
+])
+
+// last-resort guard: a crash anywhere (engine, editor, future code) degrades
+// to a readable terminal message instead of a white screen
+class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  state = { error: null as Error | null }
+
+  static getDerivedStateFromError(error: Error) {
+    return { error }
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ padding: 40, fontFamily: 'var(--mono)', color: '#ff5555', background: '#0a0e0a', minHeight: '100vh' }}>
+          <h1 style={{ color: '#33ff66' }}>ASM-LAB — FATAL ERROR</h1>
+          <pre style={{ whiteSpace: 'pre-wrap' }}>{String(this.state.error)}</pre>
+          <button onClick={() => location.reload()} style={{ marginTop: 16 }}>
+            ⟲ reload
+          </button>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <ErrorBoundary>
+      <RouterProvider router={router} />
+    </ErrorBoundary>
+  </StrictMode>,
+)

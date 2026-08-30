@@ -1,0 +1,209 @@
+The Processor Status And The
+       FLAGS Register
+Outline
+
+• The FLAGS register
+• Overflow
+• How instructions affect the flags
+
+
+
+
+                                      2
+The FLAGS Register
+
+• In 8086, the processor state is implemented as nine individual
+  bits called flags
+• Each decision made by 8086 is based on the values of these
+  flags
+• The flags are placed in the FLAGS register
+• Two types of flags: Status flags and control flags
+• Status flags reflect the result of a computation. They are
+  located in bits 0,2,4,6,7 and 11
+• Control flags enable or disable certain operations of the
+  processor. They are located in bits 8,9 and 10
+• The other bits have no significance
+
+
+
+                                                                   3
+The FLAGS Register
+
+  15   14    13   12    11     10     9    8    7     6     5   4    3   2     1    0
+
+                        OF     DF    IF    TF   SF    ZF        AF       PF         CF
+
+
+
+            Bit                Name                  Symbol
+            0                Carry Flag                CF
+            2                Parity Flag               PF
+            4          Auxiliary Carry Flag           AF
+            6                Zero Flag                 ZF                     Status Flag
+            7                Sign Flag                 SF
+            11           Overflow Flag                OF
+            8                Trap Flag                 TF
+            9            Interrupt Flag                IF                     Control Flag
+            10           Direction Flag               DF
+                                                                                             4
+The Status Flags
+
+• Carry Flag(CF)
+   • CF=1 if there is a carry out in the MSB on addition, if there is a borrow
+     into the MSB on subtraction
+   • Otherwise CF=0
+   • It is also affected by shift and rotate instructions
+• Parity Flag(PF)
+   • PF=1 if the low byte of a result has even parity
+   • PF=0 if the low byte of a result has odd parity
+• Auxiliary Carry Flag(AF)
+   • AF=1 if there is a carry out from bit 3 on addition or a borrow into bit
+     3 on subtraction
+   • Otherwise AF=0
+   • AF is used in BCD operations
+
+
+
+                                                                                 5
+The Status Flags
+
+• Zero Flag(ZF)
+   • ZF=1 for a zero result
+   • ZF=0 for a non-zero result
+• Sign Flag(SF)
+   • SF=1 if the MSB of a result is 1 that means the result is negative
+   • SF=0 if the MSB of a result is 0 that means the result is positive
+• Overflow Flag(OF)
+   • OF=1 if signed overflow occurred
+   • Otherwise OF=0
+
+
+
+
+                                                                          6
+Overflow
+
+• The range of signed numbers that can be represented by a
+   • 16-bit word is -32768 to 32767
+   • 8-bit byte is -128 to 127
+• The range of unsigned numbers that can be represented by a
+   • 16-bit word is 0 to 65535
+   • 8-bit byte is 0 to 255
+• If the result of an operation falls out of these ranges then
+  overflow occurs and the truncated result that is saved will be
+  incorrect
+• When we perform an arithmetic operation such as addition there
+  are four possible outcomes:
+   • No overflow
+   • Signed overflow only
+   • Unsigned overflow only
+   • Both signed and unsigned overflows
+
+
+
+                                                                   7
+Example of Unsigned Overflow Only
+
+• Suppose AX contains FFFFh(-1), BX contains 0001h(1). Add the
+  contents of AX and BX
+• Solution
+ ADD AX,BX
+         1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1
+
+     +   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   1
+
+     1   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
+• If it is an unsigned interpretation the correct answer
+  10000h=65535 but this is out of range for a word operation
+• A 1 is carried out of the MSB and the answer stored in AX is 0000h
+  which is wrong so unsigned overflow occurs
+• But signed overflow does not occur as the stored answer is
+  correct as a signed number
+
+
+
+                                                                         8
+Example of Signed Overflow Only
+
+• Suppose AX contains 7FFFh(32767), BX contains 7FFFh(32767).
+  Add the contents of AX and BX
+• Solution
+ ADD AX,BX
+
+        0    1   1   1   1   1   1   1   1   1   1   1   1   1   1   1
+
+    +   0    1   1   1   1   1   1   1   1   1   1   1   1   1   1   1
+
+        1    1   1   1   1   1   1   1   1   1   1   1   1   1   1   0
+• If it is a signed interpretation the answer is FFFEh =-2 but this
+  incorrect as the result should be 65534. So signed overflow
+  occurs
+• The unsigned interpretation of FFFEh is 65534, which is the
+  right answer. So unsigned overflow does not occur
+
+
+                                                                         9
+Overflow Indicates by Processor
+
+• The processor sets OF=1 for signed overflow
+• The processor sets CF=1 for unsigned overflow
+
+
+
+
+                                                  10
+Overflow Occur Determination by Processor
+
+• Unsigned overflow
+   • On addition when there is a carry out in the MSB. This means the
+     result is larger than the biggest unsigned number
+   • On subtraction when there is a borrow in the MSB. This means the
+     correct answer is smaller than 0
+• Signed overflow
+   • On addition the numbers with the same sign produces result of
+     different sign
+   • On subtraction the result has a different sign than expected
+      • Subtraction of numbers   with different signs means addition of
+        number with same sign.
+
+
+
+
+                                                                          11
+How Instructions Affect the Flags
+
+
+   Instruction          Affected flags
+   MOV/XCHG                 None
+    ADD/SUB                   all
+    INC/DEC               All except CF
+      NEG                       All
+                    CF=1 unless result is 0,
+                 OF=1 if word operand is 8000h
+                    or byte operand is 80h
+
+
+
+                                                 12
+How Instructions Affect the Flags
+
+• ADD AX,BX where AX contains FFFFh and BX contains FFFFh
+• Solution
+
+                      F          F          F         F          h
+
+           +          F          F          F         F          h
+
+           1          F          F          F         E          h
+• The result stored in AX is FFFEh = 1111 1111 1111 1110
+   • SF=1 because the MSB is 1
+   • PF=0 because there are odd number of 1 bits in the low byte of the
+     result
+   • ZF=0 because the result is non zero
+   • CF=1 because there is a carry out of the MSB on addition
+   • OF=0 There is a carry into the MSB and also a carry out
+
+
+
+                                                                          13
+

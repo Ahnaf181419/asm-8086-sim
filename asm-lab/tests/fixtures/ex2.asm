@@ -1,0 +1,47 @@
+;================================================================
+;Print a message and a variable
+;================================================================
+.MODEL SMALL
+.STACK 100H
+.DATA                                    
+;DECLARING A MSG
+;REMEMBER TO PUT $ AT THE END OF THE STRING!!
+MSG DB "VALUE OF THE VARIABLE: $" 
+;DECLARING A VARIABLE
+TEMP DB ?
+.CODE  
+MAIN PROC 
+    
+;DATA SEGMENT INITIALIZATION
+MOV AX, @DATA
+MOV DS, AX
+
+
+MOV TEMP, 5             
+
+;TO PRINT STRING, NEED TO MOVE 9 TO AH
+MOV AH, 9  
+;LOAD THE EFFECTIVE ADDRESS OF THE STRING WE NEED TO DISPLAY                           
+LEA DX, MSG
+INT 21H
+
+
+;PRINT THE VALUE OF THE VARIABLE   
+;CURRENTLY TEMP CONTAINS 5
+;TO DISPLAY 5, WE NEED TO PUT THE ASCII VALUE OF 5 IN DL
+;LOOK UP INTO THE ASCII CODES
+;ASCII(5) = 35H
+;WE CAN SIMPLY ADD 30H TO TEMP TO GET 35H!
+
+MOV AH, 2   
+ADD TEMP, 30H
+MOV DL, TEMP
+INT 21H
+
+MAIN ENDP
+
+
+;RETURN TO DOS
+MOV AH, 4CH
+INT 21H
+END MAIN
