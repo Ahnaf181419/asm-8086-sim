@@ -19,6 +19,20 @@
   --info: #66ccff;
   --flash: #b6ffcf;
   --mono: 'IBM Plex Mono', 'Fira Code', 'Cascadia Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  /* ── editor (CodeMirror) ──
+     The editor used CodeMirror's default LIGHT theme: a white page inside a
+     dark app, with untokenized text inheriting --text at 1.21:1. These drive
+     src/components/editorTheme.ts; every token is >= 4.5:1 on --editor-bg. */
+  --editor-bg: #070b07;
+  --syn-comment: #6f9a78;
+  --syn-keyword: #4dff7d;
+  --syn-number: #ffcc44;
+  --syn-string: #ffa06a;
+  --syn-register: #7bd4ff;
+  --syn-label: #b6ffcf;
+  --syn-symbol: #d7f7d7;
+  --syn-op: #9ec49e;
 }
 
 * { box-sizing: border-box; }
@@ -323,15 +337,13 @@ input[type='range'] { accent-color: var(--accent-dim); width: 110px; }
 .console-prompt { color: var(--warn); }
 
 /* ── editor ──────────────────────────────────── */
+/* Colours live in src/components/editorTheme.ts (a real CodeMirror theme), not
+   in !important overrides that fought the default light theme from outside. */
 .cm-editor { height: 100%; font-size: 13px; }
-.cm-editor .cm-scroller { font-family: var(--mono) !important; line-height: 1.5; }
 .cm-editor.cm-focused { outline: 1px solid var(--accent-dim); }
-.cm-gutters { background: var(--panel) !important; border-right: 1px solid var(--border) !important; color: var(--text-faint) !important; }
-.cm-activeLine { background: rgba(51, 255, 102, 0.05) !important; }
-.cm-activeLineGutter { background: rgba(51, 255, 102, 0.08) !important; color: var(--accent) !important; }
 .editor-wrap { flex: 1; min-height: 0; overflow: hidden; }
 .editor-loading { padding: 12px 14px; color: var(--text-faint); }
-.editor-current-line { background: rgba(51, 255, 102, 0.14) !important; outline: 1px solid var(--accent-dim); }
+.editor-current-line { background: rgba(51, 255, 102, 0.16); box-shadow: inset 3px 0 0 var(--accent); }
 
 .err-list { font-size: 12px; color: var(--err); white-space: pre-wrap; }
 

@@ -1,29 +1,12 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import CodeMirror from '@uiw/react-codemirror'
 import { StreamLanguage, type StreamParser } from '@codemirror/language'
 import { EditorView } from '@codemirror/view'
 import { indentUnit } from '@codemirror/language'
 import { currentLineField, lineStartOffset, setCurrentLineOffsetEffect } from './editorLineField'
+import { asmEditorTheme } from './editorTheme'
+import { KEYWORDS, REGISTERS } from './masmTokens'
 
-const KEYWORDS = new Set([
-  'MOV', 'LEA', 'XCHG', 'PUSH', 'POP',
-  'ADD', 'SUB', 'ADC', 'SBB', 'INC', 'DEC', 'NEG', 'CMP',
-  'MUL', 'IMUL', 'DIV', 'IDIV', 'CBW', 'CWD',
-  'AND', 'OR', 'XOR', 'NOT', 'TEST',
-  'SHL', 'SAL', 'SHR', 'SAR', 'ROL', 'ROR', 'RCL', 'RCR',
-  'JMP', 'CALL', 'RET', 'LOOP', 'LOOPE', 'LOOPZ', 'LOOPNE', 'LOOPNZ', 'JCXZ',
-  'JE', 'JZ', 'JNE', 'JNZ', 'JG', 'JNLE', 'JGE', 'JNL', 'JL', 'JNGE', 'JLE', 'JNG',
-  'JA', 'JNBE', 'JAE', 'JNB', 'JB', 'JNAE', 'JBE', 'JNA', 'JC', 'JNC', 'JS', 'JNS', 'JO', 'JNO',
-  'INT', 'NOP', 'STC', 'CLC', 'CMC', 'STD', 'CLD', 'XLAT',
-  'PROC', 'ENDP', 'EQU', 'DUP', 'PTR', 'LABEL', 'INCLUDE', 'END', 'ORG', 'ASSUME',
-  'BYTE', 'WORD', 'NEAR', 'FAR', 'STACK',
-])
-
-const REGISTERS = new Set([
-  'AX', 'BX', 'CX', 'DX', 'SI', 'DI', 'BP', 'SP', 'IP',
-  'AH', 'AL', 'BH', 'BL', 'CH', 'CL', 'DH', 'DL',
-  'DS', 'ES', 'CS', 'SS',
-])
 
 interface MasmState {
   inString: false | string
@@ -92,16 +75,18 @@ export default function CodeEditor({
   /** 1-based source line to highlight, or null for none. */
   currentLine?: number | null
 }) {
-  const viewRef = useRef<EditorView | null>(null)
+  // State, not a ref: the view does not exist on the first render, and with a
+  // ref this effect would skip that pass and never re-run (currentLine has not
+  // changed), leaving the very first program with no highlight at all.
+  const [view, setView] = useState<EditorView | null>(null)
 
   // The editor owns its own highlight. Keeping this here (rather than having
   // the page dispatch into a view ref) means nothing outside this module
   // imports CodeMirror, so the whole editor can be code-split away.
   useEffect(() => {
-    const view = viewRef.current
     if (!view) return
     view.dispatch({ effects: setCurrentLineOffsetEffect.of(lineStartOffset(view.state.doc, currentLine)) })
-  }, [currentLine, value])
+  }, [view, currentLine, value])
 
   const extensions = useMemo(
     () => [
@@ -117,10 +102,9 @@ export default function CodeEditor({
     <CodeMirror
       value={value}
       onChange={onChange}
-      onCreateEditor={(view) => {
-        viewRef.current = view
-      }}
+      onCreateEditor={setView}
       extensions={extensions}
+      theme={asmEditorTheme}
       height="100%"
       style={{ height: '100%' }}
       basicSetup={{
