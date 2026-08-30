@@ -18,7 +18,7 @@ export interface Lesson {
 }
 
 export const LESSONS: Lesson[] = [
-  // ──────────────────────────────────────────────── 01
+  // ─────────────────────────────────────────────── 01
   {
     id: 'machine-basics',
     num: 1,
@@ -42,7 +42,7 @@ export const LESSONS: Lesson[] = [
     ],
   },
 
-  // ──────────────────────────────────────────────── 02
+  // ─────────────────────────────────────────────── 02
   {
     id: 'program-structure',
     num: 2,
@@ -80,10 +80,78 @@ END MAIN` },
     ],
   },
 
-  // ──────────────────────────────────────────────── 03
+  // ─────────────────────────────────────────────── 03
+  {
+    id: 'registers-addressing',
+    num: 3,
+    title: 'Registers, Segments & Addressing Modes',
+    source: 'Lecture 1 — The 8086 Register Set (slides 33-41)',
+    blocks: [
+      { t: 'p', html: 'The 8086 has fourteen 16-bit registers. Unlike memory, registers live inside the CPU, so instructions that use them are the fastest and produce the shortest machine code. Most registers are <b>general purpose</b>, but each has jobs it is expected to do — and a few instructions insist on a particular one.' },
+      { t: 'h', text: 'The four data registers' },
+      { t: 'p', html: 'Each splits into a <b>high</b> and a <b>low</b> byte you can address separately: <code>AX</code> is <code>AH</code> (bits 8-15) and <code>AL</code> (bits 0-7). Writing <code>AL</code> leaves <code>AH</code> untouched.' },
+      { t: 'table', head: ['Register', 'Halves', 'Name', 'Expected job'], rows: [
+        ['<code>AX</code>', 'AH / AL', 'Accumulator', 'arithmetic, logic, data transfer. <b>MUL/DIV and INT 21H require it.</b>'],
+        ['<code>BX</code>', 'BH / BL', 'Base', 'the only data register that can hold a <i>memory address</i>'],
+        ['<code>CX</code>', 'CH / CL', 'Count', '<code>LOOP</code> counts down in CX; <code>CL</code> holds shift and rotate counts'],
+        ['<code>DX</code>', 'DH / DL', 'Data', 'the high half of MUL/DIV results; holds the character for INT 21H AH=2'],
+      ] },
+      { t: 'note', html: 'Watch the register panel while you step: writing <code>AL</code> changes the low two hex digits of <code>AX</code>, because they are the same sixteen bits.' },
+      { t: 'h', text: 'Pointer and index registers' },
+      { t: 'table', head: ['Register', 'Name', 'Used for'], rows: [
+        ['<code>SP</code>', 'Stack Pointer', 'the top of the stack — <code>PUSH</code>/<code>POP</code>/<code>CALL</code>/<code>RET</code> move it'],
+        ['<code>BP</code>', 'Base Pointer', 'reaching data on the stack without disturbing SP'],
+        ['<code>SI</code>', 'Source Index', 'walking through an array; increment it to step to the next element'],
+        ['<code>DI</code>', 'Destination Index', 'the same, typically for the destination of a copy'],
+        ['<code>IP</code>', 'Instruction Pointer', 'the offset of the next instruction. <b>You cannot use IP as an operand</b> — only jumps change it.'],
+      ] },
+      { t: 'h', text: 'Segments, offsets and the 20-bit address' },
+      { t: 'p', html: 'The 8086 has a <b>20-bit</b> address bus (1 MB of memory) but only <b>16-bit</b> registers, which reach just 64 KB. The way out is to split every address in two: a <b>segment</b> number naming a 64 KB block, and an <b>offset</b> counting bytes from the start of that block. Written <code>segment:offset</code>, this is a <b>logical address</b>.' },
+      { t: 'p', html: 'To build the real <b>physical address</b>, the CPU shifts the segment left by four bits (one hex digit) and adds the offset:' },
+      { t: 'code', title: 'Worked example from the lecture', code: `logical address   A4FB:4872h
+
+  A4FB0h        ; segment shifted left 4 bits
++  4872h        ; offset
+---------
+  A9822h        ; 20-bit physical address` },
+      { t: 'table', head: ['Segment register', 'Points at', 'Works with'], rows: [
+        ['<code>CS</code> — Code', 'the segment holding the running program', '<code>IP</code>'],
+        ['<code>DS</code> — Data', 'the segment holding your variables', '<code>BX</code>, <code>SI</code>, <code>DI</code>'],
+        ['<code>SS</code> — Stack', 'the segment holding the stack', '<code>SP</code>, <code>BP</code>'],
+        ['<code>ES</code> — Extra', 'a second data area; yours to define', '<code>DI</code> in string operations'],
+      ] },
+      { t: 'note', html: 'This is why every program starts with <code>MOV AX, @DATA</code> / <code>MOV DS, AX</code>. <code>@DATA</code> is the segment number the assembler chose for <code>.DATA</code>, and DS has to be told about it before any variable name will work. You cannot load a segment register from a constant directly — it has to go through a general register, which is why it takes two instructions.' },
+      { t: 'note', html: '<b>In this simulator</b> memory is one flat 64 KB block and <code>DS</code> stays 0, so an offset <i>is</i> the address. That keeps the memory panel readable and stepping simple. Everything above still describes the real chip — and the exam.' },
+      { t: 'h', text: 'Addressing modes' },
+      { t: 'p', html: 'An <b>addressing mode</b> is how an instruction says <i>where</i> its operand is. All of these are the same <code>MOV</code>; only the way the source is named changes.' },
+      { t: 'table', head: ['Mode', 'Example', 'Where the value comes from'], rows: [
+        ['Register', '<code>MOV AX, BX</code>', 'another register'],
+        ['Immediate', '<code>MOV AX, 5</code>', 'a constant built into the instruction'],
+        ['Direct', '<code>MOV AX, V</code>', 'the memory location named <code>V</code>'],
+        ['Register indirect', '<code>MOV AL, [SI]</code>', 'the byte whose address is <i>in</i> SI'],
+        ['Indexed', '<code>MOV AL, ARR[SI]</code>', 'address = start of <code>ARR</code> + SI'],
+        ['Based-indexed', '<code>MOV AL, [BX+SI]</code>', 'address = BX + SI'],
+        ['With displacement', '<code>MOV AL, [SI+2]</code>', 'address = SI + 2'],
+      ] },
+      { t: 'code', title: 'Square brackets mean "the contents of this address"', code: `.DATA
+    ARR DB 10, 20, 30
+.CODE
+    MOV SI, 0
+    MOV AL, ARR[SI]   ; AL = 10  (first element)
+    INC SI
+    MOV AL, ARR[SI]   ; AL = 20  (second element)
+
+    LEA BX, ARR       ; BX = the ADDRESS of ARR
+    MOV AL, [BX]      ; AL = 10  — the value at that address
+    MOV AL, BL        ; no brackets: just the low byte of BX` },
+      { t: 'note', html: '<b>Only <code>BX</code>, <code>BP</code>, <code>SI</code> and <code>DI</code> may appear inside brackets.</b> <code>[AX]</code>, <code>[CX]</code> and <code>[DX]</code> are not valid addresses — the simulator will tell you so by name. And although <code>BX</code> can form an address, its halves <code>BH</code>/<code>BL</code> cannot.' },
+    ],
+  },
+
+  // ─────────────────────────────────────────────── 04
   {
     id: 'data-and-mov',
-    num: 3,
+    num: 4,
     title: 'Variables, Data Formats & MOV',
     source: 'Lecture 2 — Program Data / Basic Instructions',
     blocks: [
@@ -119,14 +187,28 @@ MOV BL, 30H     ; BL <- 48
 XCHG AH, BL     ; swap the two registers
 LEA DX, MSG     ; DX <- offset address of MSG (not its contents!)` },
       { t: 'note', html: '<b>LEA</b> loads the <i>address</i> of a variable; <b>MOV</b> loads its <i>contents</i>. You need LEA before printing a string with INT 21H function 9.' },
-      { t: 'code', title: 'Course example: print a message + a variable', exampleId: 'hello', code: `; lecture 1-2, Example 2 (full listing in simulator)` },
+      { t: 'code', title: 'Course example: print a message + a variable', exampleId: 'hello', code: `MOV AX, @DATA
+MOV DS, AX
+
+MOV TEMP, 5
+
+MOV AH, 9         ; 9 = print string
+LEA DX, MSG       ; DX = ADDRESS of the string
+INT 21H
+
+; TEMP holds 5, but the screen needs the CHARACTER '5' (ASCII 35H).
+; Adding 30H turns any digit 0-9 into its ASCII code.
+MOV AH, 2         ; 2 = print one character
+ADD TEMP, 30H
+MOV DL, TEMP
+INT 21H` },
     ],
   },
 
-  // ──────────────────────────────────────────────── 04
+  // ─────────────────────────────────────────────── 05
   {
     id: 'io-int21',
-    num: 4,
+    num: 5,
     title: 'Console I/O with INT 21H',
     source: 'Lectures 1-2 — Input and Output',
     blocks: [
@@ -161,10 +243,68 @@ ADD BL, 20H    ; convert to lowercase` },
     ],
   },
 
-  // ──────────────────────────────────────────────── 05
+  // ─────────────────────────────────────────────── 06
+  {
+    id: 'arithmetic',
+    num: 6,
+    title: 'Arithmetic: ADD, SUB, INC, DEC & NEG',
+    source: 'Lecture 2 — Basic Instructions · Lecture 3 — Arithmetic',
+    blocks: [
+      { t: 'p', html: 'Five instructions cover almost all the arithmetic in this course. <code>ADD</code> and <code>SUB</code> take two operands and follow the same legality rules as <code>MOV</code>; <code>INC</code>, <code>DEC</code> and <code>NEG</code> take one. Every one of them sets the flags — which is what makes the conditional jumps in the next lessons work.' },
+      { t: 'table', head: ['Instruction', 'Operands', 'Effect'], rows: [
+        ['<code>ADD dest, src</code>', 'two', 'dest = dest + src'],
+        ['<code>SUB dest, src</code>', 'two', 'dest = dest − src'],
+        ['<code>INC dest</code>', 'one', 'dest = dest + 1'],
+        ['<code>DEC dest</code>', 'one', 'dest = dest − 1'],
+        ['<code>NEG dest</code>', 'one', 'dest = 0 − dest (two’s complement)'],
+      ] },
+      { t: 'h', text: 'The same operand rules as MOV' },
+      { t: 'p', html: 'Both operands must be the <b>same size</b>, and — as with <code>MOV</code> — you can never touch <b>two memory locations in one instruction</b>. Bring one side into a register first.' },
+      { t: 'code', title: 'Legal and illegal', code: `ADD AX, BX        ; register + register
+ADD AX, 10        ; register + constant
+ADD AX, WORD1     ; register + memory
+ADD WORD1, AX     ; memory + register
+ADD WORD1, 5      ; memory + constant
+INC SI            ; one operand
+
+ADD WORD1, WORD2  ; ILLEGAL — memory to memory
+ADD AX, BL        ; ILLEGAL — 16-bit and 8-bit
+MOV AX, WORD2     ; do it in two steps instead
+ADD WORD1, AX` },
+      { t: 'h', text: 'INC/DEC are not just shorter ADDs' },
+      { t: 'p', html: '<code>INC AX</code> and <code>ADD AX, 1</code> leave the same value in AX, but they do <b>not</b> leave the same flags: <code>INC</code> and <code>DEC</code> deliberately <b>leave CF unchanged</b>. That is what makes them safe inside a multi-word addition loop, where the carry from the previous word still matters.' },
+      { t: 'code', title: 'Watch CF survive an INC', code: `MOV AX, 0FFFFH
+ADD AX, 1        ; AX = 0, CF = 1  (unsigned wrap)
+
+MOV AX, 0FFFFH
+INC AX           ; AX = 0, CF is left exactly as it was` },
+      { t: 'h', text: 'NEG and negative numbers' },
+      { t: 'p', html: 'Negative values are stored in <b>two’s complement</b>: invert every bit, then add 1. <code>NEG</code> does that in one step, and it is how you subtract when the answer might go below zero.' },
+      { t: 'code', title: 'Two’s complement in the register panel', code: `MOV AL, 5
+NEG AL           ; AL = 0FBH = 251 unsigned = -5 signed
+
+MOV AX, 120
+NEG AX           ; AX = 0FF88H  — signed:-120 in the register panel` },
+      { t: 'note', html: 'The same sixteen bits are <i>both</i> readings at once. The register panel shows the hex value and its <b>signed</b> interpretation side by side — <code>0FF88H</code> and <code>signed:-120</code> are the same number. Which one is "right" depends only on which jump you use to test it (lesson on CMP and jumps).' },
+      { t: 'h', text: 'Building bigger operations' },
+      { t: 'p', html: 'With no multiply allowed you can still get anywhere by repeating: <b>3A</b> is <code>A+A+A</code>, and <b>2C</b> is <code>C+C</code>. Exam questions ask for exactly this.' },
+      { t: 'code', title: 'Exam Online 1: B = 3A − B + 2C, no MUL', exampleId: 'exam-equation', code: `    CALL INDEC        ; AX = A
+    MOV BX, AX        ; keep a copy
+    ADD AX, BX        ; AX = 2A
+    ADD AX, BX        ; AX = 3A
+    SUB AX, B         ; AX = 3A - B
+    MOV CX, C
+    ADD CX, CX        ; CX = 2C
+    ADD AX, CX        ; AX = 3A - B + 2C
+    MOV B, AX` },
+      { t: 'note', html: 'Open that example and single-step it with a value like <code>7</code>: 3(7) − 3 + 2 = <b>20</b>. Watch AX build up through each ADD.' },
+    ],
+  },
+
+  // ─────────────────────────────────────────────── 07
   {
     id: 'flags',
-    num: 5,
+    num: 7,
     title: 'The FLAGS Register',
     source: 'Lecture 3 — The Processor Status and the FLAGS Register',
     blocks: [
@@ -192,7 +332,7 @@ ADD BL, 20H    ; convert to lowercase` },
       ] },
       { t: 'h', text: 'Signed vs unsigned overflow' },
       { t: 'p', html: 'Same bits, two stories: <code>0FFFFH + 1 = 0</code> with CF=1 (unsigned 65535+1 wrapped) and OF=0 (signed −1+1=0 is correct). But <code>7FFFH + 1 = 8000H</code> sets OF=1 (+32767+1 → −32768, wrong sign) with CF=0.' },
-      { t: 'code', title: 'Try it (assignment 1, part c)', exampleId: 'largest-two', code: `MOV AX, 0FFFFH
+      { t: 'code', title: 'Try it — paste this into the simulator and step it', code: `MOV AX, 0FFFFH
 INC AX        ; AX=0, ZF=1, CF unchanged
 MOV AX, 7FFFH
 ADD AX, 1     ; OF=1 — signed overflow` },
@@ -200,10 +340,10 @@ ADD AX, 1     ; OF=1 — signed overflow` },
     ],
   },
 
-  // ──────────────────────────────────────────────── 06
+  // ─────────────────────────────────────────────── 08
   {
     id: 'branching',
-    num: 6,
+    num: 8,
     title: 'CMP, Jumps & Conditional Logic',
     source: 'Lecture 3 — Flow Control Instructions',
     blocks: [
@@ -219,7 +359,7 @@ JE EQUAL     ; jump if ZF=1 (AX == BX)` },
         ['', '', '', 'JS — SF=1 · JNS — SF=0'],
         ['', '', '', 'JO — OF=1 · JNO — OF=0'],
       ] },
-      { t: 'note', html: '<b>Signed vs unsigned matters!</b> <code>0FFFFH</code> is −1 signed but 65535 unsigned. Compare with 1: <code>JL</code> jumps (−1 &lt; 1), <code>JB</code> does not (65535 &gt; 1). The lesson 9 simulator test demonstrates this.' },
+      { t: 'note', html: '<b>Signed vs unsigned matters!</b> <code>0FFFFH</code> is −1 signed but 65535 unsigned. Compare with 1: <code>JL</code> jumps (−1 &lt; 1), <code>JB</code> does not (65535 &gt; 1). Set AX yourself in the simulator and step both jumps to see it.' },
       { t: 'h', text: 'Translating IF / IF-ELSE' },
       { t: 'code', title: 'IF structure', code: `; if (BX > 0) then BX = BX - 1
     CMP BX, 0
@@ -249,10 +389,10 @@ MOV BX, NUM2` },
     ],
   },
 
-  // ──────────────────────────────────────────────── 07
+  // ─────────────────────────────────────────────── 09
   {
     id: 'loops',
-    num: 7,
+    num: 9,
     title: 'Loops: LOOP & Manual Jumps',
     source: 'Lecture 4 — Loop Instructions (examples)',
     blocks: [
@@ -293,10 +433,77 @@ I_LOOP:
     ],
   },
 
-  // ──────────────────────────────────────────────── 08
+  // ─────────────────────────────────────────────── 10
+  {
+    id: 'logic-shifts',
+    num: 10,
+    title: 'Logic, Shifts & Rotates',
+    source: 'Lecture — Logic and Bit Manipulation · exam Online 2',
+    blocks: [
+      { t: 'p', html: 'These instructions work on <b>individual bits</b> rather than on the number as a whole. They are how you test one bit, force a bit on or off, or multiply by a power of two — and exam questions lean on them heavily.' },
+      { t: 'h', text: 'AND, OR, XOR, NOT, TEST' },
+      { t: 'table', head: ['Instruction', 'Bit rule', 'What it is for'], rows: [
+        ['<code>AND d, s</code>', '1 only if both bits are 1', '<b>masking</b> — force chosen bits to 0, keep the rest'],
+        ['<code>OR d, s</code>', '1 if either bit is 1', 'force chosen bits to <b>1</b>'],
+        ['<code>XOR d, s</code>', '1 if the bits differ', '<b>toggle</b> chosen bits; <code>XOR AX,AX</code> clears AX'],
+        ['<code>NOT d</code>', 'flip every bit', 'one’s complement of the whole value'],
+        ['<code>TEST d, s</code>', 'AND, but <b>discards</b> the result', 'test a bit and only set the flags'],
+      ] },
+      { t: 'note', html: '<code>TEST</code> is to <code>AND</code> exactly what <code>CMP</code> is to <code>SUB</code>: it does the work purely to set flags, leaving the destination alone. All five clear <code>CF</code> and <code>OF</code> to 0 and set <code>ZF</code>/<code>SF</code>/<code>PF</code> from the result.' },
+      { t: 'code', title: 'Masking with a binary literal', code: `; is AL odd? test only bit 0
+    TEST AL, 00000001B    ; = TEST AL, 01H
+    JZ  EVEN_             ; ZF=1 means bit 0 was 0
+
+; force a letter to uppercase: clear bit 5
+    AND AL, 11011111B     ; 'a'(61H) -> 'A'(41H)
+
+; force it to lowercase: set bit 5
+    OR  AL, 00100000B     ; 'A'(41H) -> 'a'(61H)
+
+; clear a register in the shortest possible way
+    XOR CX, CX            ; CX = 0` },
+      { t: 'note', html: 'Bits are numbered <b>from 0, right to left</b>. So "the third bit from the right" is bit <b>2</b>, and its mask is <code>00000100B</code> — count the zeros, not the position number.' },
+      { t: 'h', text: 'Shifts and rotates' },
+      { t: 'p', html: 'A <b>shift</b> moves every bit sideways and drops what falls off the end into <code>CF</code>. A <b>rotate</b> feeds it back in the other side, so no bits are lost.' },
+      { t: 'table', head: ['Instruction', 'Does', 'Note'], rows: [
+        ['<code>SHL</code> / <code>SAL</code>', 'left, zeros in at the right', 'each shift <b>multiplies by 2</b>'],
+        ['<code>SHR</code>', 'right, zeros in at the left', 'each shift <b>divides by 2</b>, unsigned'],
+        ['<code>SAR</code>', 'right, copies the sign bit', 'divides by 2 keeping the sign'],
+        ['<code>ROL</code> / <code>ROR</code>', 'rotate, bit wraps around', 'the bit that wraps also lands in CF'],
+        ['<code>RCL</code> / <code>RCR</code>', 'rotate <i>through</i> CF', 'CF joins the ring — 9 or 17 positions'],
+      ] },
+      { t: 'code', title: 'Multiply and divide the cheap way', code: `MOV AL, 5
+SHL AL, 1        ; AL = 10   (x2)
+SHL AL, 1        ; AL = 20   (x4)
+
+MOV AL, 20
+SHR AL, 1        ; AL = 10   (/2)
+
+; x5 without MUL:  x*4 + x
+MOV BL, AL       ; keep the original
+SHL AL, 1
+SHL AL, 1        ; AL = 4x
+ADD AL, BL       ; AL = 5x` },
+      { t: 'note', html: 'The count must be <b>1</b> or <b>CL</b> — nothing else. <code>SHL AL, 3</code> is rejected; write <code>MOV CL, 3</code> then <code>SHL AL, CL</code>.' },
+      { t: 'h', text: 'Counting bits' },
+      { t: 'p', html: 'Rotate the value one bit at a time and test <code>CF</code> after each step. After eight rotations a byte is back where it started, so nothing is destroyed.' },
+      { t: 'code', title: 'Exam Online 2: count the 1 bits in BH', code: `    XOR DL, DL          ; DL = running count
+    MOV CX, 8           ; eight bits in a byte
+COUNT_LOOP:
+    ROL BH, 1           ; top bit wraps round, and into CF
+    JNC SKIP            ; CF=0 -> that bit was 0
+    INC DL              ; CF=1 -> count it
+SKIP:
+    LOOP COUNT_LOOP
+    ; DL now holds the number of 1 bits, BH is unchanged` },
+      { t: 'note', html: 'Step this with <code>BH = 0CFH</code> (11001111b) and watch <code>CF</code> flash in the flags row on each <code>ROL</code>: the count should finish at <b>6</b>.' },
+    ],
+  },
+
+  // ─────────────────────────────────────────────── 11
   {
     id: 'procedures',
-    num: 8,
+    num: 11,
     title: 'Procedures & The Stack',
     source: 'Lecture 4 — Procedures (example)',
     blocks: [
@@ -325,10 +532,10 @@ PRINT_STAR ENDP
     ],
   },
 
-  // ──────────────────────────────────────────────── 09
+  // ─────────────────────────────────────────────── 12
   {
     id: 'muldiv-io',
-    num: 9,
+    num: 12,
     title: 'MUL, DIV & Multi-digit I/O (INDEC/OUTDEC)',
     source: 'Lecture 6 — Multiplication and Division Instructions (12 slides)',
     blocks: [
@@ -378,10 +585,10 @@ END MAIN` },
     ],
   },
 
-  // ──────────────────────────────────────────────── 10
+  // ─────────────────────────────────────────────── 13
   {
     id: 'arrays',
-    num: 10,
+    num: 13,
     title: 'Arrays: Byte & Word',
     source: 'Lecture 8 — Arrays (5 programs)',
     blocks: [
@@ -415,6 +622,14 @@ PRINT:
     LOOP PRINT
 
 ; then sum: ADD AL,[SI] in another loop, OUTDEC prints it` },
+      { t: 'code', title: 'Word array: step the index by 2', exampleId: 'print-array-word', code: `; a DW array is 2 bytes per element, so SI advances by 2
+    MOV CX, 5
+    MOV SI, 0
+SUM_LOOP:
+    ADD AX, WWORDS[SI]
+    INC SI
+    INC SI              ; next WORD, not next byte
+    LOOP SUM_LOOP` },
       { t: 'code', title: 'Reverse an array in place — two pointers', exampleId: 'reverse-array', code: `MOV SI, 0        ; left pointer
 MOV DI, 6        ; right pointer (n)
 DEC DI           ; last index = 5
@@ -440,27 +655,29 @@ INPUT_1:
     ],
   },
 
-  // ──────────────────────────────────────────────── 11
+  // ─────────────────────────────────────────────── 14
   {
     id: 'exam-prep',
-    num: 11,
+    num: 14,
     title: 'Exam Prep: Sample Online Questions',
     source: 'Sample Online Questions.pdf + Mid-Semester question bank',
     blocks: [
       { t: 'p', html: 'The online exams ask you to write complete programs from a spec. Below are the sample questions with strategy notes — build each skeleton in the simulator to practice.' },
       { t: 'h', text: 'Online 1 — arithmetic translation' },
       { t: 'p', html: '<b>B = 3A − B + 2C</b> using only MOV/ADD/SUB/INC/DEC/NEG. A is input (INDEC), B is a byte initialized to 3, C is a constant 1, result printed with a message. No MUL allowed — compute 3A as A+A+A and 2C by adding C to itself.' },
-      { t: 'code', title: 'Skeleton', code: `.DATA
+      { t: 'code', title: 'Skeleton — open it to run the finished version', exampleId: 'exam-equation', code: `.DATA
 C EQU 1
-B DB 3
+B DW 3
 MSG DB 'B=$'
 .CODE
 MAIN PROC
     MOV AX, @DATA
     MOV DS, AX
     CALL INDEC      ; AX = A
-    ; 3A = AX+AX+AX ; then SUB B, SUB C, C
-    ; store into B, print MSG then B+'0'
+    ; 3A  = AX+AX+AX      (no MUL allowed)
+    ; -B  = SUB AX, B
+    ; +2C = ADD CX, CX then ADD AX, CX
+    ; store into B, then print it with OUTDEC
     MOV AH, 4CH
     INT 21H
 MAIN ENDP
@@ -470,10 +687,10 @@ END MAIN` },
       { t: 'h', text: 'Online 2 — patterns and bit tricks' },
       { t: 'ul', items: [
         'Descending pattern (input 5 → print 54321 / 5432 / 543 / 54 / 5): nested loop, inner prints digits from n down to row index.',
-        'Bit manipulation: test bit 3 of BH with <code>TEST BH, 00000100B</code> + JZ/JNZ; complement with NOT; count bits with SHL/ROL + JC in a loop; multiply by 5 without MUL using LEA-style ADD (x*5 = x*4 + x via two ADDs or SHL).',
+        'Bit manipulation: the question says the <b>third bit from the right</b>, which is bit <b>2</b> counting from 0 — so the mask is <code>00000100B</code>. <code>TEST BH, 00000100B</code> + JZ/JNZ, complement with <code>NOT</code>, count bits with <code>ROL</code> + <code>JC</code> in a loop, and get ×5 without MUL as <code>x*4 + x</code> (two <code>SHL</code>s then an <code>ADD</code>). All of this is worked through in the Logic, Shifts &amp; Rotates lesson.',
       ] },
       { t: 'h', text: 'Online 3 — GCD with the Euclidean algorithm' },
-      { t: 'code', title: 'GCD core loop', code: `READ:
+      { t: 'code', title: 'GCD core loop — open it to run the finished version', exampleId: 'gcd', code: `READ:
     CALL INDEC
     MOV X, AX
     CALL INDEC

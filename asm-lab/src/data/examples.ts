@@ -13,6 +13,8 @@ import printArrayByte from './asm/print-array-byte.asm?raw'
 import printArrayWord from './asm/print-array-word.asm?raw'
 import reverseArray from './asm/reverse-array.asm?raw'
 import userInputArray from './asm/user-input-array.asm?raw'
+import examEquation from './asm/exam-equation.asm?raw'
+import gcd from './asm/gcd.asm?raw'
 
 export interface Example {
   id: string
@@ -38,6 +40,8 @@ export const EXAMPLES: Example[] = [
   { id: 'print-array-word', name: 'Word array sum', category: 'Arrays', desc: 'W[SI] indexing with word adds (lecture 8, #3)', needsInput: false, source: printArrayWord },
   { id: 'reverse-array', name: 'Reverse array in place', category: 'Arrays', desc: 'Two pointers SI/DI swap (lecture 8, #5)', needsInput: false, source: reverseArray },
   { id: 'user-input-array', name: 'Fill array from input', category: 'Arrays', desc: 'INDEC + N iterations into ARR DW (lecture 8, #4)', needsInput: true, source: userInputArray },
+  { id: 'exam-equation', name: 'B = 3A − B + 2C', category: 'Exam prep', desc: 'Online 1: arithmetic translation with no MUL (3A = A+A+A)', needsInput: true, source: examEquation },
+  { id: 'gcd', name: 'GCD (Euclidean algorithm)', category: 'Exam prep', desc: 'Online 3: CWD + IDIV loop until the remainder is 0', needsInput: true, source: gcd },
 ]
 
 export function exampleById(id: string): Example | undefined {

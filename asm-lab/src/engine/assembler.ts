@@ -72,7 +72,13 @@ export function assemble(source: string, opts: AssembleOptions = {}): AssembleRe
       define(symbols, s.name!, { kind: 'data', value: dataOff, size: s.size, defined: s.pos }, errors)
       continue
     }
-    if (s.kind === 'equ') continue // handled in 3a/3c
+    if (s.kind === 'equ') {
+      // remember the location counter here so a '$' in the expression can
+      // resolve during 3c (in 3a the layout does not exist yet, so such an
+      // EQU simply stays pending — which is exactly what we want)
+      s.offset = dataOff
+      continue
+    }
     if (s.kind === 'data') {
       const nbytes = dataItemsSize(s.items!, s.size!)
       define(symbols, s.name!, { kind: 'data', value: dataOff, size: s.size, defined: s.pos }, errors)
@@ -310,6 +316,15 @@ export function evalExpr(tokens: Token[], symbols: Map<string, SymbolInfo>, ctx:
         return v
       }
       if (tok.kind === 'ident') {
+        // '$' is MASM's location counter: the offset of the statement it
+        // appears in. Used as `LEN EQU $ - ARR` to size an array.
+        if (tok.text === '$') {
+          if (ctx.segment !== 'data') {
+            throw new Error("'$' (location counter) is only supported in the data segment")
+          }
+          if (ctx.offset === undefined) throw new Error("'$' is not available here yet")
+          return ctx.offset
+        }
         const sym = lookupSymbol(tok.text.toUpperCase(), symbols)
         if (sym) return sym.value
         throw new Error(`undefined symbol '${tok.text}'`)
@@ -510,6 +525,11 @@ function resolveOperand(toks: Token[], symbols: Map<string, SymbolInfo>, s: Stmt
   if (toks.length === 1 && toks[0].kind === 'ident') {
     const name = toks[0].text.toUpperCase()
     if (name === '@DATA') return { k: 'imm', v: 0 }
+    // '$' is a data-segment location counter; reaching here means it was used
+    // in code, where the pseudo-address model gives it no useful meaning
+    if (name === '$') {
+      throw Object.assign(new Error("'$' (location counter) is only supported in the data segment"), { asm: s.pos })
+    }
     const sym = symbols.get(name)
     if (!sym) {
       const what = isCtrl ? 'label' : 'symbol'
@@ -593,6 +613,14 @@ function parseBracketMem(toks: Token[], symbols: Map<string, SymbolInfo>, s: Stm
         if (idx) throw Object.assign(new Error('two index registers'), { asm: s.pos })
         idx = name as 'SI' | 'DI'
         continue
+      }
+      // a register that cannot form an effective address is a common slip;
+      // "undefined symbol 'AX'" does not explain what went wrong
+      if (REG16.has(name) || REG8.has(name)) {
+        throw Object.assign(
+          new Error(`${name} cannot be used as a memory pointer — only BX, BP, SI and DI can`),
+          { asm: s.pos },
+        )
       }
       const symInfo = symbols.get(name)
       if (!symInfo) throw Object.assign(new Error(`undefined symbol '${tt[0].text}'`), { asm: s.pos })
