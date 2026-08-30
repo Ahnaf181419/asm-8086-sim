@@ -1,11 +1,14 @@
 import { Link, useParams } from 'react-router-dom'
-import { lessonById, type LessonBlock } from '../data/lessons'
+import { LESSONS, lessonById, type LessonBlock } from '../data/lessons'
 import { exampleById } from '../data/examples'
 import LessonsNav from '../components/LessonsNav'
 
 export default function LessonView() {
   const { id } = useParams()
   const lesson = id ? lessonById(id) : undefined
+  const idx = lesson ? LESSONS.findIndex((l) => l.id === lesson.id) : -1
+  const prev = idx > 0 ? LESSONS[idx - 1] : undefined
+  const next = idx >= 0 && idx < LESSONS.length - 1 ? LESSONS[idx + 1] : undefined
 
   if (!lesson) {
     return (
@@ -32,10 +35,24 @@ export default function LessonView() {
         {lesson.blocks.map((b, i) => (
           <Block key={i} block={b} />
         ))}
-        <div style={{ marginTop: 48, display: 'flex', justifyContent: 'space-between', color: 'var(--text-dim)' }}>
-          <span>{lesson.num > 1 ? '← previous lesson in sidebar' : ''}</span>
-          <span>▶ open the simulator to practice</span>
-        </div>
+        <nav className="lesson-pager" aria-label="lesson navigation">
+          {prev ? (
+            <Link className="btn" to={`/lessons/${prev.id}`} rel="prev">
+              ← {String(prev.num).padStart(2, '0')} · {prev.title}
+            </Link>
+          ) : (
+            <span />
+          )}
+          {next ? (
+            <Link className="btn" to={`/lessons/${next.id}`} rel="next">
+              {String(next.num).padStart(2, '0')} · {next.title} →
+            </Link>
+          ) : (
+            <Link className="btn" to="/">
+              ▶ open the simulator to practice
+            </Link>
+          )}
+        </nav>
       </div>
     </div>
   )

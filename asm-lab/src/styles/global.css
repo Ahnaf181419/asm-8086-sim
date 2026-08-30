@@ -3,10 +3,15 @@
   --panel: #0d130d;
   --panel2: #101810;
   --border: #1f2f1f;
-  --border-bright: #2f4f2f;
+  /* was #2f4f2f (2.04:1) — fails SC 1.4.11 for control boundaries (needs 3:1) */
+  --border-bright: #3f6b3f;
   --text: #c8f5c8;
   --text-dim: #7fae7f;
-  --text-faint: #4a6a4a;
+  /* was #4a6a4a (3.09:1) — carried memory addresses and ASCII, below AA.
+     #6b8f6b measures 5.14:1 on --panel. --text-ghost keeps the old value for
+     genuinely decorative text only. */
+  --text-faint: #6b8f6b;
+  --text-ghost: #4a6a4a;
   --accent: #33ff66;
   --accent-dim: #1fbf4a;
   --warn: #ffcc44;
@@ -18,6 +23,11 @@
 
 * { box-sizing: border-box; }
 
+html {
+  /* honour the reader's browser font-size preference instead of pinning px */
+  font-size: 100%;
+}
+
 html, body, #root {
   margin: 0;
   padding: 0;
@@ -25,7 +35,7 @@ html, body, #root {
   background: var(--bg);
   color: var(--text);
   font-family: var(--mono);
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 body {
@@ -51,6 +61,14 @@ body::after {
 }
 
 ::selection { background: rgba(51, 255, 102, 0.25); }
+
+/* Keyboard focus was invisible everywhere: :hover was styled on every control
+   and :focus-visible on none, and the editor's own outline was removed. */
+:where(a, button, select, input, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
 
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-shadow: 0 0 8px rgba(51, 255, 102, 0.6); }
@@ -146,18 +164,42 @@ a:hover { text-shadow: 0 0 8px rgba(51, 255, 102, 0.6); }
 .term-body { flex: 1; min-height: 0; overflow: auto; padding: 8px 10px; font-size: 13px; }
 
 /* ── simulator layout ────────────────────────── */
+/* One row. The two columns own their own vertical budget — an earlier
+   two-row template left a second, empty row that silently reserved ~40% of
+   the viewport, because both children auto-place into row 1. */
 .sim-layout {
   display: grid;
-  grid-template-columns: minmax(340px, 1fr) minmax(300px, 420px);
-  grid-template-rows: minmax(0, 1.4fr) minmax(140px, 1fr);
+  grid-template-columns: minmax(420px, 1fr) minmax(320px, var(--inspector-w, 420px));
+  grid-template-rows: 100%;
   gap: 10px;
   padding: 10px;
   height: 100%;
+  min-height: 0;
   overflow: hidden;
 }
 .sim-left { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
 .sim-right { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
-.sim-br { grid-column: 2; }
+
+/* Explicit vertical budget for every panel. Without these each panel is
+   `flex: 0 1 auto`, sizes to its content, and the slack is abandoned. */
+.sim-left > .toolbar,
+.sim-left > .statusbar { flex: 0 0 auto; }
+.editor-panel { flex: 1 1 62%; min-height: 220px; }
+.console-panel { flex: 1 1 38%; min-height: 130px; }
+.regs-panel { flex: 0 0 auto; }
+.mem-panel { flex: 1 1 auto; min-height: 180px; }
+
+/* `.term-body` is display:block by default, so a `flex: 1` child of it (the
+   editor wrapper, the console column) has nothing to grow against and
+   collapses to zero. Only the fill panels need to be flex containers —
+   the register/memory tables must keep their block layout. */
+.editor-panel > .term-body,
+.console-panel > .term-body {
+  display: flex;
+  flex-direction: column;
+}
+.editor-panel > .term-body { padding: 0; }
+.mem-panel > .term-body { overflow: hidden; }
 
 /* ── toolbar / buttons ───────────────────────── */
 .toolbar {
@@ -231,9 +273,7 @@ input[type='range'] { accent-color: var(--accent-dim); width: 110px; }
 .reg-row.changed { background: rgba(51, 255, 102, 0.12); box-shadow: inset 2px 0 0 var(--accent); }
 .reg-name { color: var(--text-dim); width: 26px; }
 .reg-hex { color: var(--text); font-weight: 600; }
-.reg-bin { color: var(--text-faint); font-size: 10px; letter-spacing: 0.5px; }
 .reg-signed { color: var(--text-faint); font-size: 11px; margin-left: auto; }
-.reg-pair { display: flex; gap: 4px; }
 .reg-byte { color: var(--info); font-size: 11px; }
 
 .flags-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
@@ -248,28 +288,44 @@ input[type='range'] { accent-color: var(--accent-dim); width: 110px; }
 .flag.on.changed { background: rgba(255, 204, 68, 0.15); }
 
 /* ── memory view ─────────────────────────────── */
-.mem-table { font-size: 12px; border-collapse: collapse; width: 100%; }
+/* the dump sizes itself to the panel: .mem-scroll is the measured box */
+.mem-view { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.mem-controls { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; flex: 0 0 auto; }
+.mem-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; }
+.mem-symbols { flex: 0 0 auto; margin-top: 8px; font-size: 11px; color: var(--text-dim); }
+.mem-symbols span { margin-right: 10px; white-space: nowrap; }
+.mem-table { font-size: 12px; border-collapse: collapse; width: 100%; line-height: 1.35; }
 .mem-table td { padding: 0 6px 0 0; white-space: nowrap; }
-.mem-addr { color: var(--text-faint); }
-.mem-bytes { color: var(--text-dim); letter-spacing: 1px; }
-.mem-bytes .dirty { color: var(--accent); }
-.mem-ascii { color: var(--text-faint); font-size: 11px; }
+.mem-addr { color: var(--text-dim); }
+.mem-bytes { color: var(--text); letter-spacing: 1px; }
+.mem-bytes .dirty { color: var(--accent); text-shadow: 0 0 6px rgba(51, 255, 102, 0.6); }
+.mem-ascii { color: var(--text-dim); font-size: 11px; }
+.mem-sym { color: var(--info); font-size: 11px; }
 .mem-current { outline: 1px solid var(--accent-dim); background: rgba(51, 255, 102, 0.08); }
+.mem-focus { display: flex; gap: 4px; }
+.mem-focus button { font-size: 11px; }
 
 /* ── console ─────────────────────────────────── */
+.console-shell { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.console-empty { color: var(--text-faint); }
+.console-input { display: flex; gap: 8px; margin-top: 6px; align-items: center; flex: 0 0 auto; opacity: 0.55; }
+.console-input.waiting { opacity: 1; }
+.console-input input { flex: 1; min-width: 0; }
 .console {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  min-height: 0;
   font-size: 13px;
   white-space: pre-wrap;
   word-break: break-all;
   line-height: 1.45;
 }
-.console .in-echo { color: var(--info); }
 .console-prompt { color: var(--warn); }
 
 /* ── editor ──────────────────────────────────── */
 .cm-editor { height: 100%; font-size: 13px; }
 .cm-editor .cm-scroller { font-family: var(--mono) !important; line-height: 1.5; }
-.cm-editor.cm-focused { outline: none; }
+.cm-editor.cm-focused { outline: 1px solid var(--accent-dim); }
 .cm-gutters { background: var(--panel) !important; border-right: 1px solid var(--border) !important; color: var(--text-faint) !important; }
 .cm-activeLine { background: rgba(51, 255, 102, 0.05) !important; }
 .cm-activeLineGutter { background: rgba(51, 255, 102, 0.08) !important; color: var(--accent) !important; }
@@ -277,6 +333,11 @@ input[type='range'] { accent-color: var(--accent-dim); width: 110px; }
 .editor-current-line { background: rgba(51, 255, 102, 0.14) !important; outline: 1px solid var(--accent-dim); }
 
 .err-list { font-size: 12px; color: var(--err); white-space: pre-wrap; }
+
+/* the simulator's status bar sits inside a panel column, not at page edge */
+.sim-statusbar { border-radius: 4px; border: 1px solid var(--border); }
+.statusbar .hint { color: var(--text-faint); }
+.statusbar .spacer { flex: 1; }
 
 /* ── lessons ─────────────────────────────────── */
 .lessons-layout { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 0; height: 100%; overflow: hidden; }
@@ -295,7 +356,7 @@ input[type='range'] { accent-color: var(--accent-dim); width: 110px; }
 }
 .lessons-nav a:hover { color: var(--text); background: var(--panel2); }
 .lessons-nav a.active { color: var(--accent); border-left-color: var(--accent); background: rgba(51, 255, 102, 0.05); }
-.lessons-content { overflow-y: auto; padding: 24px 40px 80px; line-height: 1.65; max-width: 900px; }
+.lessons-content { overflow-y: auto; padding: 24px 40px 80px; line-height: 1.65; max-width: 900px; margin-inline: auto; width: 100%; }
 .lessons-content h1 { color: var(--accent); font-size: 22px; text-shadow: 0 0 12px rgba(51, 255, 102, 0.35); margin: 0 0 4px; }
 .lessons-content h2 { color: var(--accent); font-size: 16px; margin-top: 32px; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
 .lessons-content h3 { color: var(--text); font-size: 14px; margin-top: 22px; }
@@ -340,6 +401,16 @@ input[type='range'] { accent-color: var(--accent-dim); width: 110px; }
 }
 .open-sim-btn { font-size: 11px; padding: 2px 10px; }
 .lesson-meta { color: var(--text-faint); font-size: 12px; margin-bottom: 20px; }
+.lesson-pager {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 48px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.lesson-pager .btn { max-width: 46%; overflow: hidden; text-overflow: ellipsis; }
 
 /* ── reference ───────────────────────────────── */
 .ref-layout { padding: 20px 30px; overflow-y: auto; height: 100%; }
@@ -353,9 +424,25 @@ input[type='range'] { accent-color: var(--accent-dim); width: 110px; }
 .ref-table th { background: var(--panel2); color: var(--accent); position: sticky; top: 0; }
 .ref-table tr:hover td { background: var(--panel2); }
 .ref-table code { color: var(--warn); }
+.ref-table { table-layout: fixed; }
+.ref-table th:nth-child(1), .ref-table td:nth-child(1) { width: 10ch; }
+.ref-table th:nth-child(2), .ref-table td:nth-child(2) { width: 24ch; }
+.ref-table th:nth-child(4), .ref-table td:nth-child(4) { width: 17ch; }
+.ref-table th:nth-child(5), .ref-table td:nth-child(5) { width: 22ch; }
 .mnem { color: var(--accent); font-weight: 600; }
 .flagcell { font-size: 11px; color: var(--text-dim); }
 .flagcell b { color: var(--warn); }
+
+/* Respect a reduced-motion preference: the blinking logo cursor, the
+   waiting-input chip and the scanline overlay all stop. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  body::after { display: none; }
+}
 
 /* scrollbars */
 ::-webkit-scrollbar { width: 9px; height: 9px; }
@@ -363,9 +450,42 @@ input[type='range'] { accent-color: var(--accent-dim); width: 110px; }
 ::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--accent-dim); }
 
-@media (max-width: 1000px) {
-  .sim-layout { grid-template-columns: 1fr; grid-template-rows: 1fr auto auto; overflow-y: auto; height: auto; }
-  .sim-left, .sim-right { min-height: 320px; }
-  .lessons-layout { grid-template-columns: 1fr; }
+/* Narrow: stack the columns and let the PAGE scroll. The previous rule set
+   `overflow-y: auto` on .sim-layout while its parent .page stayed
+   `overflow: hidden`, and pinned a 320px *floor* on each column — so four
+   stacked panels were squeezed into 320px and clipped mid-line instead of
+   scrolling. Panels get intrinsic heights here rather than fractions. */
+@media (max-width: 1100px) {
+  .page { overflow: auto; }
+  /* Switch off grid entirely. Keeping `display: grid` with `grid-template-rows:
+     auto` still produced two auto rows that were STRETCHED to equal halves of
+     the container, so each column's taller content overflowed its track and
+     the two columns painted over each other. A flex column sizes each section
+     to its own content, which is what stacking actually needs. */
+  .sim-layout {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    min-height: 100%;
+    overflow: visible;
+  }
+  .sim-left, .sim-right { min-height: 0; flex: 0 0 auto; }
+  /* explicit heights so the editor and the memory dump still have room to
+     measure themselves against, rather than collapsing to their minimums */
+  .editor-panel { flex: 0 0 clamp(240px, 45vh, 520px); }
+  .console-panel { flex: 0 0 clamp(130px, 22vh, 280px); }
+  .regs-panel { flex: 0 0 auto; }
+  .mem-panel { flex: 0 0 clamp(220px, 42vh, 460px); }
+  .lessons-layout { grid-template-columns: 1fr; height: auto; overflow: visible; }
   .lessons-nav { display: flex; flex-wrap: wrap; border-right: none; border-bottom: 1px solid var(--border); }
+  .lessons-content { overflow: visible; }
+}
+
+@media (max-width: 640px) {
+  .topbar { flex-wrap: wrap; gap: 8px 12px; }
+  .topbar .meta { display: none; }
+  .ref-layout { padding: 16px 14px; }
+  .ref-search { width: 100%; }
+  .lessons-content { padding: 16px 18px 60px; }
+  .regs-grid { grid-template-columns: 1fr; }
 }

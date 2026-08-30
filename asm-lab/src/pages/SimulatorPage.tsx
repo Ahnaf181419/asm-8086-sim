@@ -11,13 +11,6 @@ import { SPEEDS, useMachine } from '../hooks/useMachine'
 import { EXAMPLES, exampleById } from '../data/examples'
 
 const LS_KEY = 'asm-lab:source'
-const LS_EXAMPLE = 'asm-lab:example'
-
-// stored example ids can go stale — only use one that still exists
-function storedExampleId(): string {
-  const id = localStorage.getItem(LS_EXAMPLE)
-  return id && exampleById(id) ? id : EXAMPLES[0].id
-}
 
 export default function SimulatorPage() {
   const nav = useNavigate()
@@ -32,7 +25,6 @@ export default function SimulatorPage() {
     if (initialExample) return initialExample.source
     return localStorage.getItem(LS_KEY) ?? EXAMPLES[0].source
   })
-  const [exampleId, setExampleId] = useState<string>(() => initialExample?.id ?? storedExampleId())
   const [memFocus, setMemFocus] = useState<'data' | 'stack'>('data')
   const [autoAssemble, setAutoAssemble] = useState(true)
 
@@ -65,9 +57,24 @@ export default function SimulatorPage() {
     }
   }, [sim])
 
-  // keyboard shortcuts
+  // keyboard shortcuts. These fired unconditionally before, so F10 stepped the
+  // machine while the caret was in the console input or the editor.
   useEffect(() => {
+    const isTyping = () => {
+      const el = document.activeElement
+      if (!el) return false
+      if (el.closest('.cm-editor')) return true
+      const tag = el.tagName
+      return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (el as HTMLElement).isContentEditable
+    }
     const onKey = (e: KeyboardEvent) => {
+      // Ctrl+Shift+R resets the machine (PLAN §5); allow it even while typing
+      if (e.key.toUpperCase() === 'R' && e.ctrlKey && e.shiftKey) {
+        e.preventDefault()
+        sim.reset()
+        return
+      }
+      if (isTyping()) return
       if (e.key === 'F5') {
         e.preventDefault()
         toggleRun()
@@ -96,14 +103,16 @@ export default function SimulatorPage() {
   const loadExample = (id: string) => {
     const ex = exampleById(id)
     if (!ex) return
-    setExampleId(id)
     setSource(ex.source)
-    localStorage.setItem(LS_EXAMPLE, id)
-    localStorage.setItem(LS_KEY, ex.source)
+    persist(ex.source)
     sim.build(ex.source)
   }
 
   const speedIndex = Math.max(0, SPEEDS.indexOf(sim.speed))
+  // Derive the selection from the source rather than from a state variable that
+  // only `loadExample` writes — otherwise the dropdown keeps naming an example
+  // the user has since edited away from.
+  const selectedExample = EXAMPLES.find((e) => e.source === source)?.id ?? ''
 
   return (
     <div className="sim-layout">
@@ -112,13 +121,29 @@ export default function SimulatorPage() {
           <button className="primary" onClick={() => sim.build(source)} title="assemble (validate) the program">
             ▶ assemble
           </button>
-          <button onClick={toggleRun} disabled={!sim.state.program} title="F5">
+          <button
+            onClick={toggleRun}
+            disabled={!sim.state.program}
+            title="F5"
+            aria-label={sim.running ? 'pause execution (F5)' : 'run program (F5)'}
+          >
             {sim.running ? '❚❚ pause' : '▶ run'}
           </button>
-          <button onClick={sim.step} disabled={!sim.state.program} title="F10 — execute one instruction">
+          <button
+            onClick={sim.step}
+            disabled={!sim.state.program}
+            title="F10 — execute one instruction"
+            aria-label="step one instruction (F10)"
+          >
             ⇥ step
           </button>
-          <button className="danger" onClick={sim.reset} disabled={!sim.state.program}>
+          <button
+            className="danger"
+            onClick={sim.reset}
+            disabled={!sim.state.program}
+            title="Ctrl+Shift+R — reset the machine"
+            aria-label="reset the machine (Ctrl+Shift+R)"
+          >
             ⟲ reset
           </button>
           <label className="inline" title={`instructions per animation frame: ${SPEEDS[speedIndex]}`}>
@@ -129,10 +154,17 @@ export default function SimulatorPage() {
               max={SPEEDS.length - 1}
               step={1}
               value={speedIndex}
+              aria-label="execution speed"
+              aria-valuetext={`${SPEEDS[speedIndex]} instructions per frame`}
               onChange={(e) => sim.setSpeed(SPEEDS[Number(e.target.value)] ?? SPEEDS[2])}
             />
           </label>
-          <select value={exampleId} onChange={(e) => loadExample(e.target.value)} title="load a course example">
+          <select
+            value={selectedExample}
+            onChange={(e) => loadExample(e.target.value)}
+            title="load a course example"
+            aria-label="load a course example"
+          >
             <option value="">— examples —</option>
             {EXAMPLES.map((e) => (
               <option key={e.id} value={e.id}>
@@ -156,12 +188,18 @@ export default function SimulatorPage() {
           </div>
         </TerminalPanel>
 
-        <TerminalPanel title="OUTPUT — INT 21H CONSOLE">
+        <TerminalPanel title="OUTPUT — INT 21H CONSOLE" className="console-panel">
           <Console output={snap?.output ?? ''} status={sim.status} onInput={sim.sendInput} />
         </TerminalPanel>
 
-        <div className="statusbar" style={{ borderRadius: 4, borderTop: '1px solid var(--border)', flexWrap: 'wrap' }}>
-          <span className={`status-chip ${sim.status === 'ready' ? '' : sim.status}`}>{sim.statusLabel}</span>
+        <div className="statusbar sim-statusbar">
+          <span
+            className={`status-chip ${sim.status === 'ready' ? '' : sim.status}`}
+            role="status"
+            aria-live="polite"
+          >
+            {sim.statusLabel}
+          </span>
           <span>steps: {snap?.steps ?? 0}</span>
           {snap?.curStmt && (
             <span>
@@ -169,9 +207,9 @@ export default function SimulatorPage() {
               <span style={{ color: 'var(--accent)' }}>{snap.curStmt.mnemonic}</span>
             </span>
           )}
-          <span style={{ flex: 1 }} />
+          <span className="spacer" />
           {sim.state.errors.length > 0 ? (
-            <span className="err-list">
+            <span className="err-list" role="alert">
               {sim.state.errors.map((e, i) => (
                 <div key={i}>
                   ✗ {e.file ? `${e.file}:` : ''}
@@ -181,25 +219,33 @@ export default function SimulatorPage() {
               ))}
             </span>
           ) : (
-            <span style={{ color: 'var(--text-faint)' }}>F5 run/pause · F10 step · INDEC.ASM / OUTDEC.ASM auto-include</span>
+            <span className="hint">F5 run/pause · F10 step · INDEC.ASM / OUTDEC.ASM auto-include</span>
           )}
         </div>
       </div>
 
       <div className="sim-right">
-        <TerminalPanel title="REGISTERS + FLAGS">
+        <TerminalPanel title="REGISTERS + FLAGS" className="regs-panel">
           <RegisterPanel snap={snap} changes={sim.state.changes} />
         </TerminalPanel>
 
         <TerminalPanel
           title="MEMORY"
-          className="sim-br"
+          className="mem-panel"
           right={
-            <span style={{ display: 'flex', gap: 4 }}>
-              <button className={memFocus === 'data' ? 'primary' : ''} onClick={() => setMemFocus('data')} style={{ fontSize: 11 }}>
+            <span className="mem-focus">
+              <button
+                className={memFocus === 'data' ? 'primary' : ''}
+                aria-pressed={memFocus === 'data'}
+                onClick={() => setMemFocus('data')}
+              >
                 data
               </button>
-              <button className={memFocus === 'stack' ? 'primary' : ''} onClick={() => setMemFocus('stack')} style={{ fontSize: 11 }}>
+              <button
+                className={memFocus === 'stack' ? 'primary' : ''}
+                aria-pressed={memFocus === 'stack'}
+                onClick={() => setMemFocus('stack')}
+              >
                 stack
               </button>
             </span>

@@ -23,8 +23,10 @@ export default function Console({
     if (waiting) inputRef.current?.focus()
   }, [waiting])
 
+  // An empty line is a legitimate answer — a program blocking on AH=01h or
+  // AH=0Ah for a bare Enter could never be satisfied while this required text.
+  // Input is also accepted before the program asks for it and queued.
   const submit = () => {
-    if (!waiting || input.length === 0) return
     onInput(input + '\n')
     setInput('')
   }
@@ -41,33 +43,28 @@ export default function Console({
   const norm = output.replace(/\r/g, '')
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div
-        ref={bodyRef}
-        className="console"
-        style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}
-      >
-        {norm.length === 0 ? <span style={{ color: 'var(--text-faint)' }}>DOS output will appear here…</span> : norm}
+    <div className="console-shell">
+      <div ref={bodyRef} className="console">
+        {norm.length === 0 ? <span className="console-empty">DOS output will appear here…</span> : norm}
         {!norm.endsWith('\n') && norm.length > 0 ? <span className="console-prompt">▊</span> : null}
       </div>
-      {waiting && (
-        <div style={{ display: 'flex', gap: 8, marginTop: 6, alignItems: 'center' }}>
-          <span className="console-prompt">INPUT&gt;</span>
-          <input
-            ref={inputRef}
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={onKey}
-            placeholder="type value + Enter (feeds INT 21H AH=01h)"
-            style={{ flex: 1 }}
-            autoFocus
-          />
-          <button className="primary" onClick={submit}>
-            send
-          </button>
-        </div>
-      )}
+      <div className={`console-input ${waiting ? 'waiting' : ''}`}>
+        <span className="console-prompt" aria-hidden="true">
+          INPUT&gt;
+        </span>
+        <input
+          ref={inputRef}
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={onKey}
+          aria-label="console input for INT 21H"
+          placeholder={waiting ? 'type value + Enter (feeds INT 21H)' : 'type ahead — queued until the program reads'}
+        />
+        <button className={waiting ? 'primary' : ''} onClick={submit}>
+          send
+        </button>
+      </div>
     </div>
   )
 }
