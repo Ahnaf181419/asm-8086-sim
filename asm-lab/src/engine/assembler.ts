@@ -121,6 +121,16 @@ export function assemble(source: string, opts: AssembleOptions = {}): AssembleRe
     }
   }
 
+  // Instructions outside any code segment are dropped by the loop above. Left
+  // unreported that produces an empty-but-"successful" program: the UI shows
+  // READY, run does nothing, and nothing says why. Name the actual cause.
+  if (firstInstr === null) {
+    const orphan = stmts.find((s) => s.kind === 'instruction')
+    if (orphan) {
+      errors.push(errOf(orphan, 'no instructions in a code segment — add a .CODE directive before your instructions'))
+    }
+  }
+
   // ── 5. resolve instruction operands ──
   const byAddr = new Map<number, Stmt>()
   for (const s of stmts) {
@@ -684,7 +694,17 @@ function checkSizes(mn: string, ops: ROperand[], s: Stmt) {
     return
   }
 
-  if (mn === 'RET') return // handled at count level: allow RET via operandCount 0 → RET n? keep 0
+  if (mn === 'RET') {
+    // operandCount allows 0 or 1; the optional operand must be the immediate
+    // byte-count form (RET 4). Without this check `RET AX` assembles and then
+    // silently behaves as a plain RET at runtime.
+    const a = ops[0]
+    if (a && a.k !== 'imm') throw Object.assign(new Error('RET takes an optional immediate only (e.g. RET 4)'), { asm: s.pos })
+    if (a && a.k === 'imm' && (a.v < 0 || a.v > 0xffff)) {
+      throw Object.assign(new Error(`RET ${a.v} out of range (0..65535)`), { asm: s.pos })
+    }
+    return
+  }
 }
 
 function resolveEntry(entryName: string | null, firstInstr: number | null, symbols: Map<string, SymbolInfo>, errors: AsmError[]): number {

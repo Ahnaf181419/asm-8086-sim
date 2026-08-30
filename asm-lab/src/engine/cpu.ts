@@ -287,14 +287,19 @@ export class Machine {
           this.setReg('AL', q & 0xff)
           this.setReg('AH', r & 0xff)
         } else {
-          const dividend = (this.getReg('DX') << 16) | this.getReg('AX')
           let q: number, r: number
           if (mn === 'DIV') {
+            // DX:AX is UNSIGNED here. `(DX << 16) | AX` would go through JS's
+            // signed 32-bit coercion and turn any DX >= 8000h into a negative
+            // dividend — wrong quotient, and the overflow guard below never
+            // fires. Build it arithmetically instead (max 2^32-1, exact as a
+            // double). IDIV keeps the signed reading, which is correct there.
+            const dividend = this.getReg('DX') * 0x10000 + this.getReg('AX')
             q = Math.trunc(dividend / divisor)
             r = dividend - q * divisor
             if (q > 0xffff) throw new RunError('divide overflow', stmt.pos)
           } else {
-            const sd = toS32(dividend)
+            const sd = toS32((this.getReg('DX') << 16) | this.getReg('AX'))
             const sv = toS16(divisor)
             q = Math.trunc(sd / sv)
             r = sd - q * sv
@@ -402,6 +407,7 @@ export class Machine {
         return
       }
       case 'NOP': this.ip = next; return
+      case 'HLT': this.status = 'halted'; return
       case 'INT': this.execInt21(stmt, next); return
       default: {
         if (mn.startsWith('J')) {

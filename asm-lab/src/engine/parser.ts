@@ -172,7 +172,8 @@ function parseDataItems(tokens: Token[], pos: Token['pos']): DataItem[] {
       g[1].text.toUpperCase() === 'DUP'
     ) {
       const count = parseNumber(g[0].text)
-      if (count < 0) throw perr(g[0], 'DUP count must be positive')
+      // NaN would slip past a bare `< 0` test and poison every downstream size
+      if (!Number.isFinite(count) || count < 0) throw perr(g[0], `bad DUP count '${g[0].text}'`)
       const inner = g.slice(2)
       if (inner.length >= 2 && inner[0].kind === 'punct' && inner[0].text === '(' && inner[inner.length - 1].text === ')') {
         const innerItems = parseDataItems(inner.slice(1, -1), pos)
@@ -218,15 +219,18 @@ function splitDataGroups(tokens: Token[]): Token[][] {
 }
 
 // Parse a MASM number literal: 12, 12D, 0AH, 101B, 0FFh
+//
+// Each radix gets its own anchored pattern. A single combined pattern cannot
+// work here: 'B' and 'D' are themselves hex digits, so a greedy leading group
+// swallows the suffix and '101B' silently reads as decimal 101 instead of 5.
+// Anything that matches none of the three forms is a hard error (NaN), so
+// garbage like '1D2' is reported rather than quietly evaluating to 1.
 export function parseNumber(text: string): number {
   const t = text.trim()
-  const m = /^([0-9][0-9A-Fa-f]*)([HhBbDd]?)$/.exec(t)
-  if (!m) return NaN
-  const digits = m[1]
-  const suffix = m[2]?.toLowerCase() ?? ''
-  if (suffix === 'h') return parseInt(digits, 16)
-  if (suffix === 'b') return parseInt(digits, 2)
-  if (suffix === 'd' || suffix === '') return parseInt(digits, 10)
+  let m: RegExpExecArray | null
+  if ((m = /^([0-9][0-9A-Fa-f]*)[Hh]$/.exec(t))) return parseInt(m[1], 16)
+  if ((m = /^([01]+)[Bb]$/.exec(t))) return parseInt(m[1], 2)
+  if ((m = /^([0-9]+)[Dd]?$/.exec(t))) return parseInt(m[1], 10)
   return NaN
 }
 
