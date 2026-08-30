@@ -313,3 +313,58 @@ describe('L8 — the reference page documents what the engine accepts', () => {
     expect(documented.has(mn) || documented.has(`${mn} 21H`)).toBe(true)
   })
 })
+
+describe('addressing forms resolve to the right BYTE (lecture 8)', () => {
+  // `MOV AL, W+1` used to yield the immediate 1 — the address as a number —
+  // instead of reading the byte at W+1. Every spelling below must agree.
+  const data = 'W DB 10,20,30,40,50'
+  const val = (code: string) => {
+    const m = runToHalt(`
+.MODEL SMALL
+.STACK 100H
+.DATA
+${data}
+.CODE
+MAIN PROC
+${code}
+MAIN ENDP
+END MAIN`)
+    return m.regs.AX & 0xff
+  }
+
+  it.each([
+    ['MOV AL, W', 10],
+    ['MOV AL, W+1', 20],
+    ['MOV AL, [W+1]', 20],
+    ['MOV AL, W[1]', 20],
+  ])('%s -> %i', (code, want) => expect(val('  ' + code)).toBe(want))
+
+  it.each([
+    ['MOV AL, W[SI]', 30],
+    ['MOV AL, [W+SI]', 30],
+    ['MOV AL, W+SI', 30],
+    ['MOV AL, W+SI+1', 40],
+  ])('with SI=2, %s -> %i', (code, want) => expect(val('  MOV SI, 2\n  ' + code)).toBe(want))
+
+  it('W[BX][SI] adds both registers', () => {
+    expect(val('  MOV BX, 1\n  MOV SI, 2\n  MOV AL, W[BX][SI]')).toBe(40)
+  })
+
+  it('writes go through the same address', () => {
+    expect(val('  MOV W+1, 99\n  MOV AL, W+1')).toBe(99)
+  })
+
+  it('an EQU expression is still an immediate, not memory', () => {
+    const m = runToHalt(`
+.MODEL SMALL
+.STACK 100H
+.DATA
+N EQU 7
+.CODE
+MAIN PROC
+  MOV AL, N+1
+MAIN ENDP
+END MAIN`)
+    expect(m.regs.AX & 0xff).toBe(8)
+  })
+})

@@ -8,6 +8,9 @@ export type LessonBlock =
   | { t: 'table'; head: string[]; rows: string[][] }
   | { t: 'code'; title: string; code: string; exampleId?: string }
   | { t: 'note'; html: string }
+  // A practice question. The prompt is always visible; the worked solution is
+  // collapsed so the reader can attempt it first.
+  | { t: 'practice'; q: string; hint?: string; solution: string; after?: string }
 
 export interface Lesson {
   id: string
@@ -592,69 +595,292 @@ END MAIN` },
     title: 'Arrays: Byte & Word',
     source: 'Lecture 8 — Arrays (5 programs)',
     blocks: [
-      { t: 'p', html: 'Arrays are just consecutive bytes or words in the data segment. Traverse them with a pointer register (usually <code>SI</code> or <code>DI</code>) and step by 1 (byte array) or 2 (word array).' },
-      { t: 'code', title: 'Declaration patterns', code: `.DATA
-W     DB 1,2,3,4,5       ; byte array
-WWORDS DW 1,2,3,4,5      ; word array (10 bytes!)
-ARR   DW 100 DUP (?)     ; 100 uninitialized words
-W_END LABEL BYTE
-W_SIZE EQU W_END - W     ; size in bytes = 5` },
-      { t: 'h', text: 'Indexing styles' },
-      { t: 'code', title: 'Three equivalent traversals', code: `; style 1: pointer register
+      { t: 'p', html: 'An array is nothing more than <b>consecutive bytes or words</b> in the data segment. There is no array type and no bounds checking — you hold a pointer, you step it by the right amount, and you count the elements yourself.' },
+      { t: 'note', html: 'One number governs everything below. Call it <b>S</b>: the size of one element in bytes. <b>S = 1</b> for a <code>DB</code> array, <b>S = 2</b> for a <code>DW</code> array. Every pointer step is <code>+S</code>, and the element count is <i>total bytes ÷ S</i>. Almost every array bug is a forgotten S.' },
+      { t: 'h', text: 'Declaring an array' },
+      { t: 'code', title: 'Three ways, all from lecture 8', code: `.DATA
+W     DB 1,2,3,4,5          ; list the values: 5 bytes
+WW    DW 1,2,3,4,5          ; the same five values as words: 10 bytes
+
+; DUP repeats a value
+ARR1  DB 5 DUP (7)          ; 7,7,7,7,7
+ARR   DW 100 DUP (?)        ; 100 uninitialised words (200 bytes)
+
+; DUP nests, and mixes with plain values
+ARR2  DB 5,4,3 DUP (2,3 DUP(0),1)
+      ; 5,4 then three copies of [2,0,0,0,1]` },
+      { t: 'note', html: 'The count may be a named constant, not just a literal: <code>N EQU 5</code> then <code>ARR DB N DUP (?)</code> works, as long as <code>N</code> is defined <b>above</b> the line that uses it.' },
+      { t: 'h', text: 'Letting the assembler count for you' },
+      { t: 'p', html: 'Hard-coding <code>MOV CX, 5</code> means editing two places whenever the array changes. Two idioms avoid it — both compute the size <b>in bytes</b>, so a word array needs a final divide by 2.' },
+      { t: 'code', title: 'The $ counter and the LABEL trick', code: `.DATA
+W       DB 1,2,3,4,5
+W_SIZE  EQU $ - W           ; $ = "here"; 5 bytes
+
+; the same idea written with a marker label (lecture 8 uses this form)
+V       DW 10,20,30
+V_END   DW LABEL WORD
+V_BYTES EQU V_END - V       ; 6 BYTES
+V_COUNT EQU V_BYTES / 2     ; 3 elements  <- divide by S
+
+.CODE
+    MOV CX, W_SIZE          ; 5  — byte array, so bytes = elements
+    MOV CX, V_COUNT         ; 3` },
+      { t: 'h', text: 'Which registers can hold an address' },
+      { t: 'p', html: 'Only four: <b><code>BX</code>, <code>BP</code>, <code>SI</code> and <code>DI</code></b>. <code>AX</code>, <code>CX</code> and <code>DX</code> cannot appear inside brackets at all.' },
+      { t: 'note', html: 'There is a trap in that list. <code>BX</code>, <code>SI</code> and <code>DI</code> address through <b>DS</b> — your data segment. <b><code>BP</code> addresses through <code>SS</code></b>, the stack segment. Use <code>BP</code> for stack frames, not for walking a <code>.DATA</code> array.' },
+      { t: 'h', text: 'Ways to name an element' },
+      { t: 'p', html: 'Brackets in an address are simply <b>addition</b>, which is why so many spellings mean the same thing. All six of these read the same byte:' },
+      { t: 'code', title: 'One element, six spellings', code: `.DATA
+W DB 10,20,30,40,50
+.CODE
+    MOV SI, 2
+
+    MOV AL, W[SI]      ; indexed        -> 30
+    MOV AL, [W+SI]     ; same sum, brackets moved
+    MOV AL, W+SI       ; same again, no brackets at all
+    MOV AL, W[2]       ; constant index -> 30
+    MOV AL, W+2        ; ...spelled as a sum
+    LEA BX, W
+    MOV AL, [BX+SI]    ; base + index   -> 30` },
+      { t: 'note', html: '<code>MOV AL, W</code> reads the <i>contents</i> of W. <code>LEA BX, W</code> loads its <i>address</i>. And <code>MOV AL, BL</code> — no brackets — is just the low byte of BX, not memory. Mixing these up is the classic array bug.' },
+      { t: 'h', text: 'Walking the array' },
+      { t: 'code', title: 'Byte array vs word array', code: `; BYTE array: step by 1
     LEA SI, W
-    MOV AL, [SI]     ; byte at W[0]
-    INC SI           ; next byte
-
-; style 2: displacement + index (label[SI])
-    MOV SI, 0
-    MOV AL, W[SI]    ; W[SI] — byte at W + SI
-
-; word arrays: step SI by 2
-    ADD AX, WWORDS[SI]
-    INC SI
-    INC SI` },
-      { t: 'code', title: 'Print byte array + sum', exampleId: 'print-array-byte', code: `MOV CX, 5
-LEA SI, W
-PRINT:
-    MOV AL, [SI]
-    CALL OUTDEC    ; print element
-    INC SI
-    LOOP PRINT
-
-; then sum: ADD AL,[SI] in another loop, OUTDEC prints it` },
-      { t: 'code', title: 'Word array: step the index by 2', exampleId: 'print-array-word', code: `; a DW array is 2 bytes per element, so SI advances by 2
     MOV CX, 5
+BYTE_LOOP:
+    MOV AL, [SI]
+    INC SI                  ; +1
+    LOOP BYTE_LOOP
+
+; WORD array: step by 2
     MOV SI, 0
+    MOV CX, 5
+WORD_LOOP:
+    ADD AX, WW[SI]
+    ADD SI, 2               ; +2  (INC SI twice does the same)
+    LOOP WORD_LOOP` },
+      { t: 'note', html: '<b>CX is not yours.</b> <code>LOOP</code> owns it, and <code>OUTDEC</code> and <code>INT 21H</code> modify AX and others. If you print inside a loop, <code>PUSH</code> what you need before the call and <code>POP</code> it after — the lecture 8 programs do exactly this.' },
+      { t: 'code', title: 'Print every element, then the total', exampleId: 'print-array-byte', code: `    MOV CX, 5
+    LEA SI, W
+PRINT:
+    XOR AX, AX
+    MOV AL, [SI]
+    INC SI
+    PUSH CX             ; protect the loop counter across the call
+    PUSH SI
+    CALL OUTDEC
+    POP SI
+    POP CX
+    LOOP PRINT` },
+      { t: 'code', title: 'Word array: sum with a step of 2', exampleId: 'print-array-word', code: `    MOV CX, 5
+    MOV SI, 0
+    XOR AX, AX
 SUM_LOOP:
     ADD AX, WWORDS[SI]
     INC SI
     INC SI              ; next WORD, not next byte
     LOOP SUM_LOOP` },
-      { t: 'code', title: 'Reverse an array in place — two pointers', exampleId: 'reverse-array', code: `MOV SI, 0        ; left pointer
-MOV DI, 6        ; right pointer (n)
-DEC DI           ; last index = 5
+      { t: 'code', title: 'Fill an array from the keyboard', exampleId: 'user-input-array', code: `    CALL INDEC
+    MOV N, AX           ; how many elements the user wants
+    MOV CX, N
+    LEA SI, ARR
+INPUT_1:
+    CALL INDEC
+    MOV [SI], AX        ; store a WORD
+    INC SI
+    INC SI
+    LOOP INPUT_1` },
+      { t: 'h', text: 'Reversing in place' },
+      { t: 'p', html: 'Two pointers walk toward each other, swapping as they go. The detail that catches people: the loop runs <b>N/2 times, not N</b> — going the whole way swaps every pair twice and leaves the array exactly as it started.' },
+      { t: 'code', title: 'Two pointers, N/2 swaps', exampleId: 'reverse-array', code: `    MOV SI, 0           ; left
+    MOV DI, 6
+    DEC DI              ; right = last index = 5
+    MOV CX, 3           ; N/2 = 3, NOT 6
 REVERSE:
-    MOV BL, ARR[SI]  ; save left
-    MOV BH, ARR[DI]  ; right value
-    MOV ARR[SI], BH  ; swap
+    MOV BL, ARR[SI]     ; hold the left value
+    MOV BH, ARR[DI]     ; hold the right value
+    MOV ARR[SI], BH     ; write them back swapped
     MOV ARR[DI], BL
     INC SI
     DEC DI
     LOOP REVERSE` },
-      { t: 'code', title: 'Fill an array from user input', exampleId: 'user-input-array', code: `CALL INDEC
-MOV N, AX          ; how many elements
-MOV CX, N
-LEA SI, ARR
-INPUT_1:
-    CALL INDEC
-    MOV [SI], AX   ; store word
+      { t: 'note', html: 'Open that example, switch the memory panel to <b>data</b>, and step it: you will see <code>1,2,3,4,5,6</code> turn into <code>6,5,4,3,2,1</code> one pair at a time. Then change <code>MOV CX, 3</code> to <code>MOV CX, 6</code> and watch the array come back unchanged.' },
+      { t: 'h', text: 'Practice' },
+      { t: 'p', html: 'Try each of these in the simulator before opening the solution. Every solution below runs as-is.' },
+      { t: 'practice',
+        q: 'Find the <b>largest</b> element of the byte array <code>ARR DB 23, 9, 47, 12, 38</code> and print it. (This is question 3 of the mid-semester paper.)',
+        hint: 'Assume the first element is the largest, then compare the other N−1 against it. <code>JAE</code> keeps the current maximum for unsigned values.',
+        solution: `; find the largest element of a byte array
+.MODEL SMALL
+.STACK 100H
+.DATA
+    ARR   DB 23, 9, 47, 12, 38
+    N     EQU $ - ARR          ; 5 elements (1 byte each)
+    MSG   DB 'Max = $'
+.CODE
+MAIN PROC
+    MOV AX, @DATA
+    MOV DS, AX
+
+    LEA SI, ARR
+    MOV AL, [SI]        ; assume the first element is the largest
+    MOV CX, N
+    DEC CX              ; it is already counted, so compare N-1 more
+
+NEXT:
     INC SI
+    CMP AL, [SI]
+    JAE KEEP            ; AL still >= this element -> keep it
+    MOV AL, [SI]        ; otherwise this one is the new max
+KEEP:
+    LOOP NEXT
+
+    MOV BL, AL          ; OUTDEC prints AX, so widen AL into AX
+    MOV AH, 9
+    LEA DX, MSG
+    INT 21H
+    XOR AX, AX
+    MOV AL, BL
+    CALL OUTDEC
+
+    MOV AH, 4CH
+    INT 21H
+MAIN ENDP
+INCLUDE OUTDEC.ASM
+END MAIN`,
+        after: 'Prints <code>Max = 47</code>. Note <code>DEC CX</code> after loading the first element — it is already accounted for. For <b>signed</b> data use <code>JGE</code> instead of <code>JAE</code>.' },
+      { t: 'practice',
+        q: 'Count how many elements of the same array are <b>greater than 20</b>, and print the count.',
+        hint: 'You can compare straight against memory: <code>CMP BYTE PTR [SI], 20</code>. The size prefix is needed because 20 alone does not say whether you mean a byte or a word.',
+        solution: `; count how many elements are greater than 20
+.MODEL SMALL
+.STACK 100H
+.DATA
+    ARR   DB 23, 9, 47, 12, 38
+    N     EQU $ - ARR
+    MSG   DB 'Count = $'
+.CODE
+MAIN PROC
+    MOV AX, @DATA
+    MOV DS, AX
+
+    LEA SI, ARR
+    MOV CX, N
+    XOR BL, BL          ; BL = running count
+
+CHECK:
+    CMP BYTE PTR [SI], 20
+    JBE SKIP            ; not greater -> do not count
+    INC BL
+SKIP:
     INC SI
-    LOOP INPUT_1` },
-      { t: 'note', html: 'Watch the memory panel (data view) while stepping the reverse example — you will see 1..5 become 6,5,4,3,2,1 live.' },
+    LOOP CHECK
+
+    MOV AH, 9
+    LEA DX, MSG
+    INT 21H
+    XOR AX, AX
+    MOV AL, BL
+    CALL OUTDEC
+
+    MOV AH, 4CH
+    INT 21H
+MAIN ENDP
+INCLUDE OUTDEC.ASM
+END MAIN`,
+        after: 'Prints <code>Count = 3</code> (23, 47 and 38).' },
+      { t: 'practice',
+        q: 'Sum the <b>word</b> array <code>W DW 100, 250, 75, 300, 25</code> and print the total — without hard-coding the element count.',
+        hint: 'Size the array with the LABEL trick, then divide by 2 to turn bytes into elements. The index has to advance by 2 each time.',
+        solution: `; sum a WORD array — the index steps by 2, not 1
+.MODEL SMALL
+.STACK 100H
+.DATA
+    W      DW 100, 250, 75, 300, 25
+    W_END  DW LABEL WORD
+    SIZE_B EQU W_END - W        ; size in BYTES
+    N      EQU SIZE_B / 2       ; number of elements
+    MSG    DB 'Sum = $'
+.CODE
+MAIN PROC
+    MOV AX, @DATA
+    MOV DS, AX
+
+    MOV CX, N
+    MOV SI, 0
+    XOR AX, AX
+
+SUM_LOOP:
+    ADD AX, W[SI]
+    ADD SI, 2           ; next WORD (two INC SI would also work)
+    LOOP SUM_LOOP
+
+    MOV BX, AX          ; keep the total, INT 21H clobbers AH
+    MOV AH, 9
+    LEA DX, MSG
+    INT 21H
+    MOV AX, BX
+    CALL OUTDEC
+
+    MOV AH, 4CH
+    INT 21H
+MAIN ENDP
+INCLUDE OUTDEC.ASM
+END MAIN`,
+        after: 'Prints <code>Sum = 750</code>. Change the array and the count follows automatically — that is the whole point of <code>V_END - V</code>.' },
+      { t: 'practice',
+        q: 'Copy <code>SRC DB 1,2,3,4,5,6</code> into a second array <code>DEST</code> in <b>reverse</b> order, leaving SRC untouched, then print DEST.',
+        hint: 'Unlike the in-place reverse, this one runs <b>N</b> times, not N/2 — every element is copied exactly once. Walk SI forwards through SRC and DI backwards through DEST.',
+        solution: `; copy a byte array into a second array, reversed
+.MODEL SMALL
+.STACK 100H
+.DATA
+    SRC   DB 1, 2, 3, 4, 5, 6
+    N     EQU $ - SRC
+    DEST  DB N DUP (?)
+    NL    DB 0DH, 0AH, '$'
+.CODE
+MAIN PROC
+    MOV AX, @DATA
+    MOV DS, AX
+
+    MOV SI, 0           ; walks SRC forwards
+    MOV DI, N
+    DEC DI              ; walks DEST backwards, from the last index
+    MOV CX, N           ; every element is copied once — CX = N, not N/2
+
+COPY:
+    MOV BL, SRC[SI]
+    MOV DEST[DI], BL
+    INC SI
+    DEC DI
+    LOOP COPY
+
+    ; print DEST to prove it
+    MOV CX, N
+    MOV SI, 0
+SHOW:
+    XOR AX, AX
+    MOV AL, DEST[SI]
+    PUSH CX             ; OUTDEC and INT 21H both use CX/AX — protect them
+    PUSH SI
+    CALL OUTDEC
+    MOV AH, 9
+    LEA DX, NL
+    INT 21H
+    POP SI
+    POP CX
+    INC SI
+    LOOP SHOW
+
+    MOV AH, 4CH
+    INT 21H
+MAIN ENDP
+INCLUDE OUTDEC.ASM
+END MAIN`,
+        after: 'Prints 6, 5, 4, 3, 2, 1 on separate lines. <code>DEST DB N DUP (?)</code> sizes itself from <code>N</code>, so the two arrays can never drift out of step.' },
     ],
   },
-
   // ─────────────────────────────────────────────── 14
   {
     id: 'exam-prep',

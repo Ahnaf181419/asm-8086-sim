@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest'
 import { LESSONS } from '../src/data/lessons'
 import { EXAMPLES, exampleById } from '../src/data/examples'
 import { assemble } from '../src/engine/assembler'
+import { Machine } from '../src/engine/cpu'
 import { INDEC_SRC, OUTDEC_SRC } from '../src/data/courseLib'
 
 const codeBlocks = LESSONS.flatMap((l) =>
@@ -87,6 +88,26 @@ describe('curriculum coverage', () => {
     expect(pattern.test(all)).toBe(true)
   })
 
+  it('the arrays lesson covers every topic in the lecture 8 files', () => {
+    const arrays = JSON.stringify(LESSONS.find((l) => l.id === 'arrays'))
+    const topics: [string, RegExp][] = [
+      ['DUP operator', /DUP/],
+      ['nested DUP', /3 DUP \(2,3 DUP/],
+      ['LABEL BYTE/WORD sizing', /LABEL WORD|LABEL BYTE/],
+      ['$ counter sizing', /\$ - /],
+      ['which registers may address memory', /BX.*BP.*SI.*DI|only four/i],
+      ['BP addresses through SS, not DS', /SS/],
+      ['register indirect', /\[SI\]/],
+      ['indexed with displacement', /W\[SI\]/],
+      ['based + index', /\[BX\+SI\]/],
+      ['byte step vs word step', /step by 2|ADD SI, 2/],
+      ['saving registers around INT 21H', /PUSH CX/],
+      ['reverse in place needs N/2', /N\/2/],
+      ['reading an array from the user', /INDEC/],
+    ]
+    for (const [label, re] of topics) expect(re.test(arrays), `arrays lesson is missing: ${label}`).toBe(true)
+  })
+
   it('every instruction the engine runs is taught, mentioned or deliberately out of scope', () => {
     // Instructions outside the course subset: present in the engine for
     // completeness but not part of the syllabus.
@@ -99,6 +120,33 @@ describe('curriculum coverage', () => {
       expect(new RegExp(`\\b${mn}\\b`).test(all), `${mn} appears in no lesson`).toBe(true)
     }
   })
+})
+
+describe('practice solutions', () => {
+  const lib: Record<string, string> = { 'INDEC.ASM': INDEC_SRC, 'OUTDEC.ASM': OUTDEC_SRC }
+  const practice = LESSONS.flatMap((l) =>
+    l.blocks.flatMap((b) => (b.t === 'practice' ? [{ lesson: l, block: b }] : [])),
+  )
+
+  it('there are practice questions to check', () => {
+    expect(practice.length).toBeGreaterThan(0)
+  })
+
+  // Every published solution must assemble AND run to a clean halt. A worked
+  // answer that does not work is worse than no answer at all.
+  it.each(practice.map((x) => [`L${x.lesson.num}: ${x.block.t === 'practice' ? x.block.q.replace(/<[^>]+>/g, '').slice(0, 52) : ''}`, x] as const))(
+    '%s',
+    (_label, { block }) => {
+      if (block.t !== 'practice') return
+      const r = assemble(block.solution, { resolveInclude: (n) => lib[n.toUpperCase()] ?? null })
+      expect(r.errors.map((e) => `${e.line}: ${e.message}`).join(' | ')).toBe('')
+      const m = new Machine(r.program!)
+      m.run(2_000_000)
+      expect(m.error?.message ?? null).toBeNull()
+      expect(m.status).toBe('halted')
+      expect(m.output.length, 'a solution should show its result').toBeGreaterThan(0)
+    },
+  )
 })
 
 describe('taught syntax actually runs', () => {
@@ -115,6 +163,14 @@ describe('taught syntax actually runs', () => {
     ['shift by 1 and by CL', '.CODE\nMOV AL,5\nSHL AL,1\nMOV CL,2\nSHR AL,CL'],
     ['ROL + JC bit counting', '.CODE\nMOV CX,8\nL1:\nROL BH,1\nJNC S1\nINC DL\nS1:\nLOOP L1'],
     ['NEG two\'s complement', '.CODE\nMOV AL,5\nNEG AL'],
+    ['DUP with a named count', '.DATA\nN EQU 5\nARR DB N DUP (?)\n.CODE\nMOV AL, ARR'],
+    ['nested DUP from lecture 8', '.DATA\nA DB 5,4,3 DUP (2,3 DUP(0),1)\n.CODE\nMOV AL, A'],
+    ['W_END DB LABEL BYTE (lecture spelling)', '.DATA\nW DB 1,2,3\nW_END DB LABEL BYTE\nN EQU W_END - W\n.CODE\nMOV CX, N'],
+    ['unbracketed displacement W+1', '.DATA\nW DB 1,2,3\n.CODE\nMOV AL, W+1'],
+    ['unbracketed W+SI+1', '.DATA\nW DB 1,2,3\n.CODE\nMOV SI,0\nMOV AL, W+SI+1'],
+    ['double bracket W[BX][SI]', '.DATA\nW DB 1,2,3\n.CODE\nMOV AL, W[BX][SI]'],
+    ['constant index W[1]', '.DATA\nW DB 1,2,3\n.CODE\nMOV AL, W[1]'],
+    ['displacement before register 1[SI]', '.DATA\nW DB 1,2,3\n.CODE\nMOV AL, 1[SI]'],
   ])('%s', (_label, body) => {
     const r = assemble(`.MODEL SMALL\n.STACK 100H\n${body}\n`, { resolveInclude: (n) => lib[n.toUpperCase()] ?? null })
     expect(r.errors.map((e) => e.message).join(' | ')).toBe('')

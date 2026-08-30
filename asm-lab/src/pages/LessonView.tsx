@@ -95,6 +95,25 @@ function Block({ block }: { block: LessonBlock }) {
           </tbody>
         </table>
       )
+    case 'practice':
+      return (
+        <div className="practice">
+          <p className="practice-q">
+            <span className="practice-tag">practice</span>
+            <span dangerouslySetInnerHTML={{ __html: block.q }} />
+          </p>
+          {block.hint && (
+            <p className="practice-hint">
+              <b>Hint:</b> <span dangerouslySetInnerHTML={{ __html: block.hint }} />
+            </p>
+          )}
+          <details>
+            <summary>show solution</summary>
+            <pre>{block.solution}</pre>
+            {block.after && <p className="practice-after" dangerouslySetInnerHTML={{ __html: block.after }} />}
+          </details>
+        </div>
+      )
     case 'note':
       return (
         <p

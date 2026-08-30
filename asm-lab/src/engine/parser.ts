@@ -164,24 +164,18 @@ function parseDataItems(tokens: Token[], pos: Token['pos']): DataItem[] {
   const items: DataItem[] = []
   for (const g of groups) {
     if (g.length === 0) continue
-    // DUP form: count DUP ( inner )
-    if (
-      g.length >= 2 &&
-      g[0].kind === 'number' &&
-      g[1].kind === 'ident' &&
-      g[1].text.toUpperCase() === 'DUP'
-    ) {
-      const count = parseNumber(g[0].text)
-      // NaN would slip past a bare `< 0` test and poison every downstream size
-      if (!Number.isFinite(count) || count < 0) throw perr(g[0], `bad DUP count '${g[0].text}'`)
-      const inner = g.slice(2)
-      if (inner.length >= 2 && inner[0].kind === 'punct' && inner[0].text === '(' && inner[inner.length - 1].text === ')') {
-        const innerItems = parseDataItems(inner.slice(1, -1), pos)
-        items.push({ kind: 'dup', count, inner: innerItems })
-      } else {
-        const innerItems = parseDataItems(inner, pos)
-        items.push({ kind: 'dup', count, inner: innerItems })
-      }
+    // DUP form: <count expression> DUP ( inner )
+    // The count is whatever precedes the DUP keyword — a literal, a named
+    // constant, or an expression. It is evaluated during data layout.
+    const dupAt = g.findIndex((t) => t.kind === 'ident' && t.text.toUpperCase() === 'DUP')
+    if (dupAt > 0) {
+      const countToks = g.slice(0, dupAt)
+      const inner = g.slice(dupAt + 1)
+      const stripped =
+        inner.length >= 2 && inner[0].kind === 'punct' && inner[0].text === '(' && inner[inner.length - 1].text === ')'
+          ? inner.slice(1, -1)
+          : inner
+      items.push({ kind: 'dup', countToks, count: 0, inner: parseDataItems(stripped, pos) })
       continue
     }
     if (g.length === 1 && g[0].kind === 'string') {

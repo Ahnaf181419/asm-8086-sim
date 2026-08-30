@@ -73,14 +73,23 @@ export function assemble(source: string, opts: AssembleOptions = {}): AssembleRe
       continue
     }
     if (s.kind === 'equ') {
-      // remember the location counter here so a '$' in the expression can
-      // resolve during 3c (in 3a the layout does not exist yet, so such an
-      // EQU simply stays pending — which is exactly what we want)
+      // Resolve data-segment EQUs in source order: '$' and every symbol
+      // defined above this line are known now, so a later `N DUP (?)` or
+      // `$ - ARR` can use the result. Anything still unresolvable (a forward
+      // reference) stays pending for 3c.
       s.offset = dataOff
+      const i = pendingEqu.indexOf(s)
+      if (i !== -1) {
+        const v = evalExpr(s.expr!, symbols, s, true)
+        if (!Number.isNaN(v)) {
+          define(symbols, s.name!, { kind: 'equ', value: v, defined: s.pos }, errors)
+          pendingEqu.splice(i, 1)
+        }
+      }
       continue
     }
     if (s.kind === 'data') {
-      const nbytes = dataItemsSize(s.items!, s.size!)
+      const nbytes = dataItemsSize(s.items!, s.size!, symbols, s, errors)
       define(symbols, s.name!, { kind: 'data', value: dataOff, size: s.size, defined: s.pos }, errors)
       s.offset = dataOff
       s.nbytes = nbytes
@@ -189,15 +198,19 @@ function resolveEqus(pending: Stmt[], symbols: Map<string, SymbolInfo>, errors: 
   }
 }
 
-// byte size of data items WITHOUT evaluating expressions
-// (DUP counts are literals enforced by the parser)
-function dataItemsSize(items: DataItem[], unit: 1 | 2): number {
+// Byte size of data items. Values are not evaluated here — only DUP counts,
+// which have to be resolved now because they determine the layout.
+function dataItemsSize(
+  items: DataItem[], unit: 1 | 2, symbols: Map<string, SymbolInfo>, s: Stmt, errors: AsmError[],
+): number {
   let n = 0
-  for (const item of items) n += dataItemSize(item, unit)
+  for (const item of items) n += dataItemSize(item, unit, symbols, s, errors)
   return Math.max(n, unit)
 }
 
-function dataItemSize(item: DataItem, unit: 1 | 2): number {
+function dataItemSize(
+  item: DataItem, unit: 1 | 2, symbols: Map<string, SymbolInfo>, s: Stmt, errors: AsmError[],
+): number {
   switch (item.kind) {
     case 'string':
       if (unit === 1) return item.text.length
@@ -205,9 +218,19 @@ function dataItemSize(item: DataItem, unit: 1 | 2): number {
     case 'question':
       return unit
     case 'dup': {
+      const count = evalExpr(item.countToks, symbols, s, true)
+      if (!Number.isFinite(count) || count < 0) {
+        const text = item.countToks.map((t) => t.text).join(' ')
+        errors.push(errOf(s, `DUP count '${text}' must be a non-negative constant known at this point`))
+        item.count = 0
+        return 0
+      }
+      // A huge but well-formed count is left alone so the data-segment size
+      // check reports "exceeds 64KB", which names the real problem.
+      item.count = count
       let inner = 0
-      for (const it of item.inner) inner += dataItemSize(it, unit)
-      return item.count * (inner || unit)
+      for (const it of item.inner) inner += dataItemSize(it, unit, symbols, s, errors)
+      return count * (inner || unit)
     }
     case 'expr':
       return unit
@@ -502,7 +525,7 @@ function resolveOperand(toks: Token[], symbols: Map<string, SymbolInfo>, s: Stmt
   const hasBracket = toks.some((t) => t.kind === 'punct' && t.text === '[')
 
   if (hasBracket) {
-    const op = parseBracketMem(toks, symbols, s)
+    const op = parseMemoryOperand(toks, symbols, s)
     if (sizeOverride) op.size = sizeOverride
     return op
   }
@@ -546,59 +569,58 @@ function resolveOperand(toks: Token[], symbols: Map<string, SymbolInfo>, s: Stmt
     return { k: 'mem', size: sym.size ?? 0, disp: sym.value, sym: name }
   }
 
+  // An expression naming a data variable is a MEMORY reference, not a number:
+  // `MOV AL, W+1` reads the byte after W, exactly like `MOV AL, [W+1]`.
+  // Expressions built only from EQU constants, labels and literals stay
+  // immediates, so `MOV AX, COUNT+1` is still the number COUNT+1.
+  const namesData = toks.some(
+    (t) => t.kind === 'ident' && symbols.get(t.text.toUpperCase())?.kind === 'data',
+  )
+  if (namesData) {
+    const op = parseMemoryOperand(toks, symbols, s)
+    if (sizeOverride) op.size = sizeOverride
+    return op
+  }
+
   // general expression (numbers, symbols, arithmetic) → immediate
   const v = evalExpr(toks, symbols, s)
   if (Number.isNaN(v)) throw Object.assign(new Error('invalid operand expression'), { asm: s.pos })
   return { k: 'imm', v }
 }
 
-// [base+idx+disp]  /  LABEL[base+idx+disp]  /  5[BX]
-function parseBracketMem(toks: Token[], symbols: Map<string, SymbolInfo>, s: Stmt): MemOp {
-  let disp = 0
-  let sym: string | undefined
-  let base: 'BX' | 'BP' | undefined
-  let idx: 'SI' | 'DI' | undefined
+// Parse a memory operand in any of the forms lecture 08 documents:
+//   [BX]   [SI+2]   2[SI]   W[SI]   [W+SI]   W[BX][SI]   W+SI+1
+// Brackets in an 8086 address expression are purely additive sugar, so the
+// whole thing normalises to a sum of terms: at most one base register (BX/BP),
+// at most one index register (SI/DI), and a constant displacement.
+function parseMemoryOperand(toks: Token[], symbols: Map<string, SymbolInfo>, s: Stmt): MemOp {
+  // '[' and ']' both become '+' — that turns W[BX][SI] into W + BX + SI and
+  // 2[SI] into 2 + SI, so one term loop handles every form.
+  const open = toks.filter((t) => t.kind === 'punct' && t.text === '[').length
+  const close = toks.filter((t) => t.kind === 'punct' && t.text === ']').length
+  if (open !== close) throw Object.assign(new Error(open > close ? "missing ']'" : "unmatched ']'"), { asm: s.pos })
+  const flat = toks.map((t) =>
+    t.kind === 'punct' && (t.text === '[' || t.text === ']') ? { ...t, text: '+' } : t,
+  )
 
-  const open = toks.findIndex((t) => t.kind === 'punct' && t.text === '[')
-  const close = toks.findIndex((t) => t.kind === 'punct' && t.text === ']')
-  if (close === -1 || close < open) throw Object.assign(new Error("missing ']'"), { asm: s.pos })
-
-  // part before '[': label or number displacement
-  const before = toks.slice(0, open)
-  if (before.length > 0) {
-    if (before.length === 1 && before[0].kind === 'ident') {
-      const name = before[0].text.toUpperCase()
-      const symInfo = symbols.get(name)
-      if (!symInfo || symInfo.kind === 'label' || symInfo.kind === 'proc') {
-        throw Object.assign(new Error(`'${before[0].text}' is not a data variable`), { asm: s.pos })
-      }
-      sym = name
-      disp += symInfo.value
-    } else {
-      const v = evalExpr(before, symbols, s)
-      disp += v
-    }
-  }
-
-  // inside brackets
-  const inner = toks.slice(open + 1, close)
-  const after = toks.slice(close + 1)
-  if (after.length > 0) throw Object.assign(new Error('unexpected tokens after ]'), { asm: s.pos })
-
-  // split inner on + / -
+  // split on top-level + / -
   let sign = 1
   let term: Token[] = []
   const terms: { sign: number; toks: Token[] }[] = []
-  for (const t of inner) {
+  for (const t of flat) {
     if (t.kind === 'punct' && (t.text === '+' || t.text === '-')) {
       if (term.length > 0) terms.push({ sign, toks: term })
       sign = t.text === '+' ? 1 : -1
       term = []
     } else term.push(t)
   }
-  if (term.length > 0 || terms.length === 0) terms.push({ sign, toks: term })
+  if (term.length > 0) terms.push({ sign, toks: term })
 
-  let symSize: 0 | 1 | 2 = sym ? sizeFrom(symbols.get(sym!)) ?? 0 : 0
+  let disp = 0
+  let sym: string | undefined
+  let symSize: 0 | 1 | 2 = 0
+  let base: 'BX' | 'BP' | undefined
+  let idx: 'SI' | 'DI' | undefined
 
   for (const { sign: sgn, toks: tt } of terms) {
     if (tt.length === 0) continue
@@ -622,17 +644,23 @@ function parseBracketMem(toks: Token[], symbols: Map<string, SymbolInfo>, s: Stm
           { asm: s.pos },
         )
       }
-      const symInfo = symbols.get(name)
-      if (!symInfo) throw Object.assign(new Error(`undefined symbol '${tt[0].text}'`), { asm: s.pos })
-      disp += sgn * symInfo.value
+      const info = symbols.get(name)
+      if (!info) throw Object.assign(new Error(`undefined symbol '${tt[0].text}'`), { asm: s.pos })
+      if (info.kind === 'label' || info.kind === 'proc') {
+        throw Object.assign(new Error(`'${tt[0].text}' is a code label, not a data variable`), { asm: s.pos })
+      }
+      // the first data symbol names the operand and fixes its size
+      if (info.kind === 'data' && !sym) {
+        sym = name
+        symSize = sizeFrom(info)
+      }
+      disp += sgn * info.value
       continue
     }
-    const v = evalExpr(tt, symbols, s)
-    disp += sgn * v
+    disp += sgn * evalExpr(tt, symbols, s)
   }
 
-  const size = symSize
-  return { k: 'mem', size, base, idx, disp: disp & 0xffff, sym }
+  return { k: 'mem', size: symSize, base, idx, disp: disp & 0xffff, sym }
 }
 
 function sizeFrom(sym: SymbolInfo | undefined): 1 | 2 | 0 {

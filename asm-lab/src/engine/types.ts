@@ -34,7 +34,10 @@ export interface DataValue {
 
 export interface DataDup {
   kind: 'dup'
-  count: number
+  // The count may be any constant expression (`N DUP (?)`), so it is kept as
+  // tokens and evaluated during data layout, once EQUs are known.
+  countToks: Token[]
+  count: number // filled in during assembly
   inner: DataItem[]
 }
 
