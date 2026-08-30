@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "build:pages": "vite build --base=/asm-lab-prep/"
   },
   "dependencies": {
     "@codemirror/language": "^6.12.4",

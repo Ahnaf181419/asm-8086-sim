@@ -8,19 +8,26 @@ import LessonView from './pages/LessonView'
 import ReferencePage from './pages/ReferencePage'
 import './styles/global.css'
 
-const router = createBrowserRouter([
-  {
-    path: '/',
-    element: <App />,
-    children: [
-      { index: true, element: <SimulatorPage /> },
-      { path: 'lessons', element: <LessonsPage /> },
-      { path: 'lessons/:id', element: <LessonView /> },
-      { path: 'reference', element: <ReferencePage /> },
-      { path: '*', element: <Navigate to="/" replace /> },
-    ],
-  },
-])
+// when hosted under a subpath (GitHub Pages: /asm-lab-prep/), the router must
+// strip it; Vite's BASE_URL mirrors the build's --base flag ('/' elsewhere)
+const routerBasename = import.meta.env.BASE_URL.replace(/\/$/, '')
+
+const router = createBrowserRouter(
+  [
+    {
+      path: '/',
+      element: <App />,
+      children: [
+        { index: true, element: <SimulatorPage /> },
+        { path: 'lessons', element: <LessonsPage /> },
+        { path: 'lessons/:id', element: <LessonView /> },
+        { path: 'reference', element: <ReferencePage /> },
+        { path: '*', element: <Navigate to="/" replace /> },
+      ],
+    },
+  ],
+  { basename: routerBasename },
+)
 
 // last-resort guard: a crash anywhere (engine, editor, future code) degrades
 // to a readable terminal message instead of a white screen

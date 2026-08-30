@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# local course-material text dumps (not needed to build/run the app)
+extracted
