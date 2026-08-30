@@ -1,10 +1,13 @@
 // Regression tests for the findings in docs/AUDIT-2026-08-30.md.
 // Each describe block names the finding id it pins.
 import { describe, expect, it } from 'vitest'
-import { assemble } from '../src/engine/assembler'
+import { assemble, SUPPORTED_MNEMONICS } from '../src/engine/assembler'
 import { Machine } from '../src/engine/cpu'
 import { parseNumber } from '../src/engine/parser'
 import type { Program } from '../src/engine/types'
+import { Text } from '@codemirror/state'
+import { lineStartOffset } from '../src/components/editorLineField'
+import { REFERENCE } from '../src/data/reference'
 
 function asm(src: string): Program {
   const r = assemble(src)
@@ -249,5 +252,64 @@ SUB1 PROC
 SUB1 ENDP
 END MAIN`)
     expect(m.regs.SP).toBe(0xfffe)
+  })
+})
+
+describe('H1 — the current-line highlight resolves to a document offset', () => {
+  const src = [
+    '.MODEL SMALL', // 1
+    '.STACK 100H', // 2
+    '.DATA', // 3
+    'MSG DB "HI$"', // 4
+    '.CODE', // 5
+    'MAIN PROC', // 6
+    '    MOV AX, @DATA', // 7
+    '    MOV DS, AX', // 8
+    'MAIN ENDP', // 9
+    'END MAIN', // 10
+  ].join('\n')
+  const doc = Text.of(src.split('\n'))
+
+  it('maps each 1-based source line to that line\'s start offset', () => {
+    for (let n = 1; n <= doc.lines; n++) {
+      const off = lineStartOffset(doc, n)
+      expect(off).not.toBeNull()
+      // the decorated line must be the line we asked for — the bug passed a
+      // line INDEX as an offset, which always landed back on line 1
+      expect(doc.lineAt(off!).number).toBe(n)
+    }
+  })
+
+  it('a line index used as an offset would land on the wrong line (the old bug)', () => {
+    // line 7 as an index -> offset 6, which is inside line 1
+    expect(doc.lineAt(7 - 1).number).toBe(1)
+    expect(doc.lineAt(lineStartOffset(doc, 7)!).number).toBe(7)
+  })
+
+  it('clamps past-the-end lines to the last line instead of throwing', () => {
+    const off = lineStartOffset(doc, 999)
+    expect(doc.lineAt(off!).number).toBe(doc.lines)
+  })
+
+  it('clamps non-positive lines to the first line', () => {
+    expect(lineStartOffset(doc, 0)).toBe(0)
+    expect(lineStartOffset(doc, -5)).toBe(0)
+  })
+
+  it('returns null when there is no current statement', () => {
+    expect(lineStartOffset(doc, null)).toBeNull()
+  })
+})
+
+describe('L8 — the reference page documents what the engine accepts', () => {
+  // Every mnemonic the assembler accepts should be findable on the reference
+  // page. Entries may group aliases ("JE / JZ", "SHL / SAL"), so split on '/'.
+  const documented = new Set(
+    REFERENCE.flatMap((r) => r.mnem.split('/').map((m) => m.trim().toUpperCase())),
+  )
+
+  it.each([...SUPPORTED_MNEMONICS].sort())('%s appears in the reference', (mn) => {
+    // INT is documented as the "INT 21H" entry
+    expect(documented.has(mn) || documented.has(`${mn} 21H`)).toBe(true)
   })
 })

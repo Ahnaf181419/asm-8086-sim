@@ -53,7 +53,7 @@ export const REFERENCE: RefEntry[] = [
   { mnem: 'JS / JNS', category: 'Control flow', syntax: ['JS label'], desc: 'Jump if sign (SF=1) / not sign (SF=0).', flags: 'SF', example: 'JS NEG_CASE' },
   { mnem: 'JO / JNO', category: 'Control flow', syntax: ['JO label'], desc: 'Jump if overflow (OF=1) / no overflow.', flags: 'OF', example: 'JO OVERFLOWED' },
   { mnem: 'LOOP', category: 'Control flow', syntax: ['LOOP label'], desc: 'CX -= 1; jump if CX ≠ 0. Countdown for-loop in one instruction.', flags: '—', example: 'LOOP PRINT' },
-  { mnem: 'LOOPE / LOOPNE', category: 'Control flow', syntax: ['LOOPE label'], desc: 'Like LOOP but also requires ZF=1 (LOOPE) or ZF=0 (LOOPNE).', flags: 'reads ZF', example: 'LOOPNE SCAN' },
+  { mnem: 'LOOPE / LOOPZ / LOOPNE / LOOPNZ', category: 'Control flow', syntax: ['LOOPE label', 'LOOPNE label'], desc: 'Like LOOP but also requires ZF=1 (LOOPE/LOOPZ) or ZF=0 (LOOPNE/LOOPNZ).', flags: 'reads ZF', example: 'LOOPNE SCAN' },
   { mnem: 'JCXZ', category: 'Control flow', syntax: ['JCXZ label'], desc: 'Jump if CX = 0 — guards do-while loops.', flags: '—', example: 'JCXZ DONE' },
 
   { mnem: 'PROC / ENDP', category: 'Procedures & stack', syntax: ['NAME PROC', 'NAME ENDP'], desc: 'Define a procedure block. ENTRY via END NAME selects where execution starts.', flags: '—', example: 'MAIN PROC … MAIN ENDP' },
@@ -62,6 +62,13 @@ export const REFERENCE: RefEntry[] = [
 
   { mnem: 'INT 21H', category: 'I/O', syntax: ['MOV AH, func', 'INT 21H'], desc: 'DOS services: AH=01 read key→AL; AH=02 print DL; AH=09 print string at DX until \'$\'; AH=0Ah buffered line input; AH=4Ch exit to DOS.', flags: 'depends', example: 'MOV AH, 2\nINT 21H' },
   { mnem: 'NOP', category: 'I/O', syntax: ['NOP'], desc: 'No operation — does nothing.', flags: '—', example: 'NOP' },
+  { mnem: 'HLT', category: 'I/O', syntax: ['HLT'], desc: 'Halt the processor. The simulator stops here; prefer AH=4Ch to exit cleanly to DOS.', flags: '—', example: 'HLT' },
+
+  { mnem: 'RCL / RCR', category: 'Logic & shifts', syntax: ['RCL reg/mem, 1', 'RCL reg/mem, CL', 'RCR reg/mem, 1', 'RCR reg/mem, CL'], desc: 'Rotate THROUGH the carry flag: CF takes part in the ring, so a 16-bit RCL is a 17-bit rotation.', flags: 'OF CF', example: 'RCL AX, 1' },
+  { mnem: 'STC / CLC / CMC', category: 'Logic & shifts', syntax: ['STC', 'CLC', 'CMC'], desc: 'Set, clear, or complement the carry flag directly. Handy before ADC/SBB or a rotate through carry.', flags: 'CF', example: 'STC\nRCL AX, 1' },
+  { mnem: 'STD / CLD', category: 'Logic & shifts', syntax: ['STD', 'CLD'], desc: 'Set or clear the direction flag. The course subset has no string instructions, so DF is displayed but not otherwise consumed.', flags: 'DF', example: 'CLD' },
+  { mnem: 'XLAT', category: 'Data movement', syntax: ['XLAT'], desc: 'Table lookup: AL = byte at [BX + AL]. Used for translation tables.', flags: '—', example: 'LEA BX, TABLE\nMOV AL, 3\nXLAT' },
+  { mnem: 'JNC', category: 'Control flow', syntax: ['JNC label'], desc: 'Jump if no carry (CF = 0). The complement of JC/JB.', flags: '—', example: 'JNC SKIP' },
 ]
 
 export const INT21_SERVICES = [

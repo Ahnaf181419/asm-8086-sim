@@ -1,9 +1,9 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import CodeMirror from '@uiw/react-codemirror'
 import { StreamLanguage, type StreamParser } from '@codemirror/language'
 import { EditorView } from '@codemirror/view'
 import { indentUnit } from '@codemirror/language'
-import { currentLineField } from './editorLineField'
+import { currentLineField, lineStartOffset, setCurrentLineOffsetEffect } from './editorLineField'
 
 const KEYWORDS = new Set([
   'MOV', 'LEA', 'XCHG', 'PUSH', 'POP',
@@ -85,12 +85,24 @@ const masmMode: StreamParser<MasmState> = {
 export default function CodeEditor({
   value,
   onChange,
-  onView,
+  currentLine = null,
 }: {
   value: string
   onChange: (v: string) => void
-  onView?: (view: EditorView) => void
+  /** 1-based source line to highlight, or null for none. */
+  currentLine?: number | null
 }) {
+  const viewRef = useRef<EditorView | null>(null)
+
+  // The editor owns its own highlight. Keeping this here (rather than having
+  // the page dispatch into a view ref) means nothing outside this module
+  // imports CodeMirror, so the whole editor can be code-split away.
+  useEffect(() => {
+    const view = viewRef.current
+    if (!view) return
+    view.dispatch({ effects: setCurrentLineOffsetEffect.of(lineStartOffset(view.state.doc, currentLine)) })
+  }, [currentLine, value])
+
   const extensions = useMemo(
     () => [
       StreamLanguage.define(masmMode),
@@ -105,7 +117,9 @@ export default function CodeEditor({
     <CodeMirror
       value={value}
       onChange={onChange}
-      onCreateEditor={(view) => onView?.(view)}
+      onCreateEditor={(view) => {
+        viewRef.current = view
+      }}
       extensions={extensions}
       height="100%"
       style={{ height: '100%' }}

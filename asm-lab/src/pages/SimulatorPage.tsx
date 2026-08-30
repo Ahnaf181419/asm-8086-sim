@@ -1,14 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import type { EditorView } from '@codemirror/view'
-import CodeEditor from '../components/CodeEditor'
-import { lineStartOffset, setCurrentLineOffsetEffect } from '../components/editorLineField'
 import TerminalPanel from '../components/TerminalPanel'
 import RegisterPanel from '../components/RegisterPanel'
 import MemoryView from '../components/MemoryView'
 import Console from '../components/Console'
 import { SPEEDS, useMachine } from '../hooks/useMachine'
 import { EXAMPLES, exampleById } from '../data/examples'
+
+// CodeMirror is about half the bundle and neither /lessons nor /reference
+// needs it, so it loads on demand (PLAN section 10).
+const CodeEditor = lazy(() => import('../components/CodeEditor'))
 
 const LS_KEY = 'asm-lab:source'
 
@@ -29,7 +30,6 @@ export default function SimulatorPage() {
   const [autoAssemble, setAutoAssemble] = useState(true)
 
   const sim = useMachine()
-  const viewRef = useRef<EditorView | null>(null)
 
   // initial assemble (mount only)
   const initialSource = useRef(source)
@@ -87,18 +87,13 @@ export default function SimulatorPage() {
     return () => window.removeEventListener('keydown', onKey)
   }, [sim, toggleRun])
 
-  // highlight current line in editor (main file only). The decoration is
-  // addressed by document OFFSET, so the 1-based source line has to be
-  // converted — `lineStartOffset` also clamps, since a stale snapshot can
-  // reference lines past the end of a shortened source.
+  // The line to highlight, in main-file source-line terms. The editor converts
+  // it to a document offset and clamps it — a stale snapshot can name a line
+  // past the end of a source the user has since shortened.
   const { snap } = sim.state
-  useEffect(() => {
-    const view = viewRef.current
-    if (!view) return
-    const stmt = snap?.curStmt
-    const line = stmt && (stmt.pos.file === 'editor.asm' || stmt.pos.file === '') ? stmt.pos.line : null
-    view.dispatch({ effects: setCurrentLineOffsetEffect.of(lineStartOffset(view, line)) })
-  }, [snap])
+  const curStmt = snap?.curStmt
+  const currentLine =
+    curStmt && (curStmt.pos.file === 'editor.asm' || curStmt.pos.file === '') ? curStmt.pos.line : null
 
   const loadExample = (id: string) => {
     const ex = exampleById(id)
@@ -184,7 +179,9 @@ export default function SimulatorPage() {
           </label>
         }>
           <div className="editor-wrap">
-            <CodeEditor value={source} onChange={onChange} onView={(v) => (viewRef.current = v)} />
+            <Suspense fallback={<div className="editor-loading">loading editor…</div>}>
+              <CodeEditor value={source} onChange={onChange} currentLine={currentLine} />
+            </Suspense>
           </div>
         </TerminalPanel>
 

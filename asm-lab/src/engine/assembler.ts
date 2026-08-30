@@ -434,11 +434,24 @@ function resolveInstruction(s: Stmt, symbols: Map<string, SymbolInfo>) {
   s.operands = ops
 }
 
+// The instruction set the assembler accepts, grouped by operand count. Exported
+// so the reference page and the CPU can be checked against it instead of three
+// hand-maintained lists drifting apart (that is how HLT came to assemble
+// without being executable, and why RCL/XLAT/STC were undocumented).
+const TWO_OPERAND = ['MOV', 'ADD', 'SUB', 'ADC', 'SBB', 'CMP', 'AND', 'OR', 'XOR', 'XCHG', 'TEST', 'LEA', 'SHL', 'SAL', 'SHR', 'SAR', 'ROL', 'ROR', 'RCL', 'RCR']
+const ONE_OPERAND = ['PUSH', 'POP', 'INC', 'DEC', 'NEG', 'NOT', 'MUL', 'IMUL', 'DIV', 'IDIV', 'JMP', 'CALL', 'INT', 'LOOP', 'LOOPE', 'LOOPZ', 'LOOPNE', 'LOOPNZ', 'JCXZ']
+const COND_JUMPS = ['JE', 'JZ', 'JNE', 'JNZ', 'JG', 'JNLE', 'JGE', 'JNL', 'JL', 'JNGE', 'JLE', 'JNG', 'JA', 'JNBE', 'JAE', 'JNB', 'JB', 'JNAE', 'JBE', 'JNA', 'JC', 'JNC', 'JS', 'JNS', 'JO', 'JNO']
+const ZERO_OPERAND = ['CBW', 'CWD', 'NOP', 'STC', 'CLC', 'CMC', 'STD', 'CLD', 'XLAT', 'HLT']
+
+export const SUPPORTED_MNEMONICS: ReadonlySet<string> = new Set([
+  ...TWO_OPERAND, ...ONE_OPERAND, ...COND_JUMPS, ...ZERO_OPERAND, 'RET',
+])
+
 function operandCount(mn: string): number {
-  if (['MOV', 'ADD', 'SUB', 'ADC', 'SBB', 'CMP', 'AND', 'OR', 'XOR', 'XCHG', 'TEST', 'LEA', 'SHL', 'SAL', 'SHR', 'SAR', 'ROL', 'ROR', 'RCL', 'RCR'].includes(mn)) return 2
-  if (['PUSH', 'POP', 'INC', 'DEC', 'NEG', 'NOT', 'MUL', 'IMUL', 'DIV', 'IDIV', 'JMP', 'CALL', 'INT', 'LOOP', 'LOOPE', 'LOOPZ', 'LOOPNE', 'LOOPNZ', 'JCXZ'].includes(mn)) return 1
-  if (['JE', 'JZ', 'JNE', 'JNZ', 'JG', 'JNLE', 'JGE', 'JNL', 'JL', 'JNGE', 'JLE', 'JNG', 'JA', 'JNBE', 'JAE', 'JNB', 'JB', 'JNAE', 'JBE', 'JNA', 'JC', 'JNC', 'JS', 'JNS', 'JO', 'JNO'].includes(mn)) return 1
-  if (['CBW', 'CWD', 'NOP', 'STC', 'CLC', 'CMC', 'STD', 'CLD', 'XLAT', 'HLT'].includes(mn)) return 0
+  if (TWO_OPERAND.includes(mn)) return 2
+  if (ONE_OPERAND.includes(mn)) return 1
+  if (COND_JUMPS.includes(mn)) return 1
+  if (ZERO_OPERAND.includes(mn)) return 0
   if (mn === 'RET') return -3 // 0 or 1
   return -2 // unknown → error below
 }
