@@ -1,5 +1,6 @@
 import type { AsmError, MemOp, Program, ROperand, Stmt, StepChanges, MachineStatus } from './types'
 import { STACK_TOP, ADDR_STEP } from './types'
+import type { HardwareBus } from './devices/bus'
 
 export class RunError extends Error {
   pos?: { file: string; line: number }
@@ -31,6 +32,7 @@ export interface MachineSnapshot {
 
 export class Machine {
   program: Program
+  ioBus?: HardwareBus
   mem = new Uint8Array(0x10000)
   regs: Record<string, number> = { AX: 0, BX: 0, CX: 0, DX: 0, SI: 0, DI: 0, BP: 0, SP: 0 }
   sregs: Record<string, number> = { DS: 0, ES: 0, CS: 0, SS: 0 }
@@ -46,8 +48,9 @@ export class Machine {
 
   private dataImage: Uint8Array
 
-  constructor(program: Program) {
+  constructor(program: Program, ioBus?: HardwareBus) {
     this.program = program
+    this.ioBus = ioBus
     this.dataImage = program.dataImage
     this.reset()
   }
@@ -375,6 +378,31 @@ export class Machine {
           this.regs.SP = (this.regs.SP + n) & 0xffff
           this.lastChanges.regs.add('SP')
         }
+        return
+      }
+      case 'IN': case 'OUT': {
+        if (!this.ioBus) throw new RunError('IN/OUT not supported (no I/O bus attached)', stmt.pos)
+        const [a, b] = ops
+        // one operand is the accumulator (AL or AX); the other is the port
+        const regOp = a.k === 'reg' && (a.name === 'AL' || a.name === 'AX') ? a
+                    : b.k === 'reg' && (b.name === 'AL' || b.name === 'AX') ? b
+                    : null
+        if (!regOp) throw new RunError(`${mn} requires AL or AX as the register operand`, stmt.pos)
+        const portOp = a === regOp ? b : a
+        const size: 8 | 16 = regOp.name === 'AX' ? 16 : 8
+        const port = portOp.k === 'reg'
+          ? this.getReg('DX') & 0xffff
+          : portOp.k === 'imm'
+            ? portOp.v & 0xff
+            : 0
+        if (mn === 'IN') {
+          const v = this.ioBus.dispatchRead(port, size)
+          this.setReg(regOp.name, v)
+        } else {
+          const v = this.getReg(regOp.name) & (size === 16 ? 0xffff : 0xff)
+          this.ioBus.dispatchWrite(port, v, size)
+        }
+        this.ip = next
         return
       }
       case 'JMP': {

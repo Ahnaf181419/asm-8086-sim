@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import { HardwareBus } from '../src/engine/devices/bus'
-import { LED_ADDRESS } from '../src/engine/devices/portMap'
+import { LED_ADDRESS, SWITCHES_ADDRESS } from '../src/engine/devices/portMap'
 import { LedsDevice } from '../src/engine/devices/leds'
+import { assemble } from '../src/engine/assembler'
+import { Machine } from '../src/engine/cpu'
 
 describe('HardwareBus', () => {
   it('writes 8-bit value to the correct device and reads it back', () => {
@@ -82,5 +84,124 @@ describe('Devices', () => {
     const d = new PressureDevice()
     d.setPercent(75)
     expect(d.onRead(0x2088, 8)).toBe(150)
+  })
+})
+
+describe('Assembler IN/OUT', () => {
+  it('parses OUT imm8, AL into a stmt with mnemonic "OUT"', () => {
+    const src = `
+.MODEL SMALL
+.CODE
+MAIN PROC
+  MOV AL, 0FFH
+  OUT 070H, AL
+  HLT
+MAIN ENDP
+END MAIN
+`
+    const r = assemble(src)
+    expect(r.errors).toEqual([])
+    expect(r.program).not.toBeNull()
+    const outs = r.program!.stmts.filter((s) => s.mnemonic === 'OUT')
+    expect(outs.length).toBe(1)
+    expect(outs[0].kind).toBe('instruction')
+    expect(outs[0].operands).toHaveLength(2)
+    expect(outs[0].operands![0].k).toBe('imm')
+    expect(outs[0].operands![1].k).toBe('reg')
+  })
+
+  it('rejects IN with non-DX register port (BX)', () => {
+    const src = `
+.MODEL SMALL
+.CODE
+MAIN PROC
+  IN AL, BX
+MAIN ENDP
+END MAIN
+`
+    const errs = assemble(src).errors
+    expect(errs.length).toBeGreaterThan(0)
+    expect(errs[0].message).toMatch(/DX/)
+  })
+
+  it('rejects OUT with immediate port > 255', () => {
+    const src = `
+.MODEL SMALL
+.CODE
+MAIN PROC
+  MOV AL, 0
+  OUT 03000H, AL
+MAIN ENDP
+END MAIN
+`
+    const errs = assemble(src).errors
+    expect(errs.length).toBeGreaterThan(0)
+    expect(errs[0].message).toMatch(/0\.\.255/)
+  })
+})
+
+describe('CPU IN/OUT via HardwareBus', () => {
+  it('OUT DX, AL writes the accumulator to the LED device', () => {
+    const src = `
+.MODEL SMALL
+.CODE
+MAIN PROC
+  MOV AL, 0FFH
+  MOV DX, 02070H
+  OUT DX, AL
+  HLT
+MAIN ENDP
+END MAIN
+`
+    const r = assemble(src)
+    expect(r.errors).toEqual([])
+    const bus = new HardwareBus()
+    bus.attach(new LedsDevice())
+    const m = new Machine(r.program!, bus)
+    m.run()
+    expect(m.status).toBe('halted')
+    const snap = bus.snapshot()
+    expect((snap.devices['leds'] as { value: number }).value).toBe(0xff)
+  })
+
+  it('IN AL, DX reads the bus value back into AL', () => {
+    const src = `
+.MODEL SMALL
+.CODE
+MAIN PROC
+  MOV DX, 02084H
+  XOR AH, AH
+  IN AL, DX
+  HLT
+MAIN ENDP
+END MAIN
+`
+    const r = assemble(src)
+    expect(r.errors).toEqual([])
+    const bus = new HardwareBus()
+    bus.attach(new SwitchesDevice())
+    const value = 0x55
+    bus.dispatchWrite(SWITCHES_ADDRESS, value, 8)
+    const m = new Machine(r.program!, bus)
+    m.run()
+    expect(m.status).toBe('halted')
+    expect(m.regs.AX).toBe(value)
+  })
+
+  it('IN with no bus attached produces a runtime error', () => {
+    const src = `
+.MODEL SMALL
+.CODE
+MAIN PROC
+  IN AL, 080H
+MAIN ENDP
+END MAIN
+`
+    const r = assemble(src)
+    expect(r.errors).toEqual([])
+    const m = new Machine(r.program!)
+    m.run()
+    expect(m.status).toBe('error')
+    expect(m.error?.message).toMatch(/no I\/O bus/i)
   })
 })
