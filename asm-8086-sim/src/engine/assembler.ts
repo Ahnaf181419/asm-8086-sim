@@ -478,16 +478,18 @@ function resolveInstruction(s: Stmt, symbols: Map<string, SymbolInfo>) {
 // without being executable, and why RCL/XLAT/STC were undocumented).
 const TWO_OPERAND = ['MOV', 'ADD', 'SUB', 'ADC', 'SBB', 'CMP', 'AND', 'OR', 'XOR', 'XCHG', 'TEST', 'LEA', 'SHL', 'SAL', 'SHR', 'SAR', 'ROL', 'ROR', 'RCL', 'RCR']
 const ONE_OPERAND = ['PUSH', 'POP', 'INC', 'DEC', 'NEG', 'NOT', 'MUL', 'IMUL', 'DIV', 'IDIV', 'JMP', 'CALL', 'INT', 'LOOP', 'LOOPE', 'LOOPZ', 'LOOPNE', 'LOOPNZ', 'JCXZ']
+const IO_OPERAND = ['IN', 'OUT']
 const COND_JUMPS = ['JE', 'JZ', 'JNE', 'JNZ', 'JG', 'JNLE', 'JGE', 'JNL', 'JL', 'JNGE', 'JLE', 'JNG', 'JA', 'JNBE', 'JAE', 'JNB', 'JB', 'JNAE', 'JBE', 'JNA', 'JC', 'JNC', 'JS', 'JNS', 'JO', 'JNO']
 const ZERO_OPERAND = ['CBW', 'CWD', 'NOP', 'STC', 'CLC', 'CMC', 'STD', 'CLD', 'XLAT', 'HLT']
 
 export const SUPPORTED_MNEMONICS: ReadonlySet<string> = new Set([
-  ...TWO_OPERAND, ...ONE_OPERAND, ...COND_JUMPS, ...ZERO_OPERAND, 'RET',
+  ...TWO_OPERAND, ...ONE_OPERAND, ...IO_OPERAND, ...COND_JUMPS, ...ZERO_OPERAND, 'RET',
 ])
 
 function operandCount(mn: string): number {
   if (TWO_OPERAND.includes(mn)) return 2
   if (ONE_OPERAND.includes(mn)) return 1
+  if (IO_OPERAND.includes(mn)) return 2
   if (COND_JUMPS.includes(mn)) return 1
   if (ZERO_OPERAND.includes(mn)) return 0
   if (mn === 'RET') return -3 // 0 or 1
@@ -771,6 +773,31 @@ function checkSizes(mn: string, ops: ROperand[], s: Stmt) {
     if (a && a.k !== 'imm') throw Object.assign(new Error('RET takes an optional immediate only (e.g. RET 4)'), { asm: s.pos })
     if (a && a.k === 'imm' && (a.v < 0 || a.v > 0xffff)) {
       throw Object.assign(new Error(`RET ${a.v} out of range (0..65535)`), { asm: s.pos })
+    }
+    return
+  }
+
+  if (mn === 'IN' || mn === 'OUT') {
+    // one operand must be AL or AX (the accumulator); the other is the port,
+    // which is either DX or an 8-bit immediate (0..255)
+    const [a, b] = ops
+    const reg = a.k === 'reg' && (a.name === 'AL' || a.name === 'AX') ? a
+              : b.k === 'reg' && (b.name === 'AL' || b.name === 'AX') ? b
+              : null
+    if (!reg) {
+      throw Object.assign(new Error(`${mn} requires AL or AX as the register operand`), { asm: s.pos })
+    }
+    const port = a === reg ? b : a
+    if (port.k === 'reg') {
+      if (port.name !== 'DX') {
+        throw Object.assign(new Error(`${mn} with register port requires DX`), { asm: s.pos })
+      }
+    } else if (port.k === 'imm') {
+      if (port.v < 0 || port.v > 0xff) {
+        throw Object.assign(new Error(`${mn} immediate port must be 0..255`), { asm: s.pos })
+      }
+    } else {
+      throw Object.assign(new Error(`${mn} port must be DX or an immediate 0..255`), { asm: s.pos })
     }
     return
   }
