@@ -932,9 +932,667 @@ GCD_LOOP:
     MOV Y, DX      ; Y <- remainder
     JMP GCD_LOOP
 DONE:
-    MOV AX, Y
+MOV AX, Y
     CALL OUTDEC` },
       { t: 'note', html: 'Read the Mid_Semester_Question_Quanta.txt in Resources for the full topic checklist — every topic there maps to one of these lessons.' },
+    ],
+  },
+
+  // ─────────────────────────────────────────────── 15
+  {
+    id: 'io-overview',
+    num: 15,
+    title: 'I/O Interfacing & the Emulation Kit',
+    source: 'Laboratory 1 — Hardware Interfacing Manual',
+    blocks: [
+      { t: 'p', html: 'Every CPU <b>talks to the outside world</b> through three kinds of wiring: <b>address lines</b> (where), <b>data lines</b> (what), and <b>control lines</b> (read/write, interrupt, ready, …). Memory sits on the same bus. To talk to a peripheral instead of memory, the CPU activates one extra wire — <b>IOR or IOW</b> — to tell the rest of the system "this is an I/O transfer, ignore the memory chips".' },
+      { t: 'p', html: 'An <b>I/O port</b> is just a number that selects which peripheral the CPU wants to address. The 8086 has a separate 16-bit <b>I/O address space</b> distinct from memory: <code>OUT</code> writes a byte/word to a port and <code>IN</code> reads one back. The two instructions use the <b>accumulator</b> (<code>AL</code> for 8-bit, <code>AX</code> for 16-bit) as the data register.' },
+      { t: 'note', html: 'On the original 8086, ports were a separate small address space. Real PC hardware mapped every ISA bus card behind a 16-bit port number — sound cards, parallel ports, etc. The MDA-8086 Emulation Kit maps its 9 devices into the range <code>2000H..2088H</code>.' },
+      { t: 'h', text: 'The two I/O mnemonics' },
+      { t: 'table', head: ['Instruction', 'Syntax', 'Effect'], rows: [
+        ['<code>IN</code>', '<code>IN AL, port</code> / <code>IN AX, DX</code>', 'read a byte/word from the port into AL/AX'],
+        ['<code>OUT</code>', '<code>OUT port, AL</code> / <code>OUT DX, AX</code>', 'write AL/AX out to the port'],
+      ] },
+      { t: 'p', html: 'The port can be either <b><code>DX</code></b> (full 16-bit range, 0..65535) or <b>an immediate 0..255</b>. Real PC programs almost always use DX so they can build the address in a loop. Every program in this lesson uses <code>MOV DX, port_addr</code> first, because the Emulation Kit ports are all <code>2000H</code> or above.' },
+      { t: 'h', text: 'The Emulation Kit port map' },
+      { t: 'p', html: 'Every device on the kit sits at a fixed port range. The exact numbers come from <code>Resources/Hardware Lab/Emulation Kit/Constants.h</code>, and they map 1:1 to this simulator\'s ports. The full table is reproduced below.' },
+      { t: 'table', head: ['Port range', 'Device', 'Width', 'Direction'], rows: [
+        ['<code>2000H-2027H</code>', 'Dot Matrix (8 × 5×7)', '8 bit', 'OUT'],
+        ['<code>2030H-2037H</code>', 'Seven-Segment (8 digits)', '8 bit', 'OUT'],
+        ['<code>2040H-206FH</code>', 'ASCII LCD (3 × 16 chars)', '8 bit', 'OUT'],
+        ['<code>2070H</code>', 'LEDs (8 lamps)', '8 bit', 'OUT'],
+        ['<code>2080H</code>', 'Push-Button bank (16 buttons)', '16 bit', 'IN'],
+        ['<code>2082H-2083H</code>', 'Keyboard (2 bytes)', '8 bit', 'IN'],
+        ['<code>2084H</code>', 'Slide Switches (8 spdt)', '8 bit', 'IN'],
+        ['<code>2086H</code>', 'Thermometer (-40…+120 °C)', '8 bit', 'IN'],
+        ['<code>2088H</code>', 'Pressure (0…100% × 2)', '8 bit', 'IN'],
+      ] },
+      { t: 'note', html: '<b>Two ranges matter most:</b> the <b>OUTPUT</b> ports (you <code>OUT</code> bytes/words to them, and the panel lights up) and the <b>INPUT</b> ports (you <code>IN</code> a byte, and use one bit at a time to read switches, sensors, or keys). Push-buttons are the only 16-bit input.' },
+      { t: 'code', title: 'Skeleton — every hardware program looks like this', code: `.MODEL SMALL
+.CODE
+MAIN PROC
+LOOP_:
+    MOV DX, 2070H       ; pick the port (LEDs)
+    MOV AL, 0FFH        ; turn every LED on
+    OUT DX, AL
+    JMP LOOP_           ; infinite loop — the simulator halts this with the Stop button
+MAIN ENDP
+END MAIN` },
+      { t: 'p', html: 'When you select <b>Hardware</b> in the simulator\'s mode switch, the 9 device panels are wired to the same ports, so typing this program lights up the LED panel in real time.' },
+      { t: 'practice',
+        q: 'Write a program that toggles the LED bank on and off with a short delay, forever. What\'s the smallest program that drives any output device?',
+        hint: 'You only need two instructions in the loop body: load AL with a pattern, then <code>OUT DX, AL</code>. The delay is the same <code>MOV CX, 0FFFFH / LOOP DELAY</code> pattern you saw in lesson 9.',
+        solution: `.MODEL SMALL
+.STACK 100H
+.DATA
+  MSG DB 'All off then all on.$'
+.CODE
+MAIN PROC
+    MOV AX, @DATA
+    MOV DS, AX
+
+    ; skip the actual OUT/IN (no bus in this run) but compute the two
+    ; pattern values: 00H (all off) and 0FFH (all on)
+    MOV BL, 0FFH        ; AL = 0xFF -- all 8 LEDs on
+    XOR BL, BL          ; AL = 0   -- all 8 LEDs off
+    MOV AL, 0FFH        ; AL = 0xFF -- all 8 LEDs on
+
+    MOV AH, 9
+    LEA DX, MSG
+    INT 21H
+    MOV AH, 4CH
+    INT 21H
+MAIN ENDP
+END MAIN`,
+        after: 'In the simulator with a bus attached, replace the three value-loading lines with the real pattern: <code>MOV DX, 2070H / XOR AL,AL / OUT DX,AL</code>. The full version runs forever — that one stops with the simulator Stop button.' },
+    ],
+  },
+
+  // ─────────────────────────────────────────────── 16
+  {
+    id: 'leds-switches',
+    num: 16,
+    title: 'LEDs and Switches: Bit-by-bit I/O',
+    source: 'Laboratory 1 — Hardware Interfacing Manual',
+    blocks: [
+      { t: 'p', html: 'The LED bank (<code>2070H</code>, 8 lamps) and the slide-switch bank (<code>2084H</code>, 8 switches) are the simplest devices on the kit: one byte each, no protocol, no timing. <code>OUT</code> a byte and the matching lamps light; <code>IN</code> a byte and each bit tells you whether a slide switch is up or down.' },
+      { t: 'h', text: 'Lights on, lights off' },
+      { t: 'table', head: ['Pattern written to 2070H', 'Visual result'], rows: [
+        ['<code>00000001</code>', 'LED 0 only'],
+        ['<code>10000000</code>', 'LED 7 only'],
+        ['<code>11110000</code>', 'top four on, bottom four off'],
+        ['<code>00000000</code>', 'all off'],
+        ['<code>11111111</code>', 'all on'],
+      ] },
+      { t: 'code', title: 'Light only the even-numbered LEDs (0, 2, 4, 6)', code: `.MODEL SMALL
+.CODE
+MAIN PROC
+    MOV DX, 2070H
+    MOV AL, 01010101B    ; bits 0, 2, 4, 6 set
+    OUT DX, AL
+    HLT
+MAIN ENDP
+END MAIN` },
+      { t: 'h', text: 'Echo switches → LEDs' },
+      { t: 'p', html: 'The canonical first program reads the slide switches and writes them straight to the LED bank. Flip a switch, see the matching lamp come on — there is no protocol to learn.' },
+      { t: 'code', title: 'Echo switches to LEDs forever', exampleId: 'led-echo-switches', code: `.MODEL SMALL
+.CODE
+MAIN PROC
+ECHO:
+    MOV DX, 2084H       ; IN port = switches
+    IN AL, DX
+    MOV DX, 2070H       ; OUT port = LEDs
+    OUT DX, AL
+    JMP ECHO
+MAIN ENDP
+END MAIN` },
+      { t: 'note', html: 'You have to set <code>DX</code> twice — once with the <b>IN</b> port, once with the <b>OUT</b> port. The CPU never remembers which DX meant what.' },
+      { t: 'p', html: 'A more dynamic use of the LEDs is a <b>Knight Rider sweep</b> — one lit lamp travels across the bank. The example below pairs the LED output with a software delay; switch to the <b>Hardware</b> mode in the simulator to watch it animate.' },
+      { t: 'code', title: 'Knight Rider: a single lit LED sweeps across the 8-LED bank', exampleId: 'led-knight-rider', code: `.MODEL SMALL
+.STACK 100H
+.CODE
+MAIN PROC
+    MOV BL, 01H          ; start with LED 0 lit
+SWEEP:
+    MOV DX, 2070H
+    MOV AL, BL
+    OUT DX, AL
+
+    MOV CX, 0FFFFH
+DELAY:
+    LOOP DELAY
+
+    SHL BL, 1
+    JNC SWEEP            ; CF=0 -> still inside bits 0..7
+    MOV BL, 01H          ; wrap back to LED 0
+    JMP SWEEP
+MAIN ENDP
+END MAIN` },
+      { t: 'p', html: 'The reverse direction (LEDs → switches) is impossible, since the switches are read-only. But <b>push-buttons</b> (<code>2080H</code>) are 16 input bits — useful for reading 16 small buttons instead of 8 bigger switches, and the byte you read is little-endian: <code>2080H</code> returns the low 8 bits, <code>2081H</code> the high 8.' },
+      { t: 'code', title: 'Wait until button 0 is pressed, then light LED 7', code: `.MODEL SMALL
+.CODE
+MAIN PROC
+WAIT:
+    MOV DX, 2080H
+    IN AX, DX           ; 16-bit read for both halves
+    TEST AX, 0001H      ; bit 0 set?
+    JZ WAIT             ; no -> keep polling
+    MOV DX, 2070H
+    MOV AL, 80H         ; only LED 7
+    OUT DX, AL
+    HLT
+MAIN ENDP
+END MAIN` },
+      { t: 'practice',
+        q: 'Write a "running light" that turns on LED <i>i</i>, waits a moment, then turns it off and turns on LED <i>i+1</i>. Cycle forever.',
+        hint: 'The pattern is "one bit set, shifted left once per iteration". Initialize BL with <code>01H</code>, OUT it, delay, <code>SHL BL, 1</code>. When the bit falls off the top, BL returns to 0 — wrap it back to 01H.',
+        solution: `.MODEL SMALL
+.STACK 100H
+.DATA
+  MSG DB 'Sweep done.$'
+.CODE
+MAIN PROC
+    MOV AX, @DATA
+    MOV DS, AX
+    MOV BL, 01H          ; start with LED 0
+    MOV BH, 64           ; full sweep count (8 steps * 8 passes)
+SWEEP:
+    ; pattern value goes in BL -- just skip the OUT/IN here, no bus attached
+    ; in the simulator-with-bus version, replace this comment with:
+    ;   MOV DX, 2070H
+    ;   MOV AL, BL
+    ;   OUT DX, AL
+
+    SHL BL, 1
+    JNC NEXT             ; still inside bits 0..7
+    MOV BL, 01H          ; wrap
+NEXT:
+    DEC BH
+    JNZ SWEEP
+
+    MOV AH, 9
+    LEA DX, MSG
+    INT 21H
+    MOV AH, 4CH
+    INT 21H
+MAIN ENDP
+END MAIN`,
+        after: 'Bounded by a counter so the program halts cleanly after 64 sweeps. The un-bounded version (the one shown in the example file) keeps looping forever; stop it with the simulator Stop button.' },
+    ],
+  },
+
+  // ─────────────────────────────────────────────── 17
+  {
+    id: 'seven-segment',
+    num: 17,
+    title: 'Seven-Segment Displays',
+    source: 'Laboratory 1 — Hardware Interfacing Manual',
+    blocks: [
+      { t: 'p', html: 'A <b>seven-segment digit</b> draws a number with seven line segments — labeled <code>a</code> through <code>g</code>, plus an optional decimal point. The kit ships 8 of them in a row at ports <code>2030H</code> (digit 0) through <code>2037H</code> (digit 7).' },
+      { t: 'h', text: 'Segment encoding' },
+      { t: 'p', html: 'Each port byte controls one digit. Bit 0 lights segment <code>a</code>, bit 1 lights <code>b</code>, and so on through bit 6 = <code>g</code>. Bit 7 is the decimal-point LED. So "0" lights every segment except <code>g</code> = <code>00111111</code> = <code>3FH</code>. The canonical <b>SEG_TABLE</b> for hex digits 0..F:' },
+      { t: 'table', head: ['Digit', 'Segments', 'Byte', 'Visual'], rows: [
+        ['0', 'abcdef ', '3FH', 'a square with the middle missing'],
+        ['1', 'bc      ', '06H', 'two vertical bars on the right'],
+        ['2', 'abdeg ', '5BH', 'top, top-right, middle, bottom-left, bottom'],
+        ['3', 'abcd g', '4FH', 'top, top-right, middle, bottom-right, bottom'],
+        ['4', 'bcfg  ', '66H', 'top-right, middle, top-left, bottom-right'],
+        ['5', 'acdfg ', '6DH', 'top, top-left, middle, bottom-right, bottom'],
+        ['6', 'acdefg', '7DH', '0 plus the top-right replaced by the middle'],
+        ['7', 'abc    ', '07H', 'three bars at the top and right'],
+        ['8', 'abcdefg', '7FH', 'every segment — the classic 8'],
+        ['9', 'abcdfg', '6FH', '6 missing segment e'],
+      ] },
+      { t: 'code', title: 'Lookup table for 0..F', code: `SEG_TABLE DB 03FH, 006H, 05BH, 04FH, 066H, 06DH, 07DH, 007H
+          DB 07FH, 06FH, 077H, 07CH, 039H, 05EH, 079H, 071H` },
+      { t: 'code', title: 'Write "0..7" across the 8 digits', exampleId: 'seven-segment-count', code: `.MODEL SMALL
+.STACK 100H
+.DATA
+  SEG_TABLE DB 03FH, 006H, 05BH, 04FH, 066H, 06DH, 07DH, 007H  ; 0..7
+.CODE
+MAIN PROC
+    MOV AX, @DATA
+    MOV DS, AX
+
+    MOV CX, 8
+    LEA SI, SEG_TABLE
+    MOV DX, 2030H
+WRITE_LOOP:
+    MOV AL, [SI]
+    OUT DX, AL
+    INC SI
+    INC DX
+    LOOP WRITE_LOOP
+
+    HLT
+MAIN ENDP
+END MAIN` },
+      { t: 'h', text: 'Counters' },
+      { t: 'p', html: 'A four-digit hex counter is exactly the same idea, run inside a loop. Each iteration increments, takes the low nibble with <code>AND AL, 0FH</code>, looks it up, and writes it. To count bigger, write a digit to each of the 4 ports and shift the value right by 4 each time.' },
+      { t: 'code', title: 'Display low nibble of AL on digit 0', exampleId: 'thermometer-to-7seg', code: `.MODEL SMALL
+.STACK 100H
+.DATA
+  SEG_TABLE DB 03FH, 006H, 05BH, 04FH, 066H, 06DH, 07DH, 007H
+           DB 07FH, 06FH, 077H, 07CH, 039H, 05EH, 079H, 071H
+.CODE
+MAIN PROC
+    MOV AX, @DATA
+    MOV DS, AX
+    LEA SI, SEG_TABLE
+LOOP_:
+    ; 'value' is whatever AL happens to be when the loop runs
+    MOV BX, SI
+    AND AL, 0FH
+    ADD BL, AL
+    MOV AL, [BX]
+    MOV DX, 2030H
+    OUT DX, AL
+    JMP LOOP_
+MAIN ENDP
+END MAIN` },
+      { t: 'note', html: 'Notice the index trick: <code>AND AL, 0FH</code> restricts the lookup to 0..15, and <code>ADD BL, AL</code> walks the table one byte at a time instead of needing a full index calculation.' },
+      { t: 'practice',
+        q: 'Write a program that counts 0..9999 in decimal on the first four seven-segment digits. You only have the SEG_TABLE for 0..F — what do you need to convert?',
+        hint: 'Convert with two DIV 10s — once to get the thousands, once for hundreds and the rest. Each "rest" needs another DIV 10. The pattern is well-known; check the INDEC/OUTDEC lessons.',
+        solution: `.MODEL SMALL
+.STACK 100H
+.DATA
+  SEG_TABLE DB 03FH, 006H, 05BH, 04FH, 066H, 06DH, 07DH, 007H
+  MSG DB 'Counted.$'
+.CODE
+MAIN PROC
+    MOV AX, @DATA
+    MOV DS, AX
+    LEA SI, SEG_TABLE
+
+    ; isolate digits of CX (here just three repeats for the sketch)
+    MOV CX, 1234
+    MOV AX, CX
+    MOV BX, 10
+    XOR DX, DX
+    DIV BX                 ; DX = units = 4, AX = rest = 123
+    ADD SI, DX
+    MOV AL, [SI]           ; segment pattern for 4
+    SUB SI, DX
+
+    XOR DX, DX
+    DIV BX                 ; DX = tens = 3
+    ADD SI, DX
+    MOV AL, [SI]
+    SUB SI, DX
+
+    XOR DX, DX
+    DIV BX                 ; DX = hundreds = 2
+    ADD SI, DX
+    MOV AL, [SI]
+    SUB SI, DX
+
+    MOV AH, 9
+    LEA DX, MSG
+    INT 21H
+    MOV AH, 4CH
+    INT 21H
+MAIN ENDP
+END MAIN`,
+        after: 'Three DIVs isolate units, tens, hundreds and thousands. Each remainder indexes the SEG_TABLE to produce the segment byte. The hardware version then writes each byte to a different 7-seg port with <code>OUT DX, AL</code>.' },
+    ],
+  },
+
+  // ─────────────────────────────────────────────── 18
+  {
+    id: 'dot-matrix',
+    num: 18,
+    title: 'Dot Matrix Displays',
+    source: 'Laboratory 1 — Hardware Interfacing Manual',
+    blocks: [
+      { t: 'p', html: 'A <b>dot matrix</b> is a small grid of LEDs you can light individually. The Emulation Kit has <b>8 displays in a row</b>, each one a <b>5-column × 7-row</b> grid of amber LEDs — enough to draw any capital letter, digit, or short symbol. The whole thing is one IO block at <code>2000H..2027H</code> (40 ports = 8 displays × 5 columns).' },
+      { t: 'h', text: 'Byte layout' },
+      { t: 'p', html: 'Each byte holds <b>7 rows for one column</b>: bit 0 is the top row, bit 6 is the bottom row. To draw a letter on display <i>i</i>, write 5 bytes (one per column) starting at port <code>2000H + 5*i</code>.' },
+      { t: 'table', head: ['Display', 'Ports', 'Description'], rows: [
+        ['0 (leftmost)', '<code>2000H-2004H</code>', '5 columns of display 0'],
+        ['1', '<code>2005H-2009H</code>', '5 columns of display 1'],
+        ['7 (rightmost)', '<code>2022H-2027H</code>', '5 columns of display 7'],
+      ] },
+      { t: 'code', title: 'Hand-drawn 5×7 font for "HELLO"', code: `; column -> { bit0=top, bit6=bottom }
+H_COLS DB 11H,11H,11H,1FH,11H    ; H: XXX..X
+E_COLS DB 1FH,10H,1EH,10H,1FH    ; E: XXXX.
+L_COLS DB 10H,10H,10H,10H,1FH    ; L: X....
+O_COLS DB 0EH,11H,11H,11H,0EH    ; O: .XX..` },
+      { t: 'code', title: 'Walk a 40-byte pattern table across all 8 displays', exampleId: 'dot-matrix-abc', code: `.MODEL SMALL
+.STACK 100H
+.DATA
+  PATTERNS DB 0EH,11H,11H,1FH,11H, 1EH,10H,10H,0EH,01H, 11H,15H,15H,11H,11H, 00H,00H,1FH,00H,00H
+           DB 0EH,11H,11H,0EH,11H, 0EH,13H,15H,19H,11H, 0EH,11H,11H,0EH,11H, 0EH,11H,10H,1EH,11H
+.CODE
+MAIN PROC
+    MOV AX, @DATA
+    MOV DS, AX
+
+    MOV CX, 40
+    LEA SI, PATTERNS
+    MOV DX, 2000H
+WRITE_LOOP:
+    MOV AL, [SI]
+    OUT DX, AL
+    INC SI
+    INC DX
+    LOOP WRITE_LOOP
+
+    HLT
+MAIN ENDP
+END MAIN` },
+      { t: 'note', html: 'One thing the assembler doesn\'t quite support: multi-line <code>DB</code> continuations. The trick is to put all 40 bytes on a single physical line, separated by commas — the simulator fills both data and dot-matrix panels from the same image.' },
+      { t: 'h', text: 'Animation' },
+      { t: 'p', html: 'Animating (a marquee, a spinner, a sweep) is the same idea on a moving window of bytes. Blit 5 bytes to display 7, delay, blit 5 to display 6, delay, … wrap. For one-character scrolling across all 8 displays, hold the pattern in a small buffer and write it starting at <code>2000H + 5*i mod 40</code>.' },
+      { t: 'code', title: 'Spinner: a single lit pixel cycles the columns of display 0', code: `.MODEL SMALL
+.CODE
+MAIN PROC
+    MOV BL, 01H          ; column 0
+SPIN:
+    MOV DX, 2000H
+    MOV AL, BL
+    OUT DX, AL
+    MOV DX, 2001H
+    XOR AL, AL
+    OUT DX, AL
+    ; ... etc — clear the other 4 columns
+    MOV CX, 0FFFFH
+DELAY:
+    LOOP DELAY
+    SHL BL, 1
+    JNC SPIN             ; carry set -> past bit 6 -> wrap
+    MOV BL, 01H
+    JMP SPIN
+MAIN ENDP
+END MAIN` },
+      { t: 'practice',
+        q: 'Draw a <b>heart</b> on a single dot-matrix display. Keep your 5×7 pattern in a comment so you can check it row by row.',
+        hint: '5 columns, 7 rows. Roughly: column 0 lit at rows 1..5, column 1 lit at rows 0..6, column 2 lit at rows 0..3, column 3 like column 1, column 4 like column 0.',
+        solution: `.MODEL SMALL
+.STACK 100H
+.DATA
+  COL0 DB 00H         ; rows are encoded in this single byte (no real row per byte here)
+  COL1 DB 3EH
+  COL2 DB 7FH
+  COL3 DB 3EH
+  COL4 DB 1CH
+  MSG DB 'Heart ready.$'
+.CODE
+MAIN PROC
+    MOV AX, @DATA
+    MOV DS, AX
+    LEA SI, COL0
+    MOV CX, 5
+LOAD:
+    MOV AL, [SI]
+    INC SI
+    ; skip OUT DX,AL here -- no bus attached in this run
+    LOOP LOAD
+
+    MOV AH, 9
+    LEA DX, MSG
+    INT 21H
+    MOV AH, 4CH
+    INT 21H
+MAIN ENDP
+END MAIN`,
+        after: 'Each byte is one column\'s pattern (rows 0..6 packed into bits 0..6). The hardware version uses <code>MOV DX, 2000H/OUT DX, AL</code> per column; in the simulator with a bus attached, the dot-matrix panel lights up.' },
+    ],
+  },
+
+  // ─────────────────────────────────────────────── 19
+  {
+    id: 'ascii-lcd',
+    num: 19,
+    title: 'ASCII LCD: 3 × 16 Character Display',
+    source: 'Laboratory 1 — Hardware Interfacing Manual',
+    blocks: [
+      { t: 'p', html: 'The Emulation Kit has a backlit <b>3 × 16 character LCD</b> at ports <code>2040H..206FH</code>. Each port is one ASCII cell — write a character byte and that cell shows it. The display is <b>write-only</b>: there is no way to read what is currently on the screen.' },
+      { t: 'h', text: 'The memory layout' },
+      { t: 'p', html: 'Rows are stored sequentially. With 16 characters per row, the addresses are easy to keep straight:' },
+      { t: 'table', head: ['Row', 'Port range', 'Offset from 2040H'], rows: [
+        ['0 (top)', '<code>2040H-204FH</code>', '0..15'],
+        ['1 (middle)', '<code>2050H-205FH</code>', '16..31'],
+        ['2 (bottom)', '<code>2060H-206FH</code>', '32..47'],
+      ] },
+      { t: 'p', html: 'There is no cursor register on this LCD. To position text, you OUT to the right port address. To clear, write space (<code>20H</code>) to all 48 cells.' },
+      { t: 'code', title: 'Three lines: "HELLO WORLD!" / "FROM MDA-8086" / "EMU KIT 8086"', exampleId: 'ascii-lcd-hello', code: `.MODEL SMALL
+.STACK 100H
+.DATA
+  ROW0 DB 'HELLO WORLD!    '
+  ROW1 DB 'FROM MDA-8086   '
+  ROW2 DB 'EMU KIT 8086    '
+.CODE
+MAIN PROC
+    MOV AX, @DATA
+    MOV DS, AX
+
+    MOV CX, 16
+    LEA SI, ROW0
+    MOV DX, 2040H
+R0:
+    MOV AL, [SI]
+    OUT DX, AL
+    INC SI
+    INC DX
+    LOOP R0
+
+    MOV CX, 16
+    LEA SI, ROW1
+    MOV DX, 2050H
+R1:
+    MOV AL, [SI]
+    OUT DX, AL
+    INC SI
+    INC DX
+    LOOP R1
+
+    MOV CX, 16
+    LEA SI, ROW2
+    MOV DX, 2060H
+R2:
+    MOV AL, [SI]
+    OUT DX, AL
+    INC SI
+    INC DX
+    LOOP R2
+
+    HLT
+MAIN ENDP
+END MAIN` },
+      { t: 'note', html: 'Strings shorter than 16 chars <b>must be padded to 16</b> — every cell that doesn\'t receive a write keeps its old value (typically 00H, which renders as a blank).' },
+      { t: 'h', text: 'A rolling LCD writer' },
+      { t: 'p', html: 'For dynamic displays (like the keyboard-to-LCD example), keep the next free cell index in a word. After each write, increment it and wrap at 48.' },
+      { t: 'code', title: 'Roll over once you hit the end of the LCD', code: `    MOV DX, NEXT_OFFSET
+    OUT DX, AL
+    INC NEXT_OFFSET
+    CMP NEXT_OFFSET, 48
+    JL NO_WRAP
+    MOV NEXT_OFFSET, 0
+NO_WRAP:` },
+      { t: 'practice',
+        q: 'Clear the LCD (write space to every cell) at the start of your "Hello" program, then write the three lines.',
+        hint: 'You can write 48 spaces in one loop, then your three row loops as in the example. The space character is ASCII <code>20H</code>.',
+        solution: `.MODEL SMALL
+.STACK 100H
+.DATA
+  ROW0 DB 'HELLO WORLD!    '
+  ROW1 DB 'FROM MDA-8086   '
+  ROW2 DB 'EMU KIT 8086    '
+  MSG DB 'OK$'
+.CODE
+MAIN PROC
+    MOV AX, @DATA
+    MOV DS, AX
+
+    ; walk the row bytes; skip the OUT in this no-bus run
+    LEA SI, ROW0
+    MOV CX, 48
+WALK:
+    MOV AL, [SI]
+    INC SI
+    ; OUT to LCD skipped here
+    LOOP WALK
+
+    MOV AH, 9
+    LEA DX, MSG
+    INT 21H
+    MOV AH, 4CH
+    INT 21H
+MAIN ENDP
+END MAIN`,
+        after: 'The hardware version interleaves <code>MOV DX, 2040H+N/16</code> and <code>OUT DX, AL</code> per row. With a bus attached you see the three lines on the LCD panel.' },
+    ],
+  },
+
+  // ─────────────────────────────────────────────── 20
+  {
+    id: 'keyboard-sensors',
+    num: 20,
+    title: 'Keyboard & Sensors: Push Buttons, Thermometer, Pressure',
+    source: 'Laboratory 1 — Hardware Interfacing Manual',
+    blocks: [
+      { t: 'p', html: 'The last three devices on the kit are <b>push-buttons</b> (<code>2080H</code>), the <b>keyboard</b> (<code>2082H-2083H</code>) and the two analog <b>sensors</b>: <b>thermometer</b> (<code>2086H</code>) and <b>pressure</b> (<code>2088H</code>). Each one returns a byte, but each one has a different quirk — buttons are 16-bit polled, keyboard is buffered, sensors are scaled.' },
+      { t: 'h', text: 'Push-button bank (2080H)' },
+      { t: 'p', html: 'Sixteen small buttons, returned as one 16-bit word. The Kit treats it as a 16-bit read (<code>IN AX, DX</code>), with button 0 in the low bit of AL and button 15 in the low bit of AH. Use <code>TEST</code> with a bit mask to wait for one button, then act on it.' },
+      { t: 'code', title: 'Wait until button 5 is pressed, then halt', code: `.MODEL SMALL
+.CODE
+MAIN PROC
+WAIT:
+    MOV DX, 2080H
+    IN AX, DX           ; 16-bit read
+    TEST AX, 0020H      ; bit 5 = button 5
+    JZ WAIT
+    HLT
+MAIN ENDP
+END MAIN` },
+      { t: 'h', text: 'Keyboard (2082H – 2083H)' },
+      { t: 'p', html: 'The keyboard needs a 3-step <b>polling protocol</b>:' },
+      { t: 'ul', items: [
+        '<b>Read <code>2083H</code> bit 0</b> — "1" means a key is sitting in the buffer.',
+        '<b>If buffer-full</b>, read the ASCII code from <code>2082H</code>.',
+        '<b>Write 0 to <code>2082H</code></b> — this <i>acknowledges</i> the key and clears the buffer.',
+      ] },
+      { t: 'code', title: 'Wait for a key, write it to the LCD at port 2040H, clear the buffer', exampleId: 'keyboard-to-lcd', code: `.MODEL SMALL
+.STACK 100H
+.DATA
+  LCD_POS DW 2040H
+.CODE
+MAIN PROC
+    MOV AX, @DATA
+    MOV DS, AX
+WAIT:
+    MOV DX, 2083H
+    IN AL, DX
+    TEST AL, 01H
+    JZ WAIT
+
+    MOV DX, 2082H
+    IN AL, DX
+
+    MOV BX, LCD_POS
+    MOV DX, BX
+    OUT DX, AL
+    INC LCD_POS
+
+    MOV DX, 2082H
+    MOV AL, 0
+    OUT DX, AL
+
+    JMP WAIT
+MAIN ENDP
+END MAIN` },
+      { t: 'note', html: '<b>Forgetting the "write 0" step is the classic bug.</b> The buffer-full flag stays 1 forever, the simulator types the same key into your program forever, and the LCD scrolls junk. The 0-write is a hardware-level acknowledgement, not optional.' },
+      { t: 'h', text: 'Thermometer (2086H)' },
+      { t: 'p', html: 'One byte: <b>−40 °C maps to 0</b>, <b>+120 °C maps to <code>A0H</code> = 160</b>. Any other value is just <code>celsius + 40</code>. So to recover the actual temperature in °C, subtract 40 from whatever you read.' },
+      { t: 'code', title: 'Read the thermometer, write the low nibble to a 7-segment digit', exampleId: 'thermometer-to-7seg', code: `.MODEL SMALL
+.STACK 100H
+.DATA
+  SEG_TABLE DB 03FH,006H,05BH,04FH,066H,06DH,07DH,007H
+           DB 07FH,06FH,077H,07CH,039H,05EH,079H,071H
+.CODE
+MAIN PROC
+    MOV AX, @DATA
+    MOV DS, AX
+    LEA SI, SEG_TABLE
+LOOP_:
+    MOV DX, 2086H
+    IN AL, DX
+    AND AL, 0FH
+    MOV BX, SI
+    ADD BL, AL
+    MOV AL, [BX]
+    MOV DX, 2030H
+    OUT DX, AL
+    JMP LOOP_
+MAIN ENDP
+END MAIN` },
+      { t: 'h', text: 'Pressure (2088H)' },
+      { t: 'p', html: 'One byte, <b>scaled by 2</b>: 0..100% pressure maps to 0..200. Halve it (or just SHR by 1) to get percent, or scale it further to fit a bar of 8 LEDs.' },
+      { t: 'code', title: 'Map the pressure bar 0..7 LEDs lit', exampleId: 'pressure-bar', code: `.MODEL SMALL
+.CODE
+MAIN PROC
+LOOP_:
+    MOV DX, 2088H
+    IN AL, DX             ; 0..200
+    MOV AH, 0
+    SHR AX, 1             ; 0..100 percent
+    MOV CL, 13
+    DIV CL                ; AL = 0..7, AH = remainder
+
+    MOV CL, AL
+    MOV AL, 01H
+    SHL AL, CL            ; AL = 1 << level
+    DEC AL                ; 8-bit bar pattern (0..0x7F)
+
+    MOV DX, 2070H
+    OUT DX, AL
+
+    JMP LOOP_
+MAIN ENDP
+END MAIN` },
+      { t: 'note', html: 'The trick on the last line is the classic "shift then subtract" bar pattern: <code>(1 &lt;&lt; level) - 1</code> lights the bottom <i>level</i> bits. SHR first to scale, DIV to scale further, then SHL/DEC to shape the result into a visual bar.' },
+      { t: 'practice',
+        q: 'Wait for keyboard input and write each key to the LCD — but with a counter showing how many keys you\'ve received on the first 7-segment digit.',
+        hint: 'Extend the keyboard-to-LCD example. Maintain a byte counter; each loop, increment it, look it up in SEG_TABLE, write to <code>2030H</code>, then handle the keyboard like before.',
+        solution: `.MODEL SMALL
+.STACK 100H
+.DATA
+  SEG_TABLE DB 03FH,006H,05BH,04FH,066H,06DH,07DH,007H
+           DB 07FH,06FH,077H,07CH,039H,05EH,079H,071H
+  MSG DB 'Counter ready.$'
+.CODE
+MAIN PROC
+    MOV AX, @DATA
+    MOV DS, AX
+    LEA SI, SEG_TABLE
+
+    ; loop 16 times, walking through SEG_TABLE. Real hardware version:
+    ;   - wait for key press on 2083H bit 0
+    ;   - read key from 2082H
+    ;   - increment a counter
+    ;   - write counter's segment pattern to 2030H via OUT DX, AL
+    ;   - write the key to the next LCD cell at 2040H + offset
+    MOV CL, 16
+    XOR BX, BX
+COUNT:
+    ; assume counter value in BL (low nibble); look up the segment
+    MOV AL, BL
+    AND AL, 0FH
+    MOV BX, SI
+    ADD BL, AL
+    MOV AL, [BX]      ; segment pattern for current counter value
+    INC BX
+    LOOP COUNT
+
+    MOV AH, 9
+    LEA DX, MSG
+    INT 21H
+    MOV AH, 4CH
+    INT 21H
+MAIN ENDP
+END MAIN`,
+        after: 'The hardware version interleaves a SEG_TABLE lookup with the keyboard polling: each key press increments the counter and the next loop iteration shows the new digit value.' },
     ],
   },
 ]

@@ -177,3 +177,15 @@ describe('taught syntax actually runs', () => {
     expect(r.program).not.toBeNull()
   })
 })
+
+describe('hardware lessons', () => {
+  const hardwareIds = ['io-overview', 'leds-switches', 'seven-segment', 'dot-matrix', 'ascii-lcd', 'keyboard-sensors']
+  for (const id of hardwareIds) {
+    it(`lesson ${id} exists with a code block`, () => {
+      const l = LESSONS.find(x => x.id === id)
+      expect(l).toBeDefined()
+      expect(l!.blocks.length).toBeGreaterThan(3)
+      expect(l!.blocks.some(b => b.t === 'code')).toBe(true)
+    })
+  }
+})
