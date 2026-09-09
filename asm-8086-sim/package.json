@@ -1,5 +1,5 @@
 {
-  "name": "asm-lab",
+  "name": "asm-8086-sim",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -9,8 +9,8 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",
-    "build:pages": "PAGES_BASE=/asm-lab-prep/ vite build",
-    "preview:pages": "PAGES_BASE=/asm-lab-prep/ vite preview"
+    "build:pages": "PAGES_BASE=/asm-8086-sim/ vite build",
+    "preview:pages": "PAGES_BASE=/asm-8086-sim/ vite preview"
   },
   "dependencies": {
     "@codemirror/language": "^6.12.4",

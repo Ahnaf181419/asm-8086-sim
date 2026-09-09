@@ -11,7 +11,7 @@ import { EXAMPLES, exampleById } from '../data/examples'
 // needs it, so it loads on demand (PLAN section 10).
 const CodeEditor = lazy(() => import('../components/CodeEditor'))
 
-const LS_KEY = 'asm-lab:source'
+const LS_KEY = 'asm-8086-sim:source'
 
 export default function SimulatorPage() {
   const nav = useNavigate()

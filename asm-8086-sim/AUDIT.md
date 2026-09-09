@@ -1,6 +1,6 @@
-# ASM-LAB — Project Audit & Review
+# ASM-8086-SIM — Project Audit & Review
 
-**Date:** 2026-08-30 · **Method:** two independent reviewer subagents (engine / UI) + maintainer probe verification + regression tests · **Scope:** complete project (`asm-lab/`)
+**Date:** 2026-08-30 · **Method:** two independent reviewer subagents (engine / UI) + maintainer probe verification + regression tests · **Scope:** complete project (`asm-8086-sim/`)
 
 **Verdict at start:** NOT ready — 3 engine Criticals, 2 UI Criticals, 9 Importants, ~25 Minors.
 **Status after fixes:** ALL Critical/Important items fixed; suite grew 24 → **72 tests, all green**; `tsc`, `oxlint` (0 warnings), `vite build`, and live browser checks pass.

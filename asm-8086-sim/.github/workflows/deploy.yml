@@ -38,7 +38,7 @@ jobs:
         run: npm run build:pages
 
       # GitHub Pages has no SPA rewrite support: serve the app shell for
-      # unknown paths so deep links like /asm-lab-prep/lessons/flags boot
+      # unknown paths so deep links like /asm-8086-sim/lessons/flags boot
       - name: SPA fallback
         run: cp dist/index.html dist/404.html
 

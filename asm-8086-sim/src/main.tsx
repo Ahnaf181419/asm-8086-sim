@@ -8,7 +8,7 @@ import LessonView from './pages/LessonView'
 import ReferencePage from './pages/ReferencePage'
 import './styles/global.css'
 
-// when hosted under a subpath (GitHub Pages: /asm-lab-prep/), the router must
+// when hosted under a subpath (GitHub Pages: /asm-8086-sim/), the router must
 // strip it; Vite's BASE_URL mirrors the build's --base flag ('/' elsewhere)
 const routerBasename = import.meta.env.BASE_URL.replace(/\/$/, '')
 
@@ -42,7 +42,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
     if (this.state.error) {
       return (
         <div style={{ padding: 40, fontFamily: 'var(--mono)', color: '#ff5555', background: '#0a0e0a', minHeight: '100vh' }}>
-          <h1 style={{ color: '#33ff66' }}>ASM-LAB — FATAL ERROR</h1>
+          <h1 style={{ color: '#33ff66' }}>ASM-8086-SIM — FATAL ERROR</h1>
           <pre style={{ whiteSpace: 'pre-wrap' }}>{String(this.state.error)}</pre>
           <button onClick={() => location.reload()} style={{ marginTop: 16 }}>
             ⟲ reload

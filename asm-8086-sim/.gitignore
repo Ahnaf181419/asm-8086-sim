@@ -25,3 +25,6 @@ dist-ssr
 
 # local course-material text dumps (not needed to build/run the app)
 extracted
+
+# defensive: if a future e2e test runs from this dir, ignore its cache
+.playwright-mcp/

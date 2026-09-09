@@ -1,4 +1,4 @@
-# ASM-LAB — 8086 Assembly Study Website: Implementation Plan
+# ASM-8086-SIM — 8086 Assembly Study Website: Implementation Plan
 
 > Personal study aid for the "Assembly Language Programming" course (2.2 semester).
 > Interactive 8086 simulator + lessons built from real course materials + instruction reference.
@@ -15,7 +15,7 @@
 | Editor        | CodeMirror 6 with custom MASM syntax highlighting |
 | Routing       | react-router-dom (3 pages: Simulator, Lessons, Reference) |
 | Tests         | Vitest — engine tested against the course's real `.asm` files |
-| Location      | `asm-lab/` inside this folder |
+| Location      | `asm-8086-sim/` (repo root) |
 | Run           | `npm run dev` (local only; no deployment needed) |
 
 ### Non-goals
@@ -44,7 +44,7 @@
 ## 3. Architecture
 
 ```
-asm-lab/
+asm-8086-sim/
 ├── index.html
 ├── package.json / tsconfig.json / vite.config.ts
 ├── src/
@@ -201,7 +201,7 @@ syntax-highlighted), and **“▶ Open in Simulator”** which loads the exact p
 | Phase | Deliverable | Verify |
 |-------|-------------|--------|
 | 0 | PLAN.md (this file) | — |
-| 1 | PDF text extraction → `asm-lab/extracted/lecture-*.txt` | files non-empty |
+| 1 | PDF text extraction → `asm-8086-sim/extracted/lecture-*.txt` | files non-empty |
 | 2 | Vite scaffold + theme + router + terminal chrome | `npm run dev` renders 3 pages |
 | 3 | Engine: lexer → parser → assembler → CPU → INT21H | targeted unit tests |
 | 4 | Fixture end-to-end tests green | `npm test` |

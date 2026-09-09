@@ -5,7 +5,7 @@ export default function App() {
     <div className="app-shell">
       <header className="topbar">
         <div className="logo">
-          ASM-LAB<span className="cursor">▊</span>
+          ASM-8086-SIM<span className="cursor">▊</span>
         </div>
         <nav>
           <NavLink to="/" end>simulator</NavLink>
