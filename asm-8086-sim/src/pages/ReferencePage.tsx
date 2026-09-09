@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { INT21_SERVICES, REFERENCE, REGISTERS_REF } from '../data/reference'
+import { INT21_SERVICES, IO_PORT_MAP, REFERENCE, REGISTERS_REF } from '../data/reference'
 
 const CATS = ['All', 'Data movement', 'Arithmetic', 'Logic & shifts', 'Control flow', 'Procedures & stack', 'I/O'] as const
 
@@ -95,6 +95,30 @@ export default function ReferencePage() {
                 <code>{s.input}</code>
               </td>
               <td>{s.output}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <h1 style={{ fontSize: 16, marginTop: 36 }}>I/O PORT MAP (MDA-8086 EMULATION KIT)</h1>
+      <table className="ref-table">
+        <thead>
+          <tr>
+            <th>Port range</th>
+            <th>Device</th>
+            <th>Width</th>
+            <th>Direction</th>
+            <th>Ports</th>
+          </tr>
+        </thead>
+        <tbody>
+          {IO_PORT_MAP.map((p) => (
+            <tr key={p.range}>
+              <td className="mnem">{p.range}</td>
+              <td>{p.device}</td>
+              <td>{p.width} bit</td>
+              <td>{p.dir}</td>
+              <td>{p.count}</td>
             </tr>
           ))}
         </tbody>

@@ -81,6 +81,18 @@ export const INT21_SERVICES = [
   { ah: '4CH', name: 'Exit to DOS', input: 'AH=4CH', output: 'program terminates' },
 ]
 
+export const IO_PORT_MAP = [
+  { range: '2000H-2027H', device: 'Dot Matrix',     width: 8,  dir: 'OUT', count: 40 },
+  { range: '2030H-2037H', device: 'Seven Segment',  width: 8,  dir: 'OUT', count: 8  },
+  { range: '2040H-206FH', device: 'ASCII LCD',      width: 8,  dir: 'OUT', count: 48 },
+  { range: '2070H',       device: 'LEDs',           width: 8,  dir: 'OUT', count: 1  },
+  { range: '2080H',       device: 'Push Buttons',   width: 16, dir: 'IN',  count: 1  },
+  { range: '2082H-2083H', device: 'Keyboard',       width: 8,  dir: 'IN',  count: 2  },
+  { range: '2084H',       device: 'Switches',       width: 8,  dir: 'IN',  count: 1  },
+  { range: '2086H',       device: 'Thermometer',    width: 8,  dir: 'IN',  count: 1  },
+  { range: '2088H',       device: 'Pressure',       width: 8,  dir: 'IN',  count: 1  },
+]
+
 export const REGISTERS_REF = [
   { reg: 'AX', pair: 'AH+AL', use: 'accumulator — MUL/DIV, I/O functions' },
   { reg: 'BX', pair: 'BH+BL', use: 'base — can address memory as [BX]' },
