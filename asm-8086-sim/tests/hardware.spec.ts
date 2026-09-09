@@ -4,6 +4,7 @@ import { LED_ADDRESS, SWITCHES_ADDRESS } from '../src/engine/devices/portMap'
 import { LedsDevice } from '../src/engine/devices/leds'
 import { assemble } from '../src/engine/assembler'
 import { Machine } from '../src/engine/cpu'
+import { exampleById } from '../src/data/examples'
 
 describe('HardwareBus', () => {
   it('writes 8-bit value to the correct device and reads it back', () => {
@@ -204,4 +205,15 @@ END MAIN
     expect(m.status).toBe('error')
     expect(m.error?.message).toMatch(/no I\/O bus/i)
   })
+})
+
+describe('hardware examples', () => {
+  for (const id of ['dot-matrix-abc', 'seven-segment-count', 'ascii-lcd-hello', 'led-knight-rider', 'led-echo-switches', 'keyboard-to-lcd', 'thermometer-to-7seg', 'pressure-bar']) {
+    it(`example ${id} assembles`, () => {
+      const ex = exampleById(id)
+      expect(ex).toBeDefined()
+      const r = assemble(ex!.source, { mainFile: `${id}.asm` })
+      expect(r.errors).toEqual([])
+    })
+  }
 })
