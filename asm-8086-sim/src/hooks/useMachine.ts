@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { assemble } from '../engine/assembler'
 import { Machine, type MachineSnapshot } from '../engine/cpu'
 import type { AsmError, Program, MachineStatus } from '../engine/types'
+import type { HardwareBus } from '../engine/devices/bus'
 import { INDEC_SRC, OUTDEC_SRC } from '../data/courseLib'
 
 // run-loop speeds (instructions per animation frame); slider indexes into this
@@ -24,7 +25,7 @@ export function resolveInclude(name: string): string | null {
   return INCLUDE_LIB[key] ?? null
 }
 
-export function useMachine() {
+export function useMachine(opts?: { bus?: HardwareBus }) {
   const machineRef = useRef<Machine | null>(null)
   const [state, setState] = useState<SimulatorState>({ program: null, errors: [], snap: null, changes: emptyChanges() })
   const [running, setRunning] = useState(false)
@@ -60,7 +61,7 @@ export function useMachine() {
       stop()
       const result = assemble(source, { resolveInclude, mainFile: 'editor.asm' })
       if (result.program) {
-        machineRef.current = new Machine(result.program)
+        machineRef.current = new Machine(result.program, opts?.bus)
         setState({ program: result.program, errors: result.errors, snap: machineRef.current.snapshot(), changes: emptyChanges() })
       } else {
         machineRef.current = null
@@ -68,7 +69,7 @@ export function useMachine() {
       }
       return result
     },
-    [stop],
+    [stop, opts?.bus],
   )
 
   const step = useCallback(() => {
