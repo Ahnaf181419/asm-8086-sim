@@ -26,6 +26,26 @@ describe('HardwareBus', () => {
     const snap = bus.snapshot()
     expect(snap.devices['leds']).toMatchObject({ value: 0xff })
   })
+
+  it('snapshot returns referentially stable object between notifies', () => {
+    const bus = new HardwareBus()
+    bus.attach(new LedsDevice())
+    bus.dispatchWrite(LED_ADDRESS, 0x10, 8)
+    const snap1 = bus.snapshot()
+    const snap2 = bus.snapshot()
+    expect(snap2).toBe(snap1)
+  })
+
+  it('snapshot invalidates cache after dispatchWrite', () => {
+    const bus = new HardwareBus()
+    bus.attach(new LedsDevice())
+    bus.dispatchWrite(LED_ADDRESS, 0x10, 8)
+    const snap1 = bus.snapshot()
+    bus.dispatchWrite(LED_ADDRESS, 0x20, 8)
+    const snap2 = bus.snapshot()
+    expect(snap2).not.toBe(snap1)
+    expect((snap2.devices['leds'] as { value: number }).value).toBe(0x20)
+  })
 })
 
 import { DOT_MATRIX_ADDRESS } from '../src/engine/devices/portMap'

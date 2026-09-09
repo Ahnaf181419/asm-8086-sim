@@ -5,12 +5,14 @@ export class HardwareBus {
   private ports = new Uint16Array(MAX_NUM_OF_PORTS)
   private deviceList: IoDevice[] = []
   private listeners = new Set<() => void>()
+  private cachedSnapshot: BusSnapshot | null = null
 
   attach(device: IoDevice): void { this.deviceList.push(device) }
 
   reset(): void {
     this.ports.fill(0)
     for (const d of this.deviceList) d.reset()
+    this.cachedSnapshot = null
     this.notify()
   }
 
@@ -39,13 +41,16 @@ export class HardwareBus {
     } else {
       this.ports[idx] = (this.ports[idx] & 0xff00) | (value & 0xff)
     }
+    this.cachedSnapshot = null
     this.notify()
   }
 
   snapshot(): BusSnapshot {
+    if (this.cachedSnapshot) return this.cachedSnapshot
     const devices: Record<string, unknown> = {}
     for (const d of this.deviceList) devices[d.name] = d.snapshot()
-    return { devices }
+    this.cachedSnapshot = { devices }
+    return this.cachedSnapshot
   }
 
   subscribe(cb: () => void): () => void {
@@ -54,6 +59,7 @@ export class HardwareBus {
   }
 
   notify(): void {
+    this.cachedSnapshot = null
     for (const l of this.listeners) l()
   }
 
