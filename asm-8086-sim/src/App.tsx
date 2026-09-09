@@ -10,6 +10,7 @@ export default function App() {
         <nav>
           <NavLink to="/" end>simulator</NavLink>
           <NavLink to="/lessons">lessons</NavLink>
+          <NavLink to="/hardware">hardware</NavLink>
           <NavLink to="/reference">reference</NavLink>
         </nav>
         <div className="spacer" />

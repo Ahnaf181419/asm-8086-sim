@@ -6,6 +6,7 @@ import SimulatorPage from './pages/SimulatorPage'
 import LessonsPage from './pages/LessonsPage'
 import LessonView from './pages/LessonView'
 import ReferencePage from './pages/ReferencePage'
+import HardwareLabPage from './pages/HardwareLabPage'
 import './styles/global.css'
 
 // when hosted under a subpath (GitHub Pages: /asm-8086-sim/), the router must
@@ -21,6 +22,7 @@ const router = createBrowserRouter(
         { index: true, element: <SimulatorPage /> },
         { path: 'lessons', element: <LessonsPage /> },
         { path: 'lessons/:id', element: <LessonView /> },
+        { path: 'hardware', element: <HardwareLabPage /> },
         { path: 'reference', element: <ReferencePage /> },
         { path: '*', element: <Navigate to="/" replace /> },
       ],

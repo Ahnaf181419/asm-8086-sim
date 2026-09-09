@@ -4,12 +4,14 @@ import { MAX_NUM_OF_PORTS, MIN_IO_ADDRESS } from './portMap'
 export class HardwareBus {
   private ports = new Uint16Array(MAX_NUM_OF_PORTS)
   private deviceList: IoDevice[] = []
+  private listeners = new Set<() => void>()
 
   attach(device: IoDevice): void { this.deviceList.push(device) }
 
   reset(): void {
     this.ports.fill(0)
     for (const d of this.deviceList) d.reset()
+    this.notify()
   }
 
   dispatchRead(port: number, size: 8 | 16): number {
@@ -37,12 +39,29 @@ export class HardwareBus {
     } else {
       this.ports[idx] = (this.ports[idx] & 0xff00) | (value & 0xff)
     }
+    this.notify()
   }
 
   snapshot(): BusSnapshot {
     const devices: Record<string, unknown> = {}
     for (const d of this.deviceList) devices[d.name] = d.snapshot()
     return { devices }
+  }
+
+  subscribe(cb: () => void): () => void {
+    this.listeners.add(cb)
+    return () => { this.listeners.delete(cb) }
+  }
+
+  notify(): void {
+    for (const l of this.listeners) l()
+  }
+
+  getDevice<T extends IoDevice = IoDevice>(name: string): T | undefined {
+    for (const d of this.deviceList) {
+      if (d.name === name) return d as T
+    }
+    return undefined
   }
 
   private deviceAt(port: number): IoDevice | undefined {
