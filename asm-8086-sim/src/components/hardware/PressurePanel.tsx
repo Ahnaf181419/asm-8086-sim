@@ -45,43 +45,38 @@ export function PressurePanel({
   const needleEnd = polar(needleAngle, r - 4)
 
   return (
-    <div className="hw-panel">
-      <div>
-        <h3>Pressure</h3>
-        <div className="addr">2088H · 0..100% · IN</div>
-      </div>
-      <div className="hw-gauge-wrap">
-        <svg viewBox="0 0 120 120" preserveAspectRatio="xMidYMid meet" aria-label="pressure gauge">
-          {/* background arc */}
-          <path d={arcPath} stroke="#1f2f1f" strokeWidth={10} fill="none" strokeLinecap="round" />
-          {/* filled arc */}
-          {fillPath && <path d={fillPath} stroke="#33ff66" strokeWidth={10} fill="none" strokeLinecap="round" />}
-          {/* needle */}
-          <line
-            x1={cx}
-            y1={cy}
-            x2={needleEnd.x}
-            y2={needleEnd.y}
-            stroke="#ff5555"
-            strokeWidth={2}
-            strokeLinecap="round"
-          />
-          <circle cx={cx} cy={cy} r={4} fill="#33ff66" />
-          {/* end labels */}
-          <text x={10} y={105} fontSize={9} fill="#7a9c7a" fontFamily="var(--mono)">0</text>
-          <text x={100} y={105} fontSize={9} fill="#7a9c7a" fontFamily="var(--mono)" textAnchor="middle">100</text>
-        </svg>
-        <div className="hw-readout">{percent}%</div>
-        <input
-          className="hw-slider"
-          type="range"
-          min={MIN_P}
-          max={MAX_P}
-          value={percent}
-          onChange={(e) => onSetPercent(Number(e.target.value))}
-          aria-label="pressure percent"
+    <div className="hw-gauge-wrap">
+      <svg viewBox="0 0 120 120" preserveAspectRatio="xMidYMid meet" aria-label="pressure gauge">
+        {/* background arc */}
+        <path d={arcPath} stroke="#1f2f1f" strokeWidth={10} fill="none" strokeLinecap="round" />
+        {/* filled arc */}
+        {fillPath && <path d={fillPath} stroke="#33ff66" strokeWidth={10} fill="none" strokeLinecap="round" />}
+        {/* needle */}
+        <line
+          x1={cx}
+          y1={cy}
+          x2={needleEnd.x}
+          y2={needleEnd.y}
+          stroke="#ff5555"
+          strokeWidth={2}
+          strokeLinecap="round"
         />
-      </div>
+        <circle cx={cx} cy={cy} r={4} fill="#33ff66" />
+        {/* end labels */}
+        <text x={10} y={105} fontSize={9} fill="#7a9c7a" fontFamily="var(--mono)">0</text>
+        <text x={100} y={105} fontSize={9} fill="#7a9c7a" fontFamily="var(--mono)" textAnchor="middle">100</text>
+      </svg>
+      <div className="hw-readout">{percent}%</div>
+      <input
+        className="hw-slider"
+        type="range"
+        min={MIN_P}
+        max={MAX_P}
+        value={percent}
+        onChange={(e) => onSetPercent(Number(e.target.value))}
+        aria-label="pressure percent"
+      />
+      <div className="addr">2088H · 0..100% · IN · byte = %×2</div>
     </div>
   )
 }

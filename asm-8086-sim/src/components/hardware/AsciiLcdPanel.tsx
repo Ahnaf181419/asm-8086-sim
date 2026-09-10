@@ -14,11 +14,7 @@ export function AsciiLcdPanel({ state }: { state: AsciiLcdState | undefined }) {
     }
   }
   return (
-    <div className="hw-panel">
-      <div>
-        <h3>ASCII LCD</h3>
-        <div className="addr">2040H · 3×16 chars · OUT</div>
-      </div>
+    <>
       <div className="hw-lcd-wrap">
         <svg viewBox="0 0 248 78" preserveAspectRatio="xMidYMid meet" aria-label="3x16 ASCII LCD">
           <rect x={2} y={2} width={244} height={74} rx={4} className="hw-lcd-bg" />
@@ -35,9 +31,10 @@ export function AsciiLcdPanel({ state }: { state: AsciiLcdState | undefined }) {
           ))}
         </svg>
       </div>
-      <div className="hw-readout-dim">
-        hex: {Array.from(chars.slice(0, 16)).map((b) => b.toString(16).padStart(2, '0').toUpperCase()).join(' ')}
+      <div className="addr">
+        2040H · 3×16 chars · OUT · hex:{' '}
+        {Array.from(chars.slice(0, 16)).map((b) => b.toString(16).padStart(2, '0').toUpperCase()).join(' ')}
       </div>
-    </div>
+    </>
   )
 }

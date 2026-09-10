@@ -20,11 +20,7 @@ export function ThermometerPanel({
   const bulbY = BAR_BOTTOM - fillHeight
 
   return (
-    <div className="hw-panel">
-      <div>
-        <h3>Thermometer</h3>
-        <div className="addr">2086H · -40..+120°C · IN</div>
-      </div>
+    <>
       <div className="hw-thermo">
         <svg viewBox="0 0 50 170" preserveAspectRatio="xMidYMid meet" aria-label="thermometer">
           {/* bulb */}
@@ -80,6 +76,7 @@ export function ThermometerPanel({
           </div>
         </div>
       </div>
-    </div>
+      <div className="addr">2086H · -40..+120°C · IN · byte = °C + 40</div>
+    </>
   )
 }

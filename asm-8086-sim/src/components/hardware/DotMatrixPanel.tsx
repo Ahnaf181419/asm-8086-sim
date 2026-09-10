@@ -37,11 +37,7 @@ export function DotMatrixPanel({ state }: { state: DotMatrixState | undefined })
   const totalH = PADDING * 2 + CELL_H
 
   return (
-    <div className="hw-panel">
-      <div>
-        <h3>Dot Matrix</h3>
-        <div className="addr">2000H · 8×(5×7) · OUT</div>
-      </div>
+    <>
       <svg
         viewBox={`0 0 ${totalW} ${totalH}`}
         preserveAspectRatio="xMidYMid meet"
@@ -59,9 +55,7 @@ export function DotMatrixPanel({ state }: { state: DotMatrixState | undefined })
           />
         ))}
       </svg>
-      <div className="hw-readout-dim">
-        8 displays · row bits 0..6 (LSB top) · column index = d*5+c
-      </div>
-    </div>
+      <div className="addr">2000H · 8×(5×7) · OUT · row bits 0..6 (LSB top)</div>
+    </>
   )
 }

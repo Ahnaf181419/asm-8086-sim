@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useHardwareMachine } from '../../hooks/useHardwareMachine'
 import { SPEEDS } from '../../hooks/useMachine'
 import { EXAMPLES } from '../../data/examples'
+import { HW_TITLES, type HwPanelName } from './titles'
 import { LedsPanel } from './LedsPanel'
 import { SevenSegmentPanel } from './SevenSegmentPanel'
 import { AsciiLcdPanel } from './AsciiLcdPanel'
@@ -14,6 +15,19 @@ import { PressurePanel } from './PressurePanel'
 import './hardware.css'
 
 const HW_EXAMPLES = EXAMPLES.filter((e) => e.category === 'Hardware')
+
+// one floating "kit window": MFC-style caption from the C++ SetWindowText
+// strings + the device content. Positions come from grid-area classes.
+function KitPanel({ name, children }: { name: HwPanelName; children: ReactNode }) {
+  return (
+    <div className={`hw-panel ${name}-panel`}>
+      <div className="hw-panel-title" title={HW_TITLES[name]}>
+        {HW_TITLES[name]}
+      </div>
+      <div className="hw-panel-body">{children}</div>
+    </div>
+  )
+}
 
 export function HardwareLab() {
   const {
@@ -94,32 +108,52 @@ export function HardwareLab() {
           ⟲ RESET HW
         </button>
       </div>
-      <div className="hw-grid">
-        <DotMatrixPanel state={devices['dot-matrix'] as never} />
-        <SevenSegmentPanel state={devices['seven-segment'] as never} />
-        <AsciiLcdPanel state={devices['ascii-lcd'] as never} />
-        <LedsPanel state={devices.leds as never} />
-        <PushButtonsPanel
-          state={devices['push-buttons'] as never}
-          onToggleBit={(i) => toggleBit('buttons', i)}
-        />
-        <KeyboardPanel
-          state={devices.keyboard as never}
-          onPressKey={pressKey}
-          onClearBuffer={clearKeyboardBuffer}
-        />
-        <SwitchesPanel
-          state={devices.switches as never}
-          onToggleBit={(i) => toggleBit('switches', i)}
-        />
-        <ThermometerPanel
-          state={devices.thermometer as never}
-          onSetCelsius={setCelsius}
-        />
-        <PressurePanel
-          state={devices.pressure as never}
-          onSetPercent={setPercent}
-        />
+      <div className="hw-board">
+        <div className="hw-grid">
+          <KitPanel name="dot-matrix">
+            <DotMatrixPanel state={devices['dot-matrix'] as never} />
+          </KitPanel>
+          <KitPanel name="seven-segment">
+            <SevenSegmentPanel state={devices['seven-segment'] as never} />
+          </KitPanel>
+          <KitPanel name="ascii-lcd">
+            <AsciiLcdPanel state={devices['ascii-lcd'] as never} />
+          </KitPanel>
+          <KitPanel name="thermometer">
+            <ThermometerPanel
+              state={devices.thermometer as never}
+              onSetCelsius={setCelsius}
+            />
+          </KitPanel>
+          <KitPanel name="leds">
+            <LedsPanel state={devices.leds as never} />
+          </KitPanel>
+          <KitPanel name="switches">
+            <SwitchesPanel
+              state={devices.switches as never}
+              onToggleBit={(i) => toggleBit('switches', i)}
+            />
+          </KitPanel>
+          <KitPanel name="push-buttons">
+            <PushButtonsPanel
+              state={devices['push-buttons'] as never}
+              onToggleBit={(i) => toggleBit('buttons', i)}
+            />
+          </KitPanel>
+          <KitPanel name="keyboard">
+            <KeyboardPanel
+              state={devices.keyboard as never}
+              onPressKey={pressKey}
+              onClearBuffer={clearKeyboardBuffer}
+            />
+          </KitPanel>
+          <KitPanel name="pressure">
+            <PressurePanel
+              state={devices.pressure as never}
+              onSetPercent={setPercent}
+            />
+          </KitPanel>
+        </div>
       </div>
     </div>
   )

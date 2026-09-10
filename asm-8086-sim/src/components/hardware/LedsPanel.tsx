@@ -8,11 +8,7 @@ export function LedsPanel({ state }: { state: LedsState | undefined }) {
   for (let i = 0; i < 8; i++) bits.push(((value >> i) & 1) === 1)
 
   return (
-    <div className="hw-panel">
-      <div>
-        <h3>LEDs</h3>
-        <div className="addr">2070H · 8 LEDs · OUT</div>
-      </div>
+    <>
       <svg viewBox="0 0 280 60" preserveAspectRatio="xMidYMid meet" aria-label="8 LEDs">
         {bits.map((on, i) => (
           <g key={i} transform={`translate(${236 - i * 32}, 30)`}>
@@ -30,7 +26,9 @@ export function LedsPanel({ state }: { state: LedsState | undefined }) {
           </g>
         ))}
       </svg>
-      <div className="hw-readout">0x{value.toString(16).toUpperCase().padStart(2, '0')} · {value.toString(2).padStart(8, '0')}</div>
-    </div>
+      <div className="addr">
+        2070H · 8 LEDs · OUT · 0x{value.toString(16).toUpperCase().padStart(2, '0')} · {value.toString(2).padStart(8, '0')}
+      </div>
+    </>
   )
 }

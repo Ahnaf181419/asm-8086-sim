@@ -30,11 +30,7 @@ export function KeyboardPanel({
   const bufferFull = state?.bufferFull ?? false
 
   return (
-    <div className="hw-panel">
-      <div>
-        <h3>Keyboard</h3>
-        <div className="addr">2082H · buffered · IN · key value = index 0..23</div>
-      </div>
+    <>
       <div className="hw-kb-grid">
         {KEYS.map((k) => (
           <button
@@ -47,12 +43,12 @@ export function KeyboardPanel({
           </button>
         ))}
       </div>
-      <div className="hw-readout">
+      <div className="addr">
         BUFFER: {bufferFull ? `0x${key.toString(16).toUpperCase().padStart(2, '0')} ('${keyName(key)}') FULL` : 'EMPTY'}
       </div>
       <button className="hw-btn" onClick={onClearBuffer} aria-label="clear keyboard buffer">
         CLEAR BUFFER
       </button>
-    </div>
+    </>
   )
 }

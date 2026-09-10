@@ -40,19 +40,16 @@ export function SevenSegmentPanel({ state }: { state: SevenSegmentState | undefi
   const bytes = state?.bytes ?? new Uint8Array(8)
 
   return (
-    <div className="hw-panel">
-      <div>
-        <h3>Seven Segment</h3>
-        <div className="addr">2030H · 8 digits · OUT</div>
-      </div>
+    <>
       <svg viewBox="0 0 360 78" preserveAspectRatio="xMidYMid meet" aria-label="8 seven-segment digits">
         {Array.from(bytes).map((b, i) => (
           <Digit key={i} byte={b} x={i * 44 + 4} />
         ))}
       </svg>
-      <div className="hw-readout-dim">
-        bytes: {Array.from(bytes).map((b) => b.toString(16).toUpperCase().padStart(2, '0')).join(' ')}
+      <div className="addr">
+        2030H · 8 digits · OUT · bytes:{' '}
+        {Array.from(bytes).map((b) => b.toString(16).toUpperCase().padStart(2, '0')).join(' ')}
       </div>
-    </div>
+    </>
   )
 }
