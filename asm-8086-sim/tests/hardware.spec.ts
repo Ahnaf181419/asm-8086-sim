@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { HardwareBus } from '../src/engine/devices/bus'
-import { LED_ADDRESS, SWITCHES_ADDRESS } from '../src/engine/devices/portMap'
+import { LED_ADDRESS, SWITCHES_ADDRESS, KEYBOARD_ADDRESS } from '../src/engine/devices/portMap'
 import { LedsDevice } from '../src/engine/devices/leds'
 import { assemble } from '../src/engine/assembler'
 import { Machine } from '../src/engine/cpu'
@@ -14,9 +14,9 @@ describe('HardwareBus', () => {
     expect(bus.dispatchRead(LED_ADDRESS, 8)).toBe(0xa5)
   })
 
-  it('throws when reading from an unmapped port', () => {
+  it('throws when reading from a port outside the 2000H..2FFFH register file', () => {
     const bus = new HardwareBus()
-    expect(() => bus.dispatchRead(0x2099, 8)).toThrow(/unmapped port 2099/i)
+    expect(() => bus.dispatchRead(0x60, 8)).toThrow(/unmapped port 60H/i)
   })
 
   it('snapshot reflects all attached devices', () => {
@@ -45,6 +45,34 @@ describe('HardwareBus', () => {
     const snap2 = bus.snapshot()
     expect(snap2).not.toBe(snap1)
     expect((snap2.devices['leds'] as { value: number }).value).toBe(0x20)
+  })
+
+  it('in-range ports without a device behave as plain latch registers (kit file mirror)', () => {
+    const bus = new HardwareBus()
+    bus.dispatchWrite(0x2099, 0x5a, 8) // no device attached at 2099H
+    expect(bus.dispatchRead(0x2099, 8)).toBe(0x5a)
+    expect(bus.dispatchRead(0x2071, 8)).toBe(0) // untouched hole reads 0
+  })
+
+  it('16-bit IN composes consecutive registers (keyboard key | flag << 8)', () => {
+    const bus = new HardwareBus()
+    bus.attach(new KeyboardDevice())
+    bus.getDevice<KeyboardDevice>('keyboard')!.pressKey(12)
+    expect(bus.dispatchRead(KEYBOARD_ADDRESS, 16)).toBe(0x010c)
+  })
+
+  it('16-bit IN composes across device boundaries', () => {
+    const bus = new HardwareBus()
+    bus.attach(new SwitchesDevice())
+    bus.attach(new ThermometerDevice()) // at 2086H, right after the switches
+    bus.dispatchWrite(SWITCHES_ADDRESS, 0x81, 8)
+    expect(bus.dispatchRead(SWITCHES_ADDRESS, 16)).toBe(0x0081) // high byte = thermometer (-40C -> 0)
+  })
+
+  it('16-bit write at the top boundary 2FFFH fails loudly, not silently', () => {
+    const bus = new HardwareBus()
+    expect(() => bus.dispatchWrite(0x2fff, 0x1234, 16)).toThrow(/3000H/)
+    expect(() => bus.dispatchRead(0x2fff, 16)).toThrow(/3000H/)
   })
 })
 

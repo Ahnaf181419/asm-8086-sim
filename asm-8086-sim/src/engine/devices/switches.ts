@@ -12,7 +12,7 @@ export class SwitchesDevice implements IoDevice<SwitchesState> {
 
   reset() { this.value = 0 }
   toggleBit(i: number) { this.value ^= (1 << i) & 0xff }
-  onRead() { return this.value & 0xff }
+  onRead(_p?: number, _s?: 8 | 16) { return this.value & 0xff }
   onWrite(_p: number, v: number, _s: 8 | 16) { this.value = v & 0xff }
   snapshot(): SwitchesState { return { value: this.value } }
 }

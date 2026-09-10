@@ -1,5 +1,5 @@
 import type { BusSnapshot, IoDevice } from './types'
-import { MAX_NUM_OF_PORTS, MIN_IO_ADDRESS } from './portMap'
+import { MAX_IO_ADDRESS, MAX_NUM_OF_PORTS, MIN_IO_ADDRESS } from './portMap'
 
 export class HardwareBus {
   private ports = new Uint16Array(MAX_NUM_OF_PORTS)
@@ -16,31 +16,43 @@ export class HardwareBus {
     this.notify()
   }
 
-  dispatchRead(port: number, size: 8 | 16): number {
-    if (port < MIN_IO_ADDRESS || port >= MIN_IO_ADDRESS + MAX_NUM_OF_PORTS) {
+  // The kit is a flat 4096-byte register file (ChildView.cpp: one file maps
+  // all of 2000H..2FFFH). Every byte address is readable/writable: device
+  // ports consult the owning device, everything else is a plain latch in
+  // the mirror. Only addresses outside 2000H..2FFFH are unmapped.
+  private checkRange(port: number): void {
+    if (port < MIN_IO_ADDRESS || port > MAX_IO_ADDRESS) {
       throw new Error(`unmapped port ${port.toString(16).toUpperCase()}H`)
     }
+  }
+
+  private readByte(port: number): number {
+    this.checkRange(port)
     const device = this.deviceAt(port)
-    if (!device) throw new Error(`unmapped port ${port.toString(16).toUpperCase()}H`)
-    const handled = device.onRead(port, size)
-    if (handled !== undefined) return handled
-    return size === 16 ? this.ports[port - MIN_IO_ADDRESS] : (this.ports[port - MIN_IO_ADDRESS] & 0xff)
+    if (device) {
+      const handled = device.onRead(port, 8)
+      if (handled !== undefined) return handled & 0xff
+    }
+    return this.ports[port - MIN_IO_ADDRESS] & 0xff
+  }
+
+  private writeByte(port: number, value: number): void {
+    this.checkRange(port)
+    const device = this.deviceAt(port)
+    if (device) device.onWrite(port, value & 0xff, 8)
+    const idx = port - MIN_IO_ADDRESS
+    this.ports[idx] = (this.ports[idx] & 0xff00) | (value & 0xff)
+  }
+
+  dispatchRead(port: number, size: 8 | 16): number {
+    const lo = this.readByte(port)
+    if (size === 8) return lo
+    return lo | (this.readByte(port + 1) << 8)
   }
 
   dispatchWrite(port: number, value: number, size: 8 | 16): void {
-    if (port < MIN_IO_ADDRESS || port >= MIN_IO_ADDRESS + MAX_NUM_OF_PORTS) {
-      throw new Error(`unmapped port ${port.toString(16).toUpperCase()}H`)
-    }
-    const device = this.deviceAt(port)
-    if (!device) throw new Error(`unmapped port ${port.toString(16).toUpperCase()}H`)
-    device.onWrite(port, value & (size === 16 ? 0xffff : 0xff), size)
-    const idx = port - MIN_IO_ADDRESS
-    if (size === 16) {
-      this.ports[idx] = value & 0xffff
-      this.ports[idx + 1] = (value >> 8) & 0xff
-    } else {
-      this.ports[idx] = (this.ports[idx] & 0xff00) | (value & 0xff)
-    }
+    this.writeByte(port, value)
+    if (size === 16) this.writeByte(port + 1, (value >> 8) & 0xff)
     this.cachedSnapshot = null
     this.notify()
   }

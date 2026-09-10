@@ -76,38 +76,37 @@ This split keeps the engine hook dependency-free (`useMachine` has no React-DOM 
 | 2 | **Seven Segment**  | out | 8  | 8 bytes (one per digit)       | `SEG_TABLE` encodes 0–9, A–F; segment bit assignments |
 | 3 | **ASCII LCD**      | out | 8  | 48 bytes (3 rows × 16 chars) | Row-major; printable ASCII only |
 | 4 | **LEDs**           | out | 8  | 1 byte                        | `1` = lit; `0` = dark |
-| 5 | **Push Buttons**   | in  | 16 | 1 word                        | Toggled from UI; cleared by user |
+| 5 | **Push Buttons**   | in  | 16 | 2 bytes (one 16-bit word)     | 2080H = low 8 buttons, 2081H = high 8; toggled from UI |
 | 6 | **Keyboard**       | in  | 8  | 2 bytes (value + flag)        | 2082H = key index 0..23 (latch), 2083H = buffer-full flag; write 0 to 2083H to acknowledge |
 | 7 | **Switches**       | in  | 8  | 1 byte                        | Slide-switch model; toggle from UI |
 | 8 | **Thermometer**    | in  | 8  | 1 byte                        | Value = `celsius + 40` (range −40…+120 °C maps to 0x00…0xA0) |
-| 9 | **Pressure**       | in  | 8  | 1 byte                        | Value = `percent × 2` (0–100 % maps to 0x00…0xC8) |
+| 9 | **Pressure**       | in  | 8  | 1 byte                        | Value = `percent × 2` (0–100 % maps to 0x00..0xC8) |
 
-Inputs (`in`) are *visible* to the program: `IN AL, DX` returns the device state. Outputs (`out`) are *driven* by the program: `OUT DX, AL` updates the device, which the panel reflects. Output-only devices throw on `IN` (mirror of the C++ dialogs, where reading a write-only device is a programmer error, not a silent zero).
+Inputs (`in`) are *visible* to the program: `IN AL, DX` returns the device state. Outputs (`out`) are *driven* by the program: `OUT DX, AL` updates the device, which the panel reflects. Like the kit's register file, every register is readable and writable in both directions — `IN` from an "output" device returns the last latched byte. (Note on pressure: the original kit's GUI label shows the ×2 value, but its register actually stores the raw percent; we follow the ×2 convention everywhere for self-consistency — device, lessons and examples all agree.)
 
 ### 2.1 I/O dispatch
 
 ```ts
-// src/engine/cpu.ts (excerpt — execIoInOut branch)
-case 'IN': {
-  const port = ops[0].k === 'reg' ? this.getReg(ops[0].name) : (ops[0].value & 0xff)
-  const reg  = ops[1].name                       // AL or AX
-  if (!this.bus) throw new Error('IN/OUT used but no I/O bus attached (Simulator tab)')
-  const size = reg === 'AX' ? 16 : 8
-  const v = this.bus.dispatchRead(port, size)
-  this.setReg(reg, v & (size === 16 ? 0xffff : 0xff))
-  break
-}
-case 'OUT': {
-  const port = ops[0].k === 'reg' ? this.getReg(ops[0].name) : (ops[0].value & 0xff)
-  const reg  = ops[1].name
-  if (!this.bus) throw new Error('IN/OUT used but no I/O bus attached (Simulator tab)')
-  const size = reg === 'AX' ? 16 : 8
-  this.bus.dispatchWrite(port, this.getReg(reg), size)
-  break
+// src/engine/cpu.ts (excerpt — IN/OUT branch)
+case 'IN': case 'OUT': {
+  if (!this.ioBus) throw new RunError('IN/OUT not supported (no I/O bus attached)', stmt.pos)
+  // one operand is the accumulator (AL or AX); the other is the port
+  const regOp  = /* the AL/AX operand */
+  const size   = regOp.name === 'AX' ? 16 : 8
+  const port   = /* the other operand: DX (16-bit port space) or imm 0..255 */
+  if (mn === 'IN') {
+    const v = this.ioBus.dispatchRead(port, size)
+    this.setReg(regOp.name, v)
+  } else {
+    const v = this.getReg(regOp.name) & (size === 16 ? 0xffff : 0xff)
+    this.ioBus.dispatchWrite(port, v, size)
+  }
 }
 ```
 
-The assemble-time validation is stricter than runtime: `IN` requires `DX` (not `BX`), and an immediate port must fit in `0..255`. The assembler rejects the bad form at parse time (see `tests/hardware.spec.ts:114-141`), so the CPU never sees it.
+On the bus itself, every access is byte-granular (the kit's register file is a flat 4096-byte mirror, ChildView.cpp): device ports consult the owning device, in-range addresses without a device are plain latches, and a 16-bit `IN AX/OUT AX` simply composes two consecutive byte registers. Only accesses outside `2000H..2FFFH` throw.
+
+The assemble-time validation is stricter than runtime: `IN` requires `DX` (not `BX`), and an immediate port must fit in `0..255`. The assembler rejects the bad form at parse time (see the "Assembler IN/OUT" block in `tests/hardware.spec.ts`), so the CPU never sees it.
 
 ---
 
@@ -121,7 +120,7 @@ Mirror of `Resources/Hardware Lab/Emulation Kit/Constants.h:39-50`. Any program 
 | Seven Segment  | `0x2030`  | 8     | `SEVEN_SEGMENT_ADDRESS`  |
 | ASCII LCD      | `0x2040`  | 48    | `ASCII_LCD_ADDRESS`      |
 | LEDs           | `0x2070`  | 1     | `LED_ADDRESS`            |
-| Push Buttons   | `0x2080`  | 1     | `PUSH_BUTTONS_ADDRESS`   |
+| Push Buttons   | `0x2080`  | 2     | `PUSH_BUTTONS_ADDRESS`   |
 | Keyboard       | `0x2082`  | 2     | `KEYBOARD_ADDRESS`       |
 | Switches       | `0x2084`  | 1     | `SWITCHES_ADDRESS`       |
 | Thermometer    | `0x2086`  | 1     | `THERMOMETER_ADDRESS`    |
