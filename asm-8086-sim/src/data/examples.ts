@@ -23,6 +23,26 @@ import ledEchoSwitches from './asm/led-echo-switches.asm?raw'
 import keyboardToLcd from './asm/keyboard-to-lcd.asm?raw'
 import thermometerTo7seg from './asm/thermometer-to-7seg.asm?raw'
 import pressureBar from './asm/pressure-bar.asm?raw'
+import practiceC2f from './asm/practice-c2f.asm?raw'
+import practiceF2c from './asm/practice-f2c.asm?raw'
+import practiceF2k from './asm/practice-f2k.asm?raw'
+import practiceK2f from './asm/practice-k2f.asm?raw'
+import practiceFacSum from './asm/practice-fac-sum.asm?raw'
+import practiceFacSub from './asm/practice-fac-sub.asm?raw'
+import practiceFacMul from './asm/practice-fac-mul.asm?raw'
+import practiceAvg10 from './asm/practice-avg10.asm?raw'
+import practiceFac742 from './asm/practice-fac-742.asm?raw'
+import practiceTiles from './asm/practice-tiles.asm?raw'
+import practiceC2fLcd from './asm/practice-c2f-lcd.asm?raw'
+import practiceF2cLcd from './asm/practice-f2c-lcd.asm?raw'
+import practiceF2kLcd from './asm/practice-f2k-lcd.asm?raw'
+import practiceK2fLcd from './asm/practice-k2f-lcd.asm?raw'
+import practiceAvg10Lcd from './asm/practice-avg10-lcd.asm?raw'
+import practiceFacSum7 from './asm/practice-fac-sum-7seg.asm?raw'
+import practiceFacSub7 from './asm/practice-fac-sub-7seg.asm?raw'
+import practiceFacMul7 from './asm/practice-fac-mul-7seg.asm?raw'
+import practiceFac7427 from './asm/practice-fac-742-7seg.asm?raw'
+import practiceTiles7 from './asm/practice-tiles-7seg.asm?raw'
 
 export interface Example {
   id: string
@@ -59,6 +79,27 @@ export const EXAMPLES: Example[] = [
   { id: 'keyboard-to-lcd', name: 'Keyboard → LCD', category: 'Hardware', desc: 'Poll 2083H, read the key index from 2082H, translate to ASCII, acknowledge via 2083H', needsInput: false, source: keyboardToLcd },
   { id: 'thermometer-to-7seg', name: 'Thermometer → 7-Segment', category: 'Hardware', desc: 'Read the thermometer byte, look up low nibble in SEG_TABLE', needsInput: false, source: thermometerTo7seg },
   { id: 'pressure-bar', name: 'Pressure → LED bar', category: 'Hardware', desc: 'Map the pressure byte 0..200 to a 0..7 lit LED bar', needsInput: false, source: pressureBar },
+
+  { id: 'practice-c2f', name: '37°C → °F', category: 'Practice', desc: 'F = C·9/5 + 32 with byte MUL/DIV; prints 98 (problem set 1)', needsInput: false, source: practiceC2f },
+  { id: 'practice-f2c', name: '110°F → °C', category: 'Practice', desc: 'C = (F−32)·5/9; subtract first, then multiply (problem set 2)', needsInput: false, source: practiceF2c },
+  { id: 'practice-f2k', name: '130°F → °K', category: 'Practice', desc: 'K = (F−32)·5/9 + 273 → AX = 0147H (problem set 3)', needsInput: false, source: practiceF2k },
+  { id: 'practice-k2f', name: '300°K → °F', category: 'Practice', desc: 'F = 9(K−273)/5 + 32; word MUL/DIV since 300 > 255 (problem set 4)', needsInput: false, source: practiceK2f },
+  { id: 'practice-fac-sum', name: '3! + 4!', category: 'Practice', desc: 'FACT procedure with word MUL; prints 30 (problem set 5)', needsInput: false, source: practiceFacSum },
+  { id: 'practice-fac-sub', name: '(4! + 3!) − 2!', category: 'Practice', desc: 'Factorial combination, BX as accumulator; prints 28 (problem set 6)', needsInput: false, source: practiceFacSub },
+  { id: 'practice-fac-mul', name: '(1! × 2!) × 6!', category: 'Practice', desc: 'Chain MUL after FACT calls; prints 1440 (problem set 7)', needsInput: false, source: practiceFacMul },
+  { id: 'practice-avg10', name: 'Average of ten numbers', category: 'Practice', desc: 'Word array sum with [SI], then DIV by 10; 442 / 44 (problem set 8)', needsInput: false, source: practiceAvg10 },
+  { id: 'practice-fac-742', name: '7! − 4! + 2!', category: 'Practice', desc: 'Left-to-right evaluation; prints 5018 = 139AH (problem set 9)', needsInput: false, source: practiceFac742 },
+  { id: 'practice-tiles', name: 'Tiles for 80×80 floor', category: 'Practice', desc: '(80/4)² with DIV then MUL AX; prints 400 (problem set 10)', needsInput: false, source: practiceTiles },
+  { id: 'practice-c2f-lcd', name: 'LCD: 37°C → °F', category: 'Hardware', desc: 'Conversion result written to the ASCII LCD via WRITE_STR/WRITE_NUM', needsInput: false, source: practiceC2fLcd },
+  { id: 'practice-f2c-lcd', name: 'LCD: 110°F → °C', category: 'Hardware', desc: 'Conversion result written to the ASCII LCD via WRITE_STR/WRITE_NUM', needsInput: false, source: practiceF2cLcd },
+  { id: 'practice-f2k-lcd', name: 'LCD: 130°F → °K', category: 'Hardware', desc: 'Conversion result written to the ASCII LCD via WRITE_STR/WRITE_NUM', needsInput: false, source: practiceF2kLcd },
+  { id: 'practice-k2f-lcd', name: 'LCD: 300°K → °F', category: 'Hardware', desc: 'Word-arithmetic conversion shown on the ASCII LCD', needsInput: false, source: practiceK2fLcd },
+  { id: 'practice-avg10-lcd', name: 'LCD: average of ten', category: 'Hardware', desc: 'Sum and average of a word array on the ASCII LCD', needsInput: false, source: practiceAvg10Lcd },
+  { id: 'practice-fac-sum-7seg', name: '7-Seg: 3! + 4!', category: 'Hardware', desc: 'Digits extracted with DIV 10 onto the stack, popped to the 7-seg block', needsInput: false, source: practiceFacSum7 },
+  { id: 'practice-fac-sub-7seg', name: '7-Seg: (4! + 3!) − 2!', category: 'Hardware', desc: 'Factorial result on the 7-seg block', needsInput: false, source: practiceFacSub7 },
+  { id: 'practice-fac-mul-7seg', name: '7-Seg: (1! × 2!) × 6!', category: 'Hardware', desc: 'Four-digit result 1440 on the 7-seg block', needsInput: false, source: practiceFacMul7 },
+  { id: 'practice-fac-742-7seg', name: '7-Seg: 7! − 4! + 2!', category: 'Hardware', desc: 'Result 5018 on the 7-seg block', needsInput: false, source: practiceFac7427 },
+  { id: 'practice-tiles-7seg', name: '7-Seg: tiles 80×80', category: 'Hardware', desc: '400 tiles (190H) on the 7-seg block', needsInput: false, source: practiceTiles7 },
 ]
 
 export function exampleById(id: string): Example | undefined {

@@ -1610,6 +1610,551 @@ END MAIN`,
         after: 'The hardware version interleaves a SEG_TABLE lookup with the keyboard polling: each key press increments the counter and the next loop iteration shows the new digit value.' },
     ],
   },
+
+  // ─────────────────────────────────────────────── 21
+  {
+    id: 'temp-conversions',
+    num: 21,
+    title: 'Classic Practice: Temperature Conversions',
+    source: 'Problem set — classic practice programs',
+    blocks: [
+      { t: 'p', html: 'Four temperature conversions that show up on every problem sheet. Each one is pure <b>multiply / divide arithmetic</b> (lesson 6) with one twist: the formulas contain fractions, but 8086 integer division <b>truncates</b> — so the order of operations decides your precision. Every problem below ships in two twins: a <b>console version</b> that prints the result with <code>OUTDEC</code>, and a <b>hardware version</b> that shows it on the kit\'s ASCII LCD.' },
+      { t: 'h', text: 'The four formulas' },
+      { t: 'table', head: ['Conversion', 'Formula', 'Example', 'Integer result'], rows: [
+        ['°C → °F', 'F = C·9/5 + 32', '37°C', '98'],
+        ['°F → °C', 'C = (F−32)·5/9', '110°F', '43'],
+        ['°F → °K', 'K = (F−32)·5/9 + 273', '130°F', '327 = 0147H'],
+        ['°K → °F', 'F = 9·(K−273)/5 + 32', '300°K', '80'],
+      ] },
+      { t: 'note', html: '<b>Always multiply before you divide.</b> 37·9/5 computed as (37·9)/5 = 66 keeps three digits of accuracy, while 37·(9/5) = 37·1 = 37 loses everything to truncation. Also note for problem 3: some handouts list the answer as <code>AX = 0547H</code> — that is a typo. (130−32)·5 = 490, 490/9 = 54 remainder 4, 54+273 = <b>327 = 0147H</b>. Real answer: 327.44 K.' },
+      { t: 'h', text: 'Problem 1 — 37°C → °F (byte arithmetic)' },
+      { t: 'p', html: '37 and 98 both fit in a byte, so <code>MUL BL</code> (AX = AL·BL) and <code>DIV BL</code> (AL = quotient, AH = remainder) are enough. Remember to zero AH before treating the result as a word for <code>OUTDEC</code>.' },
+      { t: 'code', title: 'Console: print F for C = 37', exampleId: 'practice-c2f', code: `.MODEL SMALL
+.STACK 100H
+.DATA
+  MSG DB '37C = $'
+.CODE
+MAIN PROC
+    MOV AX, @DATA
+    MOV DS, AX
+    MOV AL, 37           ; Celsius
+    MOV BL, 9
+    MUL BL               ; AX = 333
+    MOV BL, 5
+    DIV BL               ; AL = 66  (AH = remainder 3)
+    ADD AL, 32           ; AL = 98
+    MOV AH, 0
+    MOV BX, AX           ; INT 21H clobbers AH — park the result
+
+    LEA DX, MSG
+    MOV AH, 9
+    INT 21H
+    MOV AX, BX
+    CALL OUTDEC          ; prints 98
+    MOV AH, 4CH
+    INT 21H
+MAIN ENDP
+INCLUDE OUTDEC.ASM
+END MAIN` },
+      { t: 'p', html: 'The hardware twin writes the answer to the LCD instead. Two tiny procedures keep it readable: <code>WRITE_STR</code> copies bytes to consecutive LCD cells, and <code>WRITE_NUM</code> converts AX to decimal with the same DIV-10-on-the-stack trick <code>OUTDEC</code> uses — pushing remainders gives the digits backwards, so popping delivers them most-significant-first, exactly the order the LCD wants.' },
+      { t: 'code', title: 'Hardware: "37C->98" on the ASCII LCD', exampleId: 'practice-c2f-lcd', code: `.MODEL SMALL
+.STACK 100H
+.DATA
+  MSG     DB '37C->'
+  LCD_POS DW 2040H
+.CODE
+MAIN PROC
+    MOV AX, @DATA
+    MOV DS, AX
+    LEA SI, MSG          ; write the "37C->" prefix
+    MOV CX, 5
+    CALL WRITE_STR
+
+    MOV AL, 37           ; F = 37*9/5 + 32
+    MOV BL, 9
+    MUL BL
+    MOV BL, 5
+    DIV BL
+    ADD AL, 32
+    MOV AH, 0
+    CALL WRITE_NUM       ; LCD reads "37C->98"
+    HLT
+MAIN ENDP
+
+WRITE_STR PROC           ; CX chars from [SI] at the LCD cursor
+WS_NEXT:
+    MOV DX, LCD_POS
+    MOV AL, [SI]
+    OUT DX, AL
+    INC LCD_POS
+    INC SI
+    LOOP WS_NEXT
+    RET
+WRITE_STR ENDP
+
+WRITE_NUM PROC           ; AX as decimal at the LCD cursor
+    MOV BX, 10
+    XOR CX, CX
+WN_DIV:
+    XOR DX, DX
+    DIV BX
+    PUSH DX              ; digit 0..9, ones first
+    INC CX
+    OR AX, AX
+    JNE WN_DIV
+WN_OUT:
+    POP DX               ; most significant pops first
+    MOV AL, DL
+    OR AL, 30H
+    MOV DX, LCD_POS
+    OUT DX, AL
+    INC LCD_POS
+    LOOP WN_OUT
+    RET
+WRITE_NUM ENDP
+END MAIN` },
+      { t: 'h', text: 'Problem 2 — 110°F → °C' },
+      { t: 'p', html: 'Same skeleton: <b>subtract 32 first</b> (the subtraction must happen before the multiply, or you scale the offset too), then 78·5 = 390 and 390/9 = 43 remainder 3.' },
+      { t: 'code', title: 'Console: print C for F = 110', exampleId: 'practice-f2c', code: `.MODEL SMALL
+.STACK 100H
+.DATA
+  MSG DB '110F = $'
+.CODE
+MAIN PROC
+    MOV AX, @DATA
+    MOV DS, AX
+    MOV AL, 110
+    SUB AL, 32           ; 78
+    MOV BL, 5
+    MUL BL               ; AX = 390
+    MOV BL, 9
+    DIV BL               ; AL = 43
+    MOV AH, 0
+    MOV BX, AX
+    LEA DX, MSG
+    MOV AH, 9
+    INT 21H
+    MOV AX, BX
+    CALL OUTDEC          ; prints 43
+    MOV AH, 4CH
+    INT 21H
+MAIN ENDP
+INCLUDE OUTDEC.ASM
+END MAIN` },
+      { t: 'code', title: 'Hardware core: the LCD twin computes the same value', exampleId: 'practice-f2c-lcd', code: `; same WRITE_STR / WRITE_NUM skeleton as problem 1, then:
+    LEA SI, MSG          ; MSG DB '110F->'
+    MOV CX, 6
+    CALL WRITE_STR
+    MOV AL, 110
+    SUB AL, 32           ; 78
+    MOV BL, 5
+    MUL BL               ; 390
+    MOV BL, 9
+    DIV BL               ; 43
+    MOV AH, 0
+    CALL WRITE_NUM       ; LCD reads "110F->43"
+    HLT` },
+      { t: 'h', text: 'Problem 3 — 130°F → °K (result 0147H)' },
+      { t: 'p', html: 'The Kelvin answer 327 needs a <b>word</b> add of 273, so promote AX to a word with <code>MOV AH, 0</code> before adding. The register answer is <code>AX = 0147H</code>.' },
+      { t: 'code', title: 'Console: print K for F = 130', exampleId: 'practice-f2k', code: `.MODEL SMALL
+.STACK 100H
+.DATA
+  MSG DB '130F = $'
+.CODE
+MAIN PROC
+    MOV AX, @DATA
+    MOV DS, AX
+    MOV AL, 130
+    SUB AL, 32           ; 98
+    MOV BL, 5
+    MUL BL               ; 490
+    MOV BL, 9
+    DIV BL               ; AL = 54  (remainder 4)
+    MOV AH, 0            ; promote to word
+    ADD AX, 273          ; AX = 327 = 0147H
+    MOV BX, AX
+    LEA DX, MSG
+    MOV AH, 9
+    INT 21H
+    MOV AX, BX
+    CALL OUTDEC          ; prints 327
+    MOV AH, 4CH
+    INT 21H
+MAIN ENDP
+INCLUDE OUTDEC.ASM
+END MAIN` },
+      { t: 'code', title: 'Hardware core: "130F->327" on the LCD', exampleId: 'practice-f2k-lcd', code: `; same WRITE_STR / WRITE_NUM skeleton, MSG DB '130F->'
+    MOV AL, 130
+    SUB AL, 32           ; 98
+    MOV BL, 5
+    MUL BL               ; 490
+    MOV BL, 9
+    DIV BL               ; 54
+    MOV AH, 0
+    ADD AX, 273          ; 327 = 0147H
+    CALL WRITE_NUM       ; LCD reads "130F->327"
+    HLT` },
+      { t: 'h', text: 'Problem 4 — 300°K → °F (word arithmetic)' },
+      { t: 'p', html: '300 does not fit in <code>AL</code>, so this one graduates to <b>16-bit MUL/DIV</b>: <code>MUL BX</code> leaves its product in DX:AX, and word <code>DIV</code> divides DX:AX — clear DX with <code>XOR DX, DX</code> before dividing or the garbage high half makes the divide overflow.' },
+      { t: 'code', title: 'Console: print F for K = 300', exampleId: 'practice-k2f', code: `.MODEL SMALL
+.STACK 100H
+.DATA
+  MSG DB '300K = $'
+.CODE
+MAIN PROC
+    MOV AX, @DATA
+    MOV DS, AX
+    MOV AX, 300          ; word: 300 > 255
+    SUB AX, 273          ; 27
+    MOV BX, 9
+    MUL BX               ; DX:AX = 243
+    MOV BX, 5
+    XOR DX, DX           ; word DIV divides DX:AX
+    DIV BX               ; AX = 48  (DX = remainder 3)
+    ADD AX, 32           ; 80 = 0050H
+    MOV BX, AX
+    LEA DX, MSG
+    MOV AH, 9
+    INT 21H
+    MOV AX, BX
+    CALL OUTDEC          ; prints 80
+    MOV AH, 4CH
+    INT 21H
+MAIN ENDP
+INCLUDE OUTDEC.ASM
+END MAIN` },
+      { t: 'code', title: 'Hardware core: "300K->80" on the LCD', exampleId: 'practice-k2f-lcd', code: `; same WRITE_STR / WRITE_NUM skeleton, MSG DB '300K->'
+    MOV AX, 300
+    SUB AX, 273          ; 27
+    MOV BX, 9
+    MUL BX               ; 243
+    MOV BX, 5
+    XOR DX, DX
+    DIV BX               ; 48
+    ADD AX, 32           ; 80
+    CALL WRITE_NUM       ; LCD reads "300K->80"
+    HLT` },
+      { t: 'practice', q: 'Convert 68°F to °C. (Hint: (68−32)·5/9 divides exactly.)', hint: 'Byte arithmetic is enough: subtract, multiply by 5, divide by 9.', solution: `.MODEL SMALL
+.STACK 100H
+.DATA
+  MSG DB '68F = $'
+.CODE
+MAIN PROC
+    MOV AX, @DATA
+    MOV DS, AX
+    MOV AL, 68
+    SUB AL, 32           ; 36
+    MOV BL, 5
+    MUL BL               ; 180
+    MOV BL, 9
+    DIV BL               ; AL = 20
+    MOV AH, 0
+    MOV BX, AX
+    LEA DX, MSG
+    MOV AH, 9
+    INT 21H
+    MOV AX, BX
+    CALL OUTDEC          ; prints 20
+    MOV AH, 4CH
+    INT 21H
+MAIN ENDP
+INCLUDE OUTDEC.ASM
+END MAIN`, after: '68°F = 20°C exactly — no remainder this time, which is why this pair is a favorite on quizzes.' },
+      { t: 'practice', q: 'Convert 283°K to °F.', hint: 'Word arithmetic like problem 4: 9·(283−273)/5 + 32.', solution: `.MODEL SMALL
+.STACK 100H
+.DATA
+  MSG DB '283K = $'
+.CODE
+MAIN PROC
+    MOV AX, @DATA
+    MOV DS, AX
+    MOV AX, 283
+    SUB AX, 273          ; 10
+    MOV BX, 9
+    MUL BX               ; 90
+    MOV BX, 5
+    XOR DX, DX
+    DIV BX               ; 18
+    ADD AX, 32           ; 50
+    MOV BX, AX
+    LEA DX, MSG
+    MOV AH, 9
+    INT 21H
+    MOV AX, BX
+    CALL OUTDEC          ; prints 50
+    MOV AH, 4CH
+    INT 21H
+MAIN ENDP
+INCLUDE OUTDEC.ASM
+END MAIN`, after: '283 K is 10°C = 50°F — a clean check that your formula handles the "small difference" case.' },
+    ],
+  },
+
+  // ─────────────────────────────────────────────── 22
+  {
+    id: 'factorials-averages',
+    num: 22,
+    title: 'Classic Practice: Factorials, Averages & Word Problems',
+    source: 'Problem set — classic practice programs',
+    blocks: [
+      { t: 'p', html: 'Six more classics: four factorial expressions, the average of an array (lesson 8 skills), and one geometry word problem. They share one workhorse — a <b>FACT procedure</b> — and one display trick for the hardware twins: extracting decimal digits with <code>DIV 10</code> onto the <b>stack</b> so they pop out most-significant-first, straight into <code>SEG_TABLE</code> for the seven-segment block.' },
+      { t: 'h', text: 'The FACT procedure' },
+      { t: 'code', title: 'n! for n ≤ 7 (fits a word)', code: `; input: CX = n    output: AX = n!
+FACT PROC
+    MOV AX, 1
+NEXT:
+    MUL CX               ; DX:AX = AX * CX
+    LOOP NEXT            ; counts CX down to 0
+    RET
+FACT ENDP` },
+      { t: 'p', html: 'Word <code>MUL</code> writes its product to <b>DX:AX</b>. For n ≤ 7 the result stays under 5040·7… the largest value we ever build is 7! = 5040, so DX stays 0 and AX alone is safe. FACT clobbers AX, CX and DX — your running total should live in <b>BX</b> between calls.' },
+      { t: 'h', text: 'Problem 5 — 3! + 4! = 30' },
+      { t: 'code', title: 'Console: 3! + 4!', exampleId: 'practice-fac-sum', code: `.MODEL SMALL
+.STACK 100H
+.DATA
+  MSG DB '3! + 4! = $'
+.CODE
+MAIN PROC
+    MOV AX, @DATA
+    MOV DS, AX
+    MOV CX, 3
+    CALL FACT            ; AX = 6
+    MOV BX, AX
+    MOV CX, 4
+    CALL FACT            ; AX = 24
+    ADD AX, BX           ; 30
+    MOV BX, AX
+    LEA DX, MSG
+    MOV AH, 9
+    INT 21H
+    MOV AX, BX
+    CALL OUTDEC          ; prints 30
+    MOV AH, 4CH
+    INT 21H
+MAIN ENDP
+
+FACT PROC
+    MOV AX, 1
+NEXT:
+    MUL CX
+    LOOP NEXT
+    RET
+FACT ENDP
+INCLUDE OUTDEC.ASM
+END MAIN` },
+      { t: 'p', html: 'The hardware twin shows the number on the seven-segment block. The digit trick: dividing by 10 repeatedly pushes the remainders (ones, tens, hundreds…) so the <b>first pop is the most significant digit</b> — write it to <code>2030H</code> (the leftmost display) and just <code>INC DX</code> per pop.' },
+      { t: 'code', title: 'Hardware: 30 on the seven-segment block', exampleId: 'practice-fac-sum-7seg', code: `.MODEL SMALL
+.STACK 100H
+.DATA
+  SEG_TABLE DB 03FH, 006H, 05BH, 04FH, 066H, 06DH, 07DH, 007H, 07FH, 06FH
+.CODE
+MAIN PROC
+    MOV AX, @DATA
+    MOV DS, AX
+    MOV CX, 3
+    CALL FACT            ; 6
+    MOV BX, AX
+    MOV CX, 4
+    CALL FACT            ; 24
+    ADD AX, BX           ; 30
+
+    MOV BX, 10           ; digits onto the stack, ones first
+    XOR CX, CX
+DIVLP:
+    XOR DX, DX
+    DIV BX
+    PUSH DX
+    INC CX
+    OR AX, AX
+    JNE DIVLP
+
+    MOV DX, 2030H        ; first pop = most significant = leftmost
+OUTLP:
+    POP BX               ; digit value 0..9
+    MOV AL, SEG_TABLE[BX]
+    OUT DX, AL
+    INC DX
+    LOOP OUTLP
+    HLT
+MAIN ENDP
+
+FACT PROC
+    MOV AX, 1
+NEXT:
+    MUL CX
+    LOOP NEXT
+    RET
+FACT ENDP
+END MAIN` },
+      { t: 'h', text: 'Problem 6 — (4! + 3!) − 2! = 28' },
+      { t: 'code', title: 'Console: (4! + 3!) − 2!', exampleId: 'practice-fac-sub', code: `    MOV CX, 4
+    CALL FACT            ; 24
+    MOV BX, AX
+    MOV CX, 3
+    CALL FACT            ; 6
+    ADD AX, BX           ; 30
+    MOV BX, AX           ; BX = 4! + 3!
+    MOV CX, 2
+    CALL FACT            ; 2
+    SUB BX, AX           ; 28
+    MOV AX, BX
+    ; ... print with OUTDEC, then 4CH / INT 21H` },
+      { t: 'code', title: 'Hardware core: 28 on the 7-seg block', exampleId: 'practice-fac-sub-7seg', code: `    MOV CX, 4
+    CALL FACT            ; 24
+    MOV BX, AX
+    MOV CX, 3
+    CALL FACT            ; 6
+    ADD AX, BX           ; 30
+    MOV BX, AX
+    MOV CX, 2
+    CALL FACT            ; 2
+    SUB BX, AX           ; 28
+    MOV AX, BX
+    ; ... same DIV-10 stack + SEG_TABLE loop as problem 5` },
+      { t: 'h', text: 'Problem 7 — (1! × 2!) × 6! = 1440' },
+      { t: 'code', title: 'Console: (1! × 2!) × 6!', exampleId: 'practice-fac-mul', code: `    MOV CX, 1
+    CALL FACT            ; 1
+    MOV BX, AX
+    MOV CX, 2
+    CALL FACT            ; 2
+    MUL BX               ; 1!*2! = 2
+    MOV BX, AX
+    MOV CX, 6
+    CALL FACT            ; 720
+    MUL BX               ; AX = 1440 = 05A0H
+    ; ... print with OUTDEC` },
+      { t: 'code', title: 'Hardware core: 1440 on the 7-seg block', exampleId: 'practice-fac-mul-7seg', code: `    MOV CX, 1
+    CALL FACT            ; 1
+    MOV BX, AX
+    MOV CX, 2
+    CALL FACT            ; 2
+    MUL BX               ; 1!*2! = 2
+    MOV BX, AX
+    MOV CX, 6
+    CALL FACT            ; 720
+    MUL BX               ; AX = 1440
+    ; ... then the DIV-10 stack + SEG_TABLE loop writes
+    ; '1','4','4','0' to 2030H..2033H — first pop lands leftmost.` },
+      { t: 'h', text: 'Problem 9 — 7! − 4! + 2! = 5018' },
+      { t: 'p', html: 'Evaluate left to right, keeping the running total in BX: 5040 − 24 = 5016, then + 2 = <b>5018 = 139AH</b>. Four digits on the display.' },
+      { t: 'code', title: 'Console: 7! − 4! + 2!', exampleId: 'practice-fac-742', code: `    MOV CX, 7
+    CALL FACT            ; 5040
+    MOV BX, AX
+    MOV CX, 4
+    CALL FACT            ; 24
+    SUB BX, AX           ; 5016
+    MOV CX, 2
+    CALL FACT            ; 2
+    ADD AX, BX           ; 5018 = 139AH
+    ; ... print with OUTDEC` },
+      { t: 'code', title: 'Hardware core: 5018 on the 7-seg block', exampleId: 'practice-fac-742-7seg', code: `    MOV CX, 7
+    CALL FACT            ; 5040
+    MOV BX, AX
+    MOV CX, 4
+    CALL FACT            ; 24
+    SUB BX, AX           ; 5016
+    MOV CX, 2
+    CALL FACT            ; 2
+    ADD AX, BX           ; 5018
+    ; ... DIV-10 stack + SEG_TABLE -> '5','0','1','8' at 2030H..2033H` },
+      { t: 'h', text: 'Problem 8 — average of ten numbers' },
+      { t: 'p', html: 'Pure lesson-8 array walking: <code>ADD AX, [SI]</code> with <code>ADD SI, 2</code> for a word array, one word <code>DIV</code> by 10 at the end. The quotient is the average; the remainder tells you how close it was to rounding up.' },
+      { t: 'code', title: 'Console: sum 442, average 44', exampleId: 'practice-avg10', code: `.MODEL SMALL
+.STACK 100H
+.DATA
+  NUMS DW 15, 42, 7, 93, 28, 55, 61, 34, 88, 19
+  MSG1 DB 'SUM = $'
+  MSG2 DB 13, 10, 'AVG = $'
+.CODE
+MAIN PROC
+    MOV AX, @DATA
+    MOV DS, AX
+    MOV CX, 10
+    XOR AX, AX
+    LEA SI, NUMS
+SUMLOOP:
+    ADD AX, [SI]         ; add the word at NUMS[SI]
+    ADD SI, 2            ; words are 2 bytes apart
+    LOOP SUMLOOP
+    MOV BX, AX           ; BX = 442
+
+    XOR DX, DX
+    MOV CX, 10
+    DIV CX               ; AX = 44, DX = remainder 2
+    MOV DI, AX           ; keep the average: OUTDEC clobbers AX
+
+    LEA DX, MSG1
+    MOV AH, 9
+    INT 21H
+    MOV AX, BX
+    CALL OUTDEC          ; prints 442
+    LEA DX, MSG2
+    MOV AH, 9
+    INT 21H
+    MOV AX, DI
+    CALL OUTDEC          ; prints 44
+    MOV AH, 4CH
+    INT 21H
+MAIN ENDP
+INCLUDE OUTDEC.ASM
+END MAIN` },
+      { t: 'code', title: 'Hardware: "S=442 A=44" on the LCD', exampleId: 'practice-avg10-lcd', code: `; WRITE_STR / WRITE_NUM from lesson 21 do the display work:
+    LEA SI, MSG1         ; 'S='
+    MOV CX, 2
+    CALL WRITE_STR
+    MOV AX, SUMV
+    CALL WRITE_NUM       ; 442
+    LEA SI, MSG2         ; ' A='
+    MOV CX, 3
+    CALL WRITE_STR
+    MOV AX, DI
+    CALL WRITE_NUM       ; 44
+    HLT` },
+      { t: 'h', text: 'Problem 10 — tiles for an 80×80 floor' },
+      { t: 'p', html: 'A word problem in disguise: tiles per side = 80/4 = 20, total = 20·20 = <b>400 = 190H</b>. Two instructions do the geometry — <code>DIV BX</code> then <code>MUL AX</code> (AX squared!).' },
+      { t: 'code', title: 'Console: 400 tiles', exampleId: 'practice-tiles', code: `    MOV AX, 80           ; floor side
+    MOV BX, 4            ; tile side
+    XOR DX, DX
+    DIV BX               ; AX = 20 tiles per side
+    MUL AX               ; DX:AX = 20 * 20 = 400
+    ; ... print with OUTDEC` },
+      { t: 'code', title: 'Hardware: 400 on the 7-seg block', exampleId: 'practice-tiles-7seg', code: `    MOV AX, 80
+    MOV BX, 4
+    XOR DX, DX
+    DIV BX               ; 20 per side
+    MUL AX               ; 400 tiles
+    ; ... DIV-10 stack + SEG_TABLE -> '4','0','0' at 2030H..2032H` },
+      { t: 'practice', q: 'How many 4×4 tiles pave a 120×60 floor?', hint: '(120/4) · (60/4) = 30 · 15. Save one quotient before dividing again — BX survives DIV.', solution: `.MODEL SMALL
+.STACK 100H
+.DATA
+  MSG DB 'TILES = $'
+.CODE
+MAIN PROC
+    MOV AX, @DATA
+    MOV DS, AX
+    MOV AX, 120
+    MOV BX, 4
+    XOR DX, DX
+    DIV BX               ; 30 per long side
+    MOV SI, AX           ; park the first quotient
+    MOV AX, 60
+    XOR DX, DX
+    DIV BX               ; 15 per short side
+    MUL SI               ; 450 tiles
+    MOV BX, AX
+    LEA DX, MSG
+    MOV AH, 9
+    INT 21H
+    MOV AX, BX
+    CALL OUTDEC          ; prints 450
+    MOV AH, 4CH
+    INT 21H
+MAIN ENDP
+INCLUDE OUTDEC.ASM
+END MAIN`, after: '30 · 15 = 450 = 1C2H. Note how SI parks the first quotient — DIV only touches AX and DX, so BX and SI are safe scratch registers.' },
+      { t: 'note', html: '<b>Rounding reality check.</b> Integer division truncates: the true average of the ten numbers is 44.2, and the F→C conversion of 110°F is 43.33 — the 8086 gives 44 and 43. If a problem asks you to round, add half the divisor first (<code>ADD AX, 5</code> before <code>DIV</code> by 10) and note it in a comment.' },
+    ],
+  },
 ]
 
 export function lessonById(id: string): Lesson | undefined {
