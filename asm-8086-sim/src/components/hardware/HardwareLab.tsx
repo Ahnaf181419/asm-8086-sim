@@ -1,4 +1,7 @@
+import { useState } from 'react'
 import { useHardwareMachine } from '../../hooks/useHardwareMachine'
+import { SPEEDS } from '../../hooks/useMachine'
+import { EXAMPLES } from '../../data/examples'
 import { LedsPanel } from './LedsPanel'
 import { SevenSegmentPanel } from './SevenSegmentPanel'
 import { AsciiLcdPanel } from './AsciiLcdPanel'
@@ -9,6 +12,8 @@ import { SwitchesPanel } from './SwitchesPanel'
 import { ThermometerPanel } from './ThermometerPanel'
 import { PressurePanel } from './PressurePanel'
 import './hardware.css'
+
+const HW_EXAMPLES = EXAMPLES.filter((e) => e.category === 'Hardware')
 
 export function HardwareLab() {
   const {
@@ -22,12 +27,62 @@ export function HardwareLab() {
     setPercent,
   } = useHardwareMachine()
 
+  const [exampleId, setExampleId] = useState('')
+
+  const loadExample = (id: string) => {
+    const ex = EXAMPLES.find((e) => e.id === id)
+    setExampleId(id)
+    if (ex) machine.build(ex.source)
+  }
+
+  const toggleRun = () => {
+    if (machine.running) {
+      machine.pause()
+      return
+    }
+    if (machine.status === 'halted' || machine.status === 'error') machine.reset()
+    machine.run()
+  }
+
   const devices = snapshot.devices
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
       <div className="hw-toolbar">
         <span className="hw-status">● {machine.statusLabel}</span>
+        <select
+          className="hw-select"
+          value={exampleId}
+          onChange={(e) => loadExample(e.target.value)}
+          aria-label="load hardware example"
+        >
+          <option value="">load example…</option>
+          {HW_EXAMPLES.map((e) => (
+            <option key={e.id} value={e.id}>
+              {e.name}
+            </option>
+          ))}
+        </select>
+        <button className="hw-btn" onClick={toggleRun}>
+          {machine.running ? '⏸ pause' : '▶ run'}
+        </button>
+        <button className="hw-btn" onClick={() => machine.step()} title="execute one instruction">
+          ⏭ step
+        </button>
+        <label className="hw-speed">
+          speed
+          <select
+            value={machine.speed}
+            onChange={(e) => machine.setSpeed(Number(e.target.value))}
+            aria-label="run speed"
+          >
+            {SPEEDS.map((s) => (
+              <option key={s} value={s}>
+                {s}×
+              </option>
+            ))}
+          </select>
+        </label>
         <button
           className="hw-btn"
           onClick={() => {
@@ -38,9 +93,6 @@ export function HardwareLab() {
         >
           ⟲ RESET HW
         </button>
-        <span className="hw-hint">
-          Load programs in the Simulator tab (visit /simulator?example=led-echo-switches)
-        </span>
       </div>
       <div className="hw-grid">
         <DotMatrixPanel state={devices['dot-matrix'] as never} />

@@ -56,7 +56,7 @@ export const EXAMPLES: Example[] = [
   { id: 'ascii-lcd-hello', name: 'ASCII LCD: three lines', category: 'Hardware', desc: 'Write a three-row message to the 3 × 16 character LCD', needsInput: false, source: asciiLcdHello },
   { id: 'led-knight-rider', name: 'LEDs: Knight Rider sweep', category: 'Hardware', desc: 'Single lit LED sweeps across the 8-LED bank with a software delay', needsInput: false, source: ledKnightRider },
   { id: 'led-echo-switches', name: 'LEDs: echo from switches', category: 'Hardware', desc: 'Read the 8 slide switches into LEDs in an infinite loop', needsInput: false, source: ledEchoSwitches },
-  { id: 'keyboard-to-lcd', name: 'Keyboard → LCD', category: 'Hardware', desc: 'Poll the keyboard buffer-full flag, write each key to the LCD', needsInput: false, source: keyboardToLcd },
+  { id: 'keyboard-to-lcd', name: 'Keyboard → LCD', category: 'Hardware', desc: 'Poll 2083H, read the key index from 2082H, translate to ASCII, acknowledge via 2083H', needsInput: false, source: keyboardToLcd },
   { id: 'thermometer-to-7seg', name: 'Thermometer → 7-Segment', category: 'Hardware', desc: 'Read the thermometer byte, look up low nibble in SEG_TABLE', needsInput: false, source: thermometerTo7seg },
   { id: 'pressure-bar', name: 'Pressure → LED bar', category: 'Hardware', desc: 'Map the pressure byte 0..200 to a 0..7 lit LED bar', needsInput: false, source: pressureBar },
 ]

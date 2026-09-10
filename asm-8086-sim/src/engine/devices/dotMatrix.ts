@@ -11,7 +11,7 @@ export class DotMatrixDevice implements IoDevice<DotMatrixState> {
   private bytes = new Uint8Array(40)
 
   reset() { this.bytes.fill(0) }
-  onRead(): never { throw new Error('dot-matrix is output-only') }
+  onRead(p: number, _s: 8 | 16): number { return this.bytes[p - this.basePort] }
   onWrite(p: number, v: number, _s: 8 | 16) { this.bytes[p - this.basePort] = v & 0x7f }
   snapshot(): DotMatrixState { return { bytes: new Uint8Array(this.bytes) } }
 }

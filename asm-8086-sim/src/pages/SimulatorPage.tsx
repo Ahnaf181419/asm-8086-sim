@@ -6,6 +6,7 @@ import MemoryView from '../components/MemoryView'
 import Console from '../components/Console'
 import { SPEEDS, useMachine } from '../hooks/useMachine'
 import { EXAMPLES, exampleById } from '../data/examples'
+import { getSharedBus } from '../engine/devices/sharedBus'
 
 // CodeMirror is about half the bundle and neither /lessons nor /reference
 // needs it, so it loads on demand (PLAN section 10).
@@ -29,7 +30,8 @@ export default function SimulatorPage() {
   const [memFocus, setMemFocus] = useState<'data' | 'stack'>('data')
   const [autoAssemble, setAutoAssemble] = useState(true)
 
-  const sim = useMachine()
+  // shared bus: hardware examples (IN/OUT) drive the /hardware devices
+  const sim = useMachine({ bus: getSharedBus() })
 
   // initial assemble (mount only)
   const initialSource = useRef(source)

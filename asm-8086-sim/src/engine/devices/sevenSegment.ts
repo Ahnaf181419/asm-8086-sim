@@ -17,7 +17,7 @@ export class SevenSegmentDevice implements IoDevice<SevenSegmentState> {
   private bytes = new Uint8Array(8)
 
   reset() { this.bytes.fill(0) }
-  onRead(): never { throw new Error('seven-segment is output-only') }
+  onRead(p: number, _s: 8 | 16): number { return this.bytes[p - this.basePort] }
   onWrite(p: number, v: number, _s: 8 | 16) { this.bytes[p - this.basePort] = v & 0xff }
   snapshot(): SevenSegmentState { return { bytes: new Uint8Array(this.bytes) } }
 }

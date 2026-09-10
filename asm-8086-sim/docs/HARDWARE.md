@@ -77,7 +77,7 @@ This split keeps the engine hook dependency-free (`useMachine` has no React-DOM 
 | 3 | **ASCII LCD**      | out | 8  | 48 bytes (3 rows × 16 chars) | Row-major; printable ASCII only |
 | 4 | **LEDs**           | out | 8  | 1 byte                        | `1` = lit; `0` = dark |
 | 5 | **Push Buttons**   | in  | 16 | 1 word                        | Toggled from UI; cleared by user |
-| 6 | **Keyboard**       | in  | 8  | 2 bytes (data + status)       | Port 0 = scancode, port 1 = full flag; write 0 to port 0 to clear |
+| 6 | **Keyboard**       | in  | 8  | 2 bytes (value + flag)        | 2082H = key index 0..23 (latch), 2083H = buffer-full flag; write 0 to 2083H to acknowledge |
 | 7 | **Switches**       | in  | 8  | 1 byte                        | Slide-switch model; toggle from UI |
 | 8 | **Thermometer**    | in  | 8  | 1 byte                        | Value = `celsius + 40` (range −40…+120 °C maps to 0x00…0xA0) |
 | 9 | **Pressure**       | in  | 8  | 1 byte                        | Value = `percent × 2` (0–100 % maps to 0x00…0xC8) |
@@ -320,7 +320,8 @@ The suite catches drift in three directions: assembler rejects a malformed opera
 ## 9. Known limitations
 
 - **No interrupts.** `IN` from a polled device is fine; there is no `IRQ` line to trigger an interrupt handler. Outside the scope of the original course.
-- **Single keyboard buffer.** The Emulation Kit had a small ring buffer; this implementation has a single buffered key with a busy flag, which is enough for all eight published examples.
+- **Keyboard values are key indexes.** The kit's 24 keys deliver their index (0..23), not ASCII — `0-9` = 0..9, `A-F` = 10..15, `A1-A8` = 16..23 (KeyboardDlg.cpp: `wParam − 5000`). Programs translate indexes to characters themselves (see `keyboard-to-lcd.asm`).
+- **Single keyboard buffer.** One buffered key with a full flag; a press while the buffer is full is ignored (the kit beeps and ignores it too).
 - **No persistence of UI inputs across reloads.** The Push Buttons, Switches, Thermometer and Pressure values reset on reload, matching the simulator tab's behaviour.
 - **Devices are local to one tab.** Two open tabs of the Hardware Lab each have their own bus; this is correct for an in-browser simulator, not a multi-user system.
 

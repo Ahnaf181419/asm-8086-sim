@@ -20,7 +20,7 @@ export function SwitchesPanel({
         <div className="addr">2084H · 8 switches · IN</div>
       </div>
       <div className="hw-switch-row">
-        {bits.map((on, i) => (
+        {[...bits].map((on, i) => ({ on, i })).reverse().map(({ on, i }) => (
           <button
             key={i}
             className={`hw-btn${on ? ' on' : ''}`}

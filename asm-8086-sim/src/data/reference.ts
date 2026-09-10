@@ -61,8 +61,8 @@ export const REFERENCE: RefEntry[] = [
   { mnem: 'RET', category: 'Procedures & stack', syntax: ['RET', 'RET n'], desc: 'Pop return address into IP (optionally add n to SP).', flags: '—', example: 'RET' },
 
   { mnem: 'INT 21H', category: 'I/O', syntax: ['MOV AH, func', 'INT 21H'], desc: 'DOS services: AH=01 read key→AL; AH=02 print DL; AH=09 print string at DX until \'$\'; AH=0Ah buffered line input; AH=4Ch exit to DOS.', flags: 'depends', example: 'MOV AH, 2\nINT 21H' },
-  { mnem: 'IN', category: 'I/O', syntax: ['IN AL, imm8', 'IN AL, DX', 'IN AX, DX'], desc: 'Read from an I/O port into AL (8-bit) or AX (16-bit). Port is either DX or an immediate 0..255. Requires an attached I/O bus.', flags: '—', example: 'IN AL, 0x60' },
-  { mnem: 'OUT', category: 'I/O', syntax: ['OUT imm8, AL', 'OUT DX, AL', 'OUT DX, AX'], desc: 'Write AL (8-bit) or AX (16-bit) to an I/O port. Port is either DX or an immediate 0..255. Requires an attached I/O bus.', flags: '—', example: 'OUT 0x2070, AL' },
+  { mnem: 'IN', category: 'I/O', syntax: ['IN AL, imm8', 'IN AL, DX', 'IN AX, DX'], desc: 'Read from an I/O port into AL (8-bit) or AX (16-bit). Port is either DX or an immediate 0..255 — kit devices (2000H+) need the DX form.', flags: '—', example: 'MOV DX, 2084H\nIN AL, DX' },
+  { mnem: 'OUT', category: 'I/O', syntax: ['OUT imm8, AL', 'OUT DX, AL', 'OUT DX, AX'], desc: 'Write AL (8-bit) or AX (16-bit) to an I/O port. Port is either DX or an immediate 0..255 — kit devices (2000H+) need the DX form.', flags: '—', example: 'MOV DX, 2070H\nMOV AL, 0FFH\nOUT DX, AL' },
   { mnem: 'NOP', category: 'I/O', syntax: ['NOP'], desc: 'No operation — does nothing.', flags: '—', example: 'NOP' },
   { mnem: 'HLT', category: 'I/O', syntax: ['HLT'], desc: 'Halt the processor. The simulator stops here; prefer AH=4Ch to exit cleanly to DOS.', flags: '—', example: 'HLT' },
 

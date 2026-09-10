@@ -1,15 +1,21 @@
 import type { KeyboardState } from '../../engine/devices/keyboard'
 
-// 24 keys: digits 0-9 + first 14 letters. Spec said 24 (not 36) for layout
-// reasons, and the Emulation Kit's reference behavior doesn't depend on
-// having every letter mapped.
-const KEYS: { label: string; code: number }[] = [
-  ...Array.from({ length: 10 }, (_, i) => ({ label: String(i), code: 0x30 + i })),
-  ...Array.from({ length: 14 }, (_, i) => ({
+// The kit's 24 keys deliver their INDEX (0..23), not ASCII
+// (KeyboardDlg.cpp: value = button id − 5000):
+//   keys 0-9 = 0..9, A-F = 10..15, A1-A8 = 16..23
+const KEYS: { label: string; value: number }[] = [
+  ...Array.from({ length: 10 }, (_, i) => ({ label: String(i), value: i })),
+  ...Array.from({ length: 6 }, (_, i) => ({
     label: String.fromCharCode(0x41 + i),
-    code: 0x41 + i,
+    value: 10 + i,
   })),
+  ...Array.from({ length: 8 }, (_, i) => ({ label: `A${i + 1}`, value: 16 + i })),
 ]
+
+function keyName(value: number): string {
+  const k = KEYS.find((x) => x.value === value)
+  return k ? k.label : `#${value}`
+}
 
 export function KeyboardPanel({
   state,
@@ -22,28 +28,27 @@ export function KeyboardPanel({
 }) {
   const key = state?.key ?? 0
   const bufferFull = state?.bufferFull ?? false
-  const label = key >= 0x20 && key < 0x7f ? String.fromCharCode(key) : '?'
 
   return (
     <div className="hw-panel">
       <div>
         <h3>Keyboard</h3>
-        <div className="addr">2082H · buffered · IN</div>
+        <div className="addr">2082H · buffered · IN · key value = index 0..23</div>
       </div>
       <div className="hw-kb-grid">
         {KEYS.map((k) => (
           <button
-            key={k.code}
+            key={k.value}
             className="hw-btn"
-            onClick={() => onPressKey(k.code)}
-            aria-label={`key ${k.label}`}
+            onClick={() => onPressKey(k.value)}
+            aria-label={`key ${k.label} (value ${k.value})`}
           >
             {k.label}
           </button>
         ))}
       </div>
       <div className="hw-readout">
-        BUFFER: {bufferFull ? `0x${key.toString(16).toUpperCase().padStart(2, '0')} ('${label}') FULL` : 'EMPTY'}
+        BUFFER: {bufferFull ? `0x${key.toString(16).toUpperCase().padStart(2, '0')} ('${keyName(key)}') FULL` : 'EMPTY'}
       </div>
       <button className="hw-btn" onClick={onClearBuffer} aria-label="clear keyboard buffer">
         CLEAR BUFFER

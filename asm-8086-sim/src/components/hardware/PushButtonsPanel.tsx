@@ -26,9 +26,9 @@ export function PushButtonsPanel({
             className={`hw-btn${on ? ' on' : ''}`}
             onClick={() => onToggleBit(i)}
             aria-pressed={on}
-            aria-label={`push button ${i}`}
+            aria-label={`push button ${i.toString(16).toUpperCase()}`}
           >
-            PB-{String(i).padStart(2, '0')}
+            {i.toString(16).toUpperCase()}
           </button>
         ))}
       </div>

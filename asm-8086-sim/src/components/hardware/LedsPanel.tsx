@@ -15,7 +15,7 @@ export function LedsPanel({ state }: { state: LedsState | undefined }) {
       </div>
       <svg viewBox="0 0 280 60" preserveAspectRatio="xMidYMid meet" aria-label="8 LEDs">
         {bits.map((on, i) => (
-          <g key={i} transform={`translate(${20 + i * 32}, 30)`}>
+          <g key={i} transform={`translate(${236 - i * 32}, 30)`}>
             <circle
               r={10}
               fill={on ? LED_COLORS[i] : '#1a1a1a'}

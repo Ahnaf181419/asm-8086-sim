@@ -1047,7 +1047,7 @@ ECHO:
 MAIN ENDP
 END MAIN` },
       { t: 'note', html: 'You have to set <code>DX</code> twice — once with the <b>IN</b> port, once with the <b>OUT</b> port. The CPU never remembers which DX meant what.' },
-      { t: 'p', html: 'A more dynamic use of the LEDs is a <b>Knight Rider sweep</b> — one lit lamp travels across the bank. The example below pairs the LED output with a software delay; switch to the <b>Hardware</b> mode in the simulator to watch it animate.' },
+      { t: 'p', html: 'A more dynamic use of the LEDs is a <b>Knight Rider sweep</b> — one lit lamp travels across the bank. The example below pairs the LED output with a software delay; open the <b>Hardware</b> tab, load it from the example picker and press run to watch it animate.' },
       { t: 'code', title: 'Knight Rider: a single lit LED sweeps across the 8-LED bank', exampleId: 'led-knight-rider', code: `.MODEL SMALL
 .STACK 100H
 .CODE
@@ -1347,7 +1347,7 @@ END MAIN`,
     title: 'ASCII LCD: 3 × 16 Character Display',
     source: 'Laboratory 1 — Hardware Interfacing Manual',
     blocks: [
-      { t: 'p', html: 'The Emulation Kit has a backlit <b>3 × 16 character LCD</b> at ports <code>2040H..206FH</code>. Each port is one ASCII cell — write a character byte and that cell shows it. The display is <b>write-only</b>: there is no way to read what is currently on the screen.' },
+      { t: 'p', html: 'The Emulation Kit has a backlit <b>3 × 16 character LCD</b> at ports <code>2040H..206FH</code>. Each port is one ASCII cell — write a character byte and that cell shows it. The 48 ports are latched registers: reading one back returns the last byte written, which you can use to verify what is on the screen.' },
       { t: 'h', text: 'The memory layout' },
       { t: 'p', html: 'Rows are stored sequentially. With 16 characters per row, the addresses are easy to keep straight:' },
       { t: 'table', head: ['Row', 'Port range', 'Offset from 2040H'], rows: [
@@ -1467,13 +1467,13 @@ WAIT:
 MAIN ENDP
 END MAIN` },
       { t: 'h', text: 'Keyboard (2082H – 2083H)' },
-      { t: 'p', html: 'The keyboard needs a 3-step <b>polling protocol</b>:' },
+      { t: 'p', html: 'The keyboard needs a 3-step <b>polling protocol</b>. Note that the two ports are really two 8-bit registers: <code>2082H</code> holds the <b>key value</b> and <code>2083H</code> holds the <b>buffer-full flag</b>.' },
       { t: 'ul', items: [
         '<b>Read <code>2083H</code> bit 0</b> — "1" means a key is sitting in the buffer.',
-        '<b>If buffer-full</b>, read the ASCII code from <code>2082H</code>.',
-        '<b>Write 0 to <code>2082H</code></b> — this <i>acknowledges</i> the key and clears the buffer.',
+        '<b>If buffer-full</b>, read the key VALUE from <code>2082H</code>. The kit\'s 24 keys deliver their <b>index 0..23</b>, not ASCII: keys <code>0-9</code> = 0..9, <code>A-F</code> = 10..15, <code>A1-A8</code> = 16..23.',
+        '<b>Write 0 to <code>2083H</code></b> — this <i>acknowledges</i> the key and clears the buffer-full flag.',
       ] },
-      { t: 'code', title: 'Wait for a key, write it to the LCD at port 2040H, clear the buffer', exampleId: 'keyboard-to-lcd', code: `.MODEL SMALL
+      { t: 'code', title: 'Wait for a key, translate its index to ASCII, write it to the LCD', exampleId: 'keyboard-to-lcd', code: `.MODEL SMALL
 .STACK 100H
 .DATA
   LCD_POS DW 2040H
@@ -1482,27 +1482,41 @@ MAIN PROC
     MOV AX, @DATA
     MOV DS, AX
 WAIT:
-    MOV DX, 2083H
+    MOV DX, 2083H        ; buffer-full flag
     IN AL, DX
     TEST AL, 01H
     JZ WAIT
 
-    MOV DX, 2082H
+    MOV DX, 2082H        ; key index 0..23
     IN AL, DX
 
-    MOV BX, LCD_POS
+    CMP AL, 10
+    JB DIGIT             ;  0..9  -> '0'..'9'
+    CMP AL, 16
+    JB LETTER            ; 10..15 -> 'A'..'F'
+    SUB AL, 16           ; 16..23 -> '1'..'8' (A1..A8)
+    ADD AL, 31H
+    JMP SHOW
+LETTER:
+    SUB AL, 10
+    ADD AL, 41H
+    JMP SHOW
+DIGIT:
+    ADD AL, 30H
+SHOW:
+    MOV BX, LCD_POS      ; write the character to the LCD
     MOV DX, BX
     OUT DX, AL
     INC LCD_POS
 
-    MOV DX, 2082H
+    MOV DX, 2083H        ; acknowledge: clear the flag
     MOV AL, 0
     OUT DX, AL
 
     JMP WAIT
 MAIN ENDP
 END MAIN` },
-      { t: 'note', html: '<b>Forgetting the "write 0" step is the classic bug.</b> The buffer-full flag stays 1 forever, the simulator types the same key into your program forever, and the LCD scrolls junk. The 0-write is a hardware-level acknowledgement, not optional.' },
+      { t: 'note', html: '<b>Forgetting the acknowledge is the classic bug.</b> The buffer-full flag stays 1 forever, your program reads the same key over and over, and the LCD scrolls junk. Clearing the flag is a hardware-level acknowledgement, not optional. Also remember the key value is an index — if you write it straight to the LCD you get invisible control characters, not digits and letters.' },
       { t: 'h', text: 'Thermometer (2086H)' },
       { t: 'p', html: 'One byte: <b>−40 °C maps to 0</b>, <b>+120 °C maps to <code>A0H</code> = 160</b>. Any other value is just <code>celsius + 40</code>. So to recover the actual temperature in °C, subtract 40 from whatever you read.' },
       { t: 'code', title: 'Read the thermometer, write the low nibble to a 7-segment digit', exampleId: 'thermometer-to-7seg', code: `.MODEL SMALL
@@ -1569,10 +1583,11 @@ MAIN PROC
 
     ; loop 16 times, walking through SEG_TABLE. Real hardware version:
     ;   - wait for key press on 2083H bit 0
-    ;   - read key from 2082H
+    ;   - read key index from 2082H
     ;   - increment a counter
     ;   - write counter's segment pattern to 2030H via OUT DX, AL
-    ;   - write the key to the next LCD cell at 2040H + offset
+    ;   - write the translated character to the next LCD cell at 2040H + offset
+    ;   - acknowledge by writing 0 to 2083H
     MOV CL, 16
     XOR BX, BX
 COUNT:

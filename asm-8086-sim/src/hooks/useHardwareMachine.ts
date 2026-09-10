@@ -1,63 +1,17 @@
-import { useCallback, useMemo, useSyncExternalStore } from 'react'
-import { HardwareBus } from '../engine/devices/bus'
-import { LedsDevice } from '../engine/devices/leds'
-import { DotMatrixDevice } from '../engine/devices/dotMatrix'
-import { SevenSegmentDevice } from '../engine/devices/sevenSegment'
-import { AsciiLcdDevice } from '../engine/devices/asciiLcd'
-import { PushButtonsDevice } from '../engine/devices/pushButtons'
+import { useCallback, useSyncExternalStore } from 'react'
+import { getSharedBus } from '../engine/devices/sharedBus'
 import { KeyboardDevice } from '../engine/devices/keyboard'
 import { SwitchesDevice } from '../engine/devices/switches'
+import { PushButtonsDevice } from '../engine/devices/pushButtons'
 import { ThermometerDevice } from '../engine/devices/thermometer'
 import { PressureDevice } from '../engine/devices/pressure'
 import { useMachine } from './useMachine'
 
-export interface HardwareDevices {
-  leds: LedsDevice
-  dotMatrix: DotMatrixDevice
-  sevenSegment: SevenSegmentDevice
-  lcd: AsciiLcdDevice
-  buttons: PushButtonsDevice
-  keyboard: KeyboardDevice
-  switches: SwitchesDevice
-  thermometer: ThermometerDevice
-  pressure: PressureDevice
-}
-
+// Bridge between the app-wide hardware bus and React. The bus (and its
+// 9 devices) is a singleton, so state survives route changes: flip a
+// switch on /hardware, run a program on /, come back — still flipped.
 export function useHardwareMachine() {
-  const { bus, devices } = useMemo(() => {
-    const b = new HardwareBus()
-    const leds = new LedsDevice()
-    const dotMatrix = new DotMatrixDevice()
-    const sevenSegment = new SevenSegmentDevice()
-    const lcd = new AsciiLcdDevice()
-    const buttons = new PushButtonsDevice()
-    const keyboard = new KeyboardDevice()
-    const switches = new SwitchesDevice()
-    const thermometer = new ThermometerDevice()
-    const pressure = new PressureDevice()
-    b.attach(dotMatrix)
-    b.attach(sevenSegment)
-    b.attach(lcd)
-    b.attach(leds)
-    b.attach(buttons)
-    b.attach(keyboard)
-    b.attach(switches)
-    b.attach(thermometer)
-    b.attach(pressure)
-    const devs: HardwareDevices = {
-      leds,
-      dotMatrix,
-      sevenSegment,
-      lcd,
-      buttons,
-      keyboard,
-      switches,
-      thermometer,
-      pressure,
-    }
-    return { bus: b, devices: devs }
-  }, [])
-
+  const bus = getSharedBus()
   const machine = useMachine({ bus })
 
   // useSyncExternalStore re-renders panels when the bus notifies. The notify
@@ -69,46 +23,45 @@ export function useHardwareMachine() {
 
   const toggleBit = useCallback(
     (which: 'switches' | 'buttons', i: number) => {
-      const d = which === 'switches' ? devices.switches : devices.buttons
-      d.toggleBit(i)
+      if (which === 'switches') bus.getDevice<SwitchesDevice>('switches')!.toggleBit(i)
+      else bus.getDevice<PushButtonsDevice>('push-buttons')!.toggleBit(i)
       bus.notify()
     },
-    [bus, devices],
+    [bus],
   )
 
   const pressKey = useCallback(
     (code: number) => {
-      devices.keyboard.pressKey(code)
+      bus.getDevice<KeyboardDevice>('keyboard')!.pressKey(code)
       bus.notify()
     },
-    [bus, devices],
+    [bus],
   )
 
   const clearKeyboardBuffer = useCallback(() => {
-    devices.keyboard.clearBuffer()
+    bus.getDevice<KeyboardDevice>('keyboard')!.clearBuffer()
     bus.notify()
-  }, [bus, devices])
+  }, [bus])
 
   const setCelsius = useCallback(
     (c: number) => {
-      devices.thermometer.setCelsius(c)
+      bus.getDevice<ThermometerDevice>('thermometer')!.setCelsius(c)
       bus.notify()
     },
-    [bus, devices],
+    [bus],
   )
 
   const setPercent = useCallback(
     (p: number) => {
-      devices.pressure.setPercent(p)
+      bus.getDevice<PressureDevice>('pressure')!.setPercent(p)
       bus.notify()
     },
-    [bus, devices],
+    [bus],
   )
 
   return {
     machine,
     bus,
-    devices,
     snapshot,
     toggleBit,
     pressKey,

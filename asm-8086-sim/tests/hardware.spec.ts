@@ -50,7 +50,7 @@ describe('HardwareBus', () => {
 
 import { DOT_MATRIX_ADDRESS } from '../src/engine/devices/portMap'
 import { DotMatrixDevice } from '../src/engine/devices/dotMatrix'
-import { SEG_TABLE } from '../src/engine/devices/sevenSegment'
+import { SEG_TABLE, SevenSegmentDevice } from '../src/engine/devices/sevenSegment'
 import { AsciiLcdDevice } from '../src/engine/devices/asciiLcd'
 import { PushButtonsDevice } from '../src/engine/devices/pushButtons'
 import { KeyboardDevice } from '../src/engine/devices/keyboard'
@@ -81,12 +81,47 @@ describe('Devices', () => {
     expect(d.onRead(0x2080, 16)).toBe((1<<3)|(1<<7))
   })
 
-  it('keyboard buffer-full semantics: press, read, clear, read', () => {
+  it('push-buttons word register spans 2080h (low) and 2081h (high)', () => {
+    const d = new PushButtonsDevice()
+    d.toggleBit(0); d.toggleBit(9)   // value = 0x0201
+    expect(d.onRead(0x2080, 8)).toBe(0x01) // low byte
+    expect(d.onRead(0x2081, 8)).toBe(0x02) // high byte
+    expect(d.onRead(0x2080, 16)).toBe(0x0201)
+  })
+
+  it('keyboard follows the kit protocol: index values, flag register at 2083H', () => {
     const d = new KeyboardDevice()
-    d.pressKey(0x05)
-    expect(d.onRead(0x2083, 8)).toBe(1)
-    d.onWrite(0x2082, 0, 8)
+    // buffer empty: key register reads its latched (initially 0) value
+    expect(d.onRead(0x2082, 8)).toBe(0)
     expect(d.onRead(0x2083, 8)).toBe(0)
+    // pressing key 'A' (kit index 11) latches key=11 and sets the flag
+    d.pressKey(11)
+    expect(d.onRead(0x2082, 8)).toBe(11)
+    expect(d.onRead(0x2083, 8)).toBe(1)
+    // writing 0 to the FLAG register (2083H) clears the buffer
+    d.onWrite(0x2083, 0, 8)
+    expect(d.onRead(0x2083, 8)).toBe(0)
+    // key register is a latch: still readable after the buffer empties
+    expect(d.onRead(0x2082, 8)).toBe(11)
+    // pressing while full is ignored (kit beeps and returns)
+    d.pressKey(5)
+    d.pressKey(7)
+    expect(d.onRead(0x2082, 8)).toBe(5)
+    expect(d.onRead(0x2083, 8)).toBe(1)
+  })
+
+  it('output devices are readable latches (kit register file semantics)', () => {
+    const dm = new DotMatrixDevice()
+    dm.onWrite(DOT_MATRIX_ADDRESS + 3, 0x5a, 8)
+    expect(dm.onRead(DOT_MATRIX_ADDRESS + 3, 8)).toBe(0x5a & 0x7f)
+
+    const ss = new SevenSegmentDevice()
+    ss.onWrite(0x2030 + 2, 0x3f, 8)
+    expect(ss.onRead(0x2030 + 2, 8)).toBe(0x3f)
+
+    const lcd = new AsciiLcdDevice()
+    lcd.onWrite(0x2040 + 20, 0x41, 8)
+    expect(lcd.onRead(0x2040 + 20, 8)).toBe(0x41)
   })
 
   it('switches toggle and read back', () => {
@@ -236,4 +271,19 @@ describe('hardware examples', () => {
       expect(r.errors).toEqual([])
     })
   }
+
+  it('keyboard-to-lcd: pressed key shows on the LCD and the buffer clears', () => {
+    const ex = exampleById('keyboard-to-lcd')!
+    const r = assemble(ex.source, { mainFile: 'keyboard-to-lcd.asm' })
+    expect(r.errors).toEqual([])
+    const bus = new HardwareBus()
+    bus.attach(new KeyboardDevice())
+    bus.attach(new AsciiLcdDevice())
+    bus.getDevice<KeyboardDevice>('keyboard')!.pressKey(12) // key 'C' (index 12)
+    const m = new Machine(r.program!, bus)
+    m.run(2000) // infinite loop; 2000 steps consumes the key comfortably
+    const lcd = bus.getDevice<AsciiLcdDevice>('ascii-lcd')!
+    expect(lcd.snapshot().chars[0]).toBe(0x43) // 'C'
+    expect(bus.getDevice<KeyboardDevice>('keyboard')!.snapshot().bufferFull).toBe(false)
+  })
 })
