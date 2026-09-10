@@ -7,6 +7,7 @@ import LessonsPage from './pages/LessonsPage'
 import LessonView from './pages/LessonView'
 import ReferencePage from './pages/ReferencePage'
 import HardwareLabPage from './pages/HardwareLabPage'
+import ErrorPage from './components/ErrorPage'
 import './styles/global.css'
 
 // when hosted under a subpath (GitHub Pages: /asm-8086-sim/), the router must
@@ -18,12 +19,14 @@ const router = createBrowserRouter(
     {
       path: '/',
       element: <App />,
+      // leaf errorElements keep the shell nav; without one react-router shows
+      // its raw "Hey developer" dump on route-level failures (lazy chunks etc.)
       children: [
-        { index: true, element: <SimulatorPage /> },
-        { path: 'lessons', element: <LessonsPage /> },
-        { path: 'lessons/:id', element: <LessonView /> },
-        { path: 'hardware', element: <HardwareLabPage /> },
-        { path: 'reference', element: <ReferencePage /> },
+        { index: true, element: <SimulatorPage />, errorElement: <ErrorPage /> },
+        { path: 'lessons', element: <LessonsPage />, errorElement: <ErrorPage /> },
+        { path: 'lessons/:id', element: <LessonView />, errorElement: <ErrorPage /> },
+        { path: 'hardware', element: <HardwareLabPage />, errorElement: <ErrorPage /> },
+        { path: 'reference', element: <ReferencePage />, errorElement: <ErrorPage /> },
         { path: '*', element: <Navigate to="/" replace /> },
       ],
     },

@@ -548,3 +548,14 @@ input[type='range'] { accent-color: var(--accent-dim); width: 110px; }
   .lessons-content { padding: 16px 18px 60px; }
   .regs-grid { grid-template-columns: 1fr; }
 }
+
+/* route errorElement page */
+.err-page { align-items: flex-start; justify-content: center; padding: 48px max(24px, 10vw); gap: 14px; }
+.err-page h1 { font-size: 18px; color: var(--err); margin: 0; }
+.err-page .err-msg {
+  color: var(--text); background: var(--bg); border: 1px solid var(--border);
+  border-radius: 4px; padding: 10px 14px; max-width: 640px;
+  white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px;
+}
+.err-page .err-hint { color: var(--text-faint); font-size: 12px; margin: 0; }
+.err-page .err-actions { display: flex; gap: 10px; margin-top: 8px; }

@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react'
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import TerminalPanel from '../components/TerminalPanel'
 import RegisterPanel from '../components/RegisterPanel'
@@ -7,10 +7,12 @@ import Console from '../components/Console'
 import { SPEEDS, useMachine } from '../hooks/useMachine'
 import { EXAMPLES, exampleById } from '../data/examples'
 import { getSharedBus } from '../engine/devices/sharedBus'
+import { lazyImport } from '../hooks/useLazyImport'
 
 // CodeMirror is about half the bundle and neither /lessons nor /reference
-// needs it, so it loads on demand (PLAN section 10).
-const CodeEditor = lazy(() => import('../components/CodeEditor'))
+// needs it, so it loads on demand (PLAN section 10); loadWithChunkRecovery
+// inside survives Vite HMR invalidating the chunk mid-fetch
+const CodeEditor = lazyImport(() => import('../components/CodeEditor'))
 
 const LS_KEY = 'asm-8086-sim:source'
 
