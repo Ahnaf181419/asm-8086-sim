@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, Suspense, type ReactNode } from 'react'
+import { useState, useEffect, Suspense, type ReactNode } from 'react'
 import { useHardwareMachine } from '../../hooks/useHardwareMachine'
 import { SPEEDS } from '../../hooks/useMachine'
 import { EXAMPLES } from '../../data/examples'
@@ -17,6 +17,7 @@ import type { BusCycle } from '../../engine/devices/types'
 import type { LedsState } from '../../engine/devices/leds'
 import type { SevenSegmentState } from '../../engine/devices/sevenSegment'
 import type { AsciiLcdState } from '../../engine/devices/asciiLcd'
+import { isBareAsm, wrapIfBare } from './hardwareScaffold'
 import { lazyImport } from '../../hooks/useLazyImport'
 import './hardware.css'
 
@@ -40,11 +41,29 @@ for (const [ch, code] of Object.entries(SEG_TABLE)) {
   SEG_REVERSE.set(code, ch)
 }
 function decodeSeg(byte: number): string {
-  // try both active-high and active-low (NOT'd)
-  if (SEG_REVERSE.has(byte)) return SEG_REVERSE.get(byte)!
+  const clean = byte & 0x7f
+  if (clean === 0 || clean === 0x7f) return '·'
+  if (SEG_REVERSE.has(clean)) return SEG_REVERSE.get(clean)!
   const inv = (~byte) & 0x7f
   if (SEG_REVERSE.has(inv)) return SEG_REVERSE.get(inv)!
-  return byte === 0 ? '·' : '?'
+  return '?'
+}
+
+function portLabel(port: number): string {
+  if (port === 0x19) return 'PPI-A (7Seg)'
+  if (port === 0x1b) return 'PPI-B (LEDs)'
+  if (port === 0x1d) return 'PPI-C'
+  if (port === 0x1f) return 'PPI-Ctrl'
+  if (port === 0x2070) return 'LEDs'
+  if (port >= 0x2030 && port <= 0x2037) return `7Seg #${port - 0x2030}`
+  if (port >= 0x2040 && port <= 0x206f) return 'LCD'
+  if (port >= 0x2000 && port <= 0x2007) return `Matrix #${port - 0x2000}`
+  if (port === 0x2080 || port === 0x2081) return 'Buttons'
+  if (port === 0x2082 || port === 0x2083) return 'Keyboard'
+  if (port === 0x2084 || port === 0x2085) return 'Switches'
+  if (port === 0x2086) return 'Thermo'
+  if (port === 0x2088) return 'Pressure'
+  return `${hex4(port)}H`
 }
 
 // one floating "kit window": MFC-style caption from the C++ SetWindowText
@@ -170,7 +189,7 @@ function BusLogTable({ cycles }: { cycles: BusCycle[] }) {
               <tr key={i} className={c.type === 'OUT' ? 'out' : 'in'}>
                 <td>{cycles.length - i}</td>
                 <td>{c.type}</td>
-                <td>{hex4(c.port)}H</td>
+                <td title={`${hex4(c.port)}H`}>{portLabel(c.port)}</td>
                 <td>0x{c.value.toString(16).toUpperCase().padStart(c.size === 16 ? 4 : 2, '0')}</td>
                 <td>{c.size}-bit</td>
               </tr>
@@ -250,7 +269,7 @@ export function HardwareLab() {
 
   // initial compile on mount
   useEffect(() => {
-    if (source) machine.build(source)
+    if (source) machine.build(wrapIfBare(source))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -259,19 +278,9 @@ export function HardwareLab() {
     setExampleId(id)
     if (ex) {
       setSource(ex.source)
-      machine.build(ex.source)
+      machine.build(wrapIfBare(ex.source))
     }
   }
-
-  // Auto-scaffold: detect bare code (no .CODE directive) and wrap it
-  const wrapIfBare = useMemo(() => {
-    return (src: string): string => {
-      const upper = src.toUpperCase()
-      if (upper.includes('.CODE') || upper.includes('.MODEL')) return src
-      // Bare hardware code: wrap in MASM template
-      return `.MODEL SMALL\n.CODE\nMAIN PROC\n${src}\n  HLT\nMAIN ENDP\nEND MAIN\n`
-    }
-  }, [])
 
   const onSourceChange = (newSrc: string) => {
     setSource(newSrc)
@@ -279,8 +288,7 @@ export function HardwareLab() {
   }
 
   const addBoilerplate = () => {
-    const upper = source.toUpperCase()
-    if (upper.includes('.CODE') || upper.includes('.MODEL')) return
+    if (!isBareAsm(source)) return
     const wrapped = `.MODEL SMALL\n.CODE\nMAIN PROC\n${source}\n  HLT\nMAIN ENDP\nEND MAIN\n`
     setSource(wrapped)
     machine.build(wrapped)
@@ -297,9 +305,11 @@ export function HardwareLab() {
 
   const devices = snapshot.devices
   const snap = machine.state.snap
+  const isBare = isBareAsm(source)
+  const lineOffset = isBare ? 3 : 0
   const curStmt = snap?.curStmt
-  const currentLine = curStmt && (curStmt.pos.file === 'editor.asm' || curStmt.pos.file === '') ? curStmt.pos.line : null
-  const isBare = !(source.toUpperCase().includes('.CODE') || source.toUpperCase().includes('.MODEL'))
+  const rawLine = curStmt && (curStmt.pos.file === 'editor.asm' || curStmt.pos.file === '') ? curStmt.pos.line : null
+  const currentLine = rawLine ? Math.max(1, rawLine - lineOffset) : null
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
@@ -438,11 +448,14 @@ export function HardwareLab() {
 
       {machine.state.errors.length > 0 && (
         <div className="hw-error-strip" role="alert">
-          {machine.state.errors.map((e, idx) => (
-            <div key={idx}>
-              ✗ {e.line ? `Line ${e.line}: ` : ''}{e.message}
-            </div>
-          ))}
+          {machine.state.errors.map((e, idx) => {
+            const errLine = e.line ? Math.max(1, e.line - lineOffset) : null
+            return (
+              <div key={idx}>
+                ✗ {errLine ? `Line ${errLine}: ` : ''}{e.message}
+              </div>
+            )
+          })}
         </div>
       )}
 

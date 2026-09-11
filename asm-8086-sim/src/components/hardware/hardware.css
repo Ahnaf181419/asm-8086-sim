@@ -695,4 +695,18 @@
   font-weight: 600;
 }
 
+@media (max-width: 768px) {
+  .hw-studio-drawer.open {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 320px;
+    max-width: 88vw;
+    box-shadow: -6px 0 24px rgba(0, 0, 0, 0.85);
+    z-index: 30;
+  }
+}
+
+
 

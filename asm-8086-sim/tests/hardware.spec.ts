@@ -311,7 +311,20 @@ END MAIN
 })
 
 describe('hardware examples', () => {
-  for (const id of ['dot-matrix-abc', 'seven-segment-count', 'ascii-lcd-hello', 'led-knight-rider', 'led-echo-switches', 'keyboard-to-lcd', 'thermometer-to-7seg', 'pressure-bar']) {
+  for (const id of [
+    'dot-matrix-abc',
+    'seven-segment-count',
+    'ascii-lcd-hello',
+    'led-knight-rider',
+    'led-echo-switches',
+    'keyboard-to-lcd',
+    'thermometer-to-7seg',
+    'pressure-bar',
+    'kit-led-pattern',
+    'kit-7seg-active-low',
+    'kit-7seg-cycle',
+    'kit-8255-ppi',
+  ]) {
     it(`example ${id} assembles`, () => {
       const ex = exampleById(id)
       expect(ex).toBeDefined()
@@ -404,3 +417,36 @@ END MAIN
     expect(snap.ppi?.portA).toBe(0x3F)
   })
 })
+
+import { isBareAsm, wrapIfBare } from '../src/components/hardware/hardwareScaffold'
+
+describe('HardwareLab Scaffolding & Bare Code Wrapping', () => {
+  it('detects bare code correctly', () => {
+    expect(isBareAsm('')).toBe(false)
+    expect(isBareAsm('   ')).toBe(false)
+    expect(isBareAsm('MOV AL, 55H\nOUT 1BH, AL')).toBe(true)
+    expect(isBareAsm('.MODEL SMALL\n.CODE\nMAIN PROC\nHLT\nMAIN ENDP\nEND MAIN')).toBe(false)
+    expect(isBareAsm('CODE SEGMENT\nMAIN PROC\nMAIN ENDP\nCODE ENDS')).toBe(false)
+  })
+
+  it('wraps bare lab code and executes successfully on the hardware bus', () => {
+    const bare = `
+MOV DX, 2070H
+MOV AL, 10101010B
+OUT DX, AL
+`
+    const wrapped = wrapIfBare(bare)
+    const r = assemble(wrapped)
+    expect(r.errors).toEqual([])
+    expect(r.program).not.toBeNull()
+
+    const bus = new HardwareBus()
+    bus.attach(new LedsDevice())
+    const m = new Machine(r.program!, bus)
+    m.run()
+    expect(m.status).toBe('halted')
+    const snap = bus.snapshot()
+    expect((snap.devices['leds'] as { value: number }).value).toBe(0xAA)
+  })
+})
+
