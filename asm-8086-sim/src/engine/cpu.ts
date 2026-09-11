@@ -436,7 +436,41 @@ export class Machine {
       }
       case 'NOP': this.ip = next; return
       case 'HLT': this.status = 'halted'; return
-      case 'INT': this.execInt21(stmt, next); return
+      case 'PUSHF': {
+        this.push(packFlags(this.flags))
+        this.ip = next
+        return
+      }
+      case 'POPF': {
+        const val = this.pop()
+        unpackFlags(val, this.flags, this.lastChanges.flags)
+        this.ip = next
+        return
+      }
+      case 'LAHF': {
+        const lo = packFlags(this.flags) & 0xff
+        this.setReg('AH', lo)
+        this.ip = next
+        return
+      }
+      case 'SAHF': {
+        const ah = this.getReg('AH')
+        const current = packFlags(this.flags)
+        unpackFlags((current & 0xff00) | (ah & 0xff), this.flags, this.lastChanges.flags)
+        this.ip = next
+        return
+      }
+      case 'INT': {
+        const num = ops.length > 0 && ops[0].k === 'imm' ? ops[0].v : 0x21
+        if (num === 0x10) {
+          this.execInt10(stmt, next)
+        } else if (num === 0x21) {
+          this.execInt21(stmt, next)
+        } else {
+          throw new RunError(`unsupported interrupt INT ${hex2(num)}H`, stmt.pos)
+        }
+        return
+      }
       default: {
         if (mn.startsWith('J')) {
           this.condJump(stmt, next, jumpCondition(mn, this.flags))
@@ -452,9 +486,38 @@ export class Machine {
     this.ip = cond ? stmt.labelTarget! : next
   }
 
+  private execInt10(_stmt: Stmt, next: number) {
+    const ah = this.getReg('AH')
+    switch (ah) {
+      case 0x00:
+      case 0x06:
+      case 0x07: {
+        // Clear screen / scroll window: reset console output
+        this.out = []
+        this.outChars = 0
+        this.ip = next
+        return
+      }
+      case 0x0e: {
+        // Teletype output
+        this.writeOut(String.fromCharCode(this.getReg('AL')))
+        this.ip = next
+        return
+      }
+      default: {
+        this.ip = next
+        return
+      }
+    }
+  }
+
   private execInt21(stmt: Stmt, next: number) {
     const ah = this.getReg('AH')
     switch (ah) {
+      case 0x00: {
+        this.status = 'halted'
+        return
+      }
       case 0x01: {
         if (this.inputQueue.length === 0) {
           this.status = 'waiting-input'
@@ -463,6 +526,18 @@ export class Machine {
         const ch = this.inputQueue.shift()!
         this.setReg('AL', ch)
         this.writeOut(String.fromCharCode(ch))
+        this.ip = next
+        return
+      }
+      case 0x07:
+      case 0x08: {
+        // Character input without echo
+        if (this.inputQueue.length === 0) {
+          this.status = 'waiting-input'
+          return
+        }
+        const ch = this.inputQueue.shift()!
+        this.setReg('AL', ch)
         this.ip = next
         return
       }
@@ -717,6 +792,35 @@ export function jumpCondition(mn: string, flags: Record<string, boolean>): boole
     case 'JNS': return !sf
     case 'JO': return of
     case 'JNO': return !of
+    case 'JP': case 'JPE': return flags.pf
+    case 'JPO': case 'JNP': return !flags.pf
     default: return false
   }
 }
+
+export function packFlags(flags: Record<string, boolean>): number {
+  let w = 0x0002 // bit 1 is always 1 in 8086
+  if (flags.cf) w |= 0x0001
+  if (flags.pf) w |= 0x0004
+  if (flags.af) w |= 0x0010
+  if (flags.zf) w |= 0x0040
+  if (flags.sf) w |= 0x0080
+  if (flags.df) w |= 0x0400
+  if (flags.of) w |= 0x0800
+  return w
+}
+
+export function unpackFlags(w: number, target: Record<string, boolean>, changes?: Set<string>): void {
+  const map: [string, number][] = [
+    ['cf', 0x0001], ['pf', 0x0004], ['af', 0x0010], ['zf', 0x0040],
+    ['sf', 0x0080], ['df', 0x0400], ['of', 0x0800],
+  ]
+  for (const [name, mask] of map) {
+    const val = (w & mask) !== 0
+    if (target[name] !== val) {
+      target[name] = val
+      if (changes) changes.add(name)
+    }
+  }
+}
+

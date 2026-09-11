@@ -1,0 +1,39 @@
+.MODEL SMALL
+.STACK 100H
+.DATA
+    N DB 5
+.CODE
+MAIN PROC
+    MOV AX, @DATA
+    MOV DS, AX
+
+    MOV CL, N
+    MOV CH, 0
+
+ROW_LOOP:
+    PUSH CX
+    MOV BL, N
+PRINT_COL:
+    MOV DL, BL
+    ADD DL, '0'
+    MOV AH, 2
+    INT 21H
+
+    DEC BL
+    LOOP PRINT_COL
+
+    MOV DL, 0DH
+    MOV AH, 2
+    INT 21H
+    MOV DL, 0AH
+    MOV AH, 2
+    INT 21H
+
+    POP CX
+    DEC CX
+    JNZ ROW_LOOP
+
+    MOV AH, 4CH
+    INT 21H
+MAIN ENDP
+END MAIN

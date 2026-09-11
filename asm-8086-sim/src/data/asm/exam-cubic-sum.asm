@@ -1,0 +1,40 @@
+.MODEL SMALL
+.STACK 100H
+.DATA
+    N DW 4
+    S DW 0
+    IS_ODD DB 0
+.CODE
+MAIN PROC
+    MOV AX, @DATA
+    MOV DS, AX
+
+    MOV CX, N
+    XOR BX, BX
+    MOV SI, 1
+
+SUM_LOOP:
+    MOV AX, SI
+    MUL SI
+    MUL SI
+    ADD BX, AX
+    INC SI
+    LOOP SUM_LOOP
+
+    MOV S, BX
+
+    TEST BX, 1
+    JZ EVEN_CASE
+    MOV IS_ODD, 1
+    MOV AL, 1
+    JMP DONE
+
+EVEN_CASE:
+    MOV IS_ODD, 0
+    MOV AL, 0
+
+DONE:
+    MOV AH, 4CH
+    INT 21H
+MAIN ENDP
+END MAIN

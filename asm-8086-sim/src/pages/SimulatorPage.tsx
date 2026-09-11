@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
+import { Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import TerminalPanel from '../components/TerminalPanel'
 import RegisterPanel from '../components/RegisterPanel'
@@ -8,6 +8,15 @@ import { SPEEDS, useMachine } from '../hooks/useMachine'
 import { EXAMPLES, exampleById } from '../data/examples'
 import { getSharedBus } from '../engine/devices/sharedBus'
 import { lazyImport } from '../hooks/useLazyImport'
+import { LedsPanel } from '../components/hardware/LedsPanel'
+import { SevenSegmentPanel } from '../components/hardware/SevenSegmentPanel'
+import { AsciiLcdPanel } from '../components/hardware/AsciiLcdPanel'
+import { SwitchesPanel } from '../components/hardware/SwitchesPanel'
+import type { LedsState } from '../engine/devices/leds'
+import type { SevenSegmentState } from '../engine/devices/sevenSegment'
+import type { AsciiLcdState } from '../engine/devices/asciiLcd'
+import type { SwitchesState, SwitchesDevice } from '../engine/devices/switches'
+import '../components/hardware/hardware.css'
 
 // CodeMirror is about half the bundle and neither /lessons nor /reference
 // needs it, so it loads on demand (PLAN section 10); loadWithChunkRecovery
@@ -29,11 +38,32 @@ export default function SimulatorPage() {
     if (initialExample) return initialExample.source
     return localStorage.getItem(LS_KEY) ?? EXAMPLES[0].source
   })
-  const [memFocus, setMemFocus] = useState<'data' | 'stack'>('data')
+  const [memFocus, setMemFocus] = useState<'data' | 'stack' | 'hardware'>(() => {
+    if (initialExample?.category === 'Hardware') return 'hardware'
+    return 'data'
+  })
   const [autoAssemble, setAutoAssemble] = useState(true)
 
   // shared bus: hardware examples (IN/OUT) drive the /hardware devices
-  const sim = useMachine({ bus: getSharedBus() })
+  const bus = getSharedBus()
+  const sim = useMachine({ bus })
+
+  const snapshot = useSyncExternalStore(
+    useCallback((cb) => bus.subscribe(cb), [bus]),
+    useCallback(() => bus.snapshot(), [bus]),
+    useCallback(() => bus.snapshot(), [bus]),
+  )
+
+  const toggleSwitch = useCallback(
+    (i: number) => {
+      const sw = bus.getDevice<SwitchesDevice>('switches')
+      if (sw) {
+        sw.toggleBit(i)
+        bus.notify()
+      }
+    },
+    [bus],
+  )
 
   // initial assemble (mount only)
   const initialSource = useRef(source)
@@ -105,6 +135,9 @@ export default function SimulatorPage() {
     setSource(ex.source)
     persist(ex.source)
     sim.build(ex.source)
+    if (ex.category === 'Hardware') {
+      setMemFocus('hardware')
+    }
   }
 
   const speedIndex = Math.max(0, SPEEDS.indexOf(sim.speed))
@@ -231,7 +264,7 @@ export default function SimulatorPage() {
         </TerminalPanel>
 
         <TerminalPanel
-          title="MEMORY"
+          title={memFocus === 'hardware' ? 'HARDWARE PERIPHERALS' : 'MEMORY'}
           className="mem-panel"
           right={
             <span className="mem-focus">
@@ -249,17 +282,122 @@ export default function SimulatorPage() {
               >
                 stack
               </button>
+              <button
+                className={memFocus === 'hardware' ? 'primary' : ''}
+                aria-pressed={memFocus === 'hardware'}
+                onClick={() => setMemFocus('hardware')}
+              >
+                hardware
+              </button>
             </span>
           }
         >
-          <MemoryView
-            readByte={sim.readByte}
-            sp={snap?.sp ?? 0xfffe}
-            dirtyFrom={sim.state.changes.memFrom}
-            dirtyTo={sim.state.changes.memTo}
-            program={sim.state.program}
-            focus={memFocus}
-          />
+          {memFocus === 'hardware' ? (
+            <div
+              className="sim-hw-preview"
+              style={{
+                padding: '8px',
+                overflowY: 'auto',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px',
+                height: '100%',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  borderBottom: '1px solid var(--border)',
+                  paddingBottom: '6px',
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: '11px',
+                    color: 'var(--text-faint)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.08em',
+                  }}
+                >
+                  Live Peripheral Bus
+                </span>
+                <button
+                  className="primary"
+                  style={{ fontSize: '11px', padding: '2px 8px' }}
+                  onClick={() => nav('/hardware')}
+                >
+                  🎛️ Full Workbench ↗
+                </button>
+              </div>
+
+              <div
+                style={{
+                  background: '#0a0f0a',
+                  border: '1px solid var(--border)',
+                  borderRadius: '4px',
+                  padding: '6px',
+                }}
+              >
+                <div style={{ fontSize: '10px', color: 'var(--accent)', marginBottom: '2px', fontWeight: 600 }}>
+                  LEDs (Port 2070H)
+                </div>
+                <LedsPanel state={snapshot.devices.leds as LedsState | undefined} />
+              </div>
+
+              <div
+                style={{
+                  background: '#0a0f0a',
+                  border: '1px solid var(--border)',
+                  borderRadius: '4px',
+                  padding: '6px',
+                }}
+              >
+                <div style={{ fontSize: '10px', color: 'var(--accent)', marginBottom: '2px', fontWeight: 600 }}>
+                  7-Segment Display (Port 2030H)
+                </div>
+                <SevenSegmentPanel state={snapshot.devices['seven-segment'] as SevenSegmentState | undefined} />
+              </div>
+
+              <div
+                style={{
+                  background: '#0a0f0a',
+                  border: '1px solid var(--border)',
+                  borderRadius: '4px',
+                  padding: '6px',
+                }}
+              >
+                <div style={{ fontSize: '10px', color: 'var(--accent)', marginBottom: '2px', fontWeight: 600 }}>
+                  ASCII LCD 3×16 (Port 2040H)
+                </div>
+                <AsciiLcdPanel state={snapshot.devices['ascii-lcd'] as AsciiLcdState | undefined} />
+              </div>
+
+              <div
+                style={{
+                  background: '#0a0f0a',
+                  border: '1px solid var(--border)',
+                  borderRadius: '4px',
+                  padding: '6px',
+                }}
+              >
+                <div style={{ fontSize: '10px', color: 'var(--accent)', marginBottom: '2px', fontWeight: 600 }}>
+                  Slide Switches (Port 2084H) — Click to Toggle
+                </div>
+                <SwitchesPanel state={snapshot.devices.switches as SwitchesState | undefined} onToggleBit={toggleSwitch} />
+              </div>
+            </div>
+          ) : (
+            <MemoryView
+              readByte={sim.readByte}
+              sp={snap?.sp ?? 0xfffe}
+              dirtyFrom={sim.state.changes.memFrom}
+              dirtyTo={sim.state.changes.memTo}
+              program={sim.state.program}
+              focus={memFocus}
+            />
+          )}
         </TerminalPanel>
       </div>
     </div>

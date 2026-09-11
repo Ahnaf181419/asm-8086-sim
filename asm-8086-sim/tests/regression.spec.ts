@@ -592,3 +592,96 @@ describe('malformed sources produce errors, never exceptions', () => {
     })
   }
 })
+
+describe('extended instructions: PUSHF, POPF, LAHF, SAHF, JP/JPO, INT 10H, INT 21H AH=8', () => {
+  it('PUSHF and POPF preserve and restore CPU flags', () => {
+    const m = runToHalt(`
+.MODEL SMALL
+.CODE
+MAIN PROC
+  STC
+  PUSHF
+  CLC
+  POPF
+  MOV AH, 4CH
+  INT 21H
+MAIN ENDP
+END MAIN`)
+    expect(m.flags.cf).toBe(true)
+  })
+
+  it('LAHF and SAHF copy flags to and from AH', () => {
+    const m = runToHalt(`
+.MODEL SMALL
+.CODE
+MAIN PROC
+  STC
+  LAHF
+  MOV BX, AX
+  CLC
+  SAHF
+  MOV AH, 4CH
+  INT 21H
+MAIN ENDP
+END MAIN`)
+    expect((m.regs.BX >> 8) & 1).toBe(1) // CF bit was 1 in AH
+    expect(m.flags.cf).toBe(true) // restored via SAHF
+  })
+
+  it('JP and JPO jump based on parity flag', () => {
+    const m = runToHalt(`
+.MODEL SMALL
+.CODE
+MAIN PROC
+  MOV AL, 3   ; 3 = 00000011b (2 ones -> even parity, PF=1)
+  TEST AL, AL
+  JP EVEN_P
+  MOV BX, 1111H
+  JMP DONE
+EVEN_P:
+  MOV BX, 2222H
+DONE:
+  MOV AH, 4CH
+  INT 21H
+MAIN ENDP
+END MAIN`)
+    expect(m.regs.BX).toBe(0x2222)
+  })
+
+  it('INT 10H clears output buffer with AH=06h', () => {
+    const m = runToHalt(`
+.MODEL SMALL
+.CODE
+MAIN PROC
+  MOV DL, 'A'
+  MOV AH, 2
+  INT 21H
+  MOV AH, 6
+  INT 10H
+  MOV DL, 'B'
+  MOV AH, 2
+  INT 21H
+  MOV AH, 4CH
+  INT 21H
+MAIN ENDP
+END MAIN`)
+    expect(m.output).toBe('B')
+  })
+
+  it('INT 21H AH=08H reads input character without echoing', () => {
+    const m = runToHalt(`
+.MODEL SMALL
+.CODE
+MAIN PROC
+  MOV AH, 8
+  INT 21H
+  MOV BL, AL
+  MOV AH, 4CH
+  INT 21H
+MAIN ENDP
+END MAIN`, 'K')
+    expect(m.regs.BX & 0xff).toBe('K'.charCodeAt(0))
+    expect(m.output).toBe('') // no echo
+  })
+})
+

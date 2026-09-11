@@ -18,7 +18,9 @@ export const MNEMONICS: readonly string[] = [
   'JMP', 'CALL', 'RET', 'LOOP', 'LOOPE', 'LOOPZ', 'LOOPNE', 'LOOPNZ', 'JCXZ',
   'JE', 'JZ', 'JNE', 'JNZ', 'JG', 'JNLE', 'JGE', 'JNL', 'JL', 'JNGE', 'JLE', 'JNG',
   'JA', 'JNBE', 'JAE', 'JNB', 'JB', 'JNAE', 'JBE', 'JNA', 'JC', 'JNC', 'JS', 'JNS', 'JO', 'JNO',
+  'JP', 'JPE', 'JPO', 'JNP',
   'IN', 'OUT', 'INT', 'NOP', 'STC', 'CLC', 'CMC', 'STD', 'CLD', 'XLAT', 'HLT',
+  'PUSHF', 'POPF', 'LAHF', 'SAHF',
 ]
 
 export const KEYWORDS: ReadonlySet<string> = new Set([...MNEMONICS, ...DIRECTIVES])

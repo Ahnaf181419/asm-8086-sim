@@ -9,7 +9,7 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",
-    "build:pages": "PAGES_BASE=/asm-8086-sim/ vite build",
+    "build:pages": "tsc -b && PAGES_BASE=/asm-8086-sim/ vite build",
     "preview:pages": "PAGES_BASE=/asm-8086-sim/ vite preview"
   },
   "dependencies": {

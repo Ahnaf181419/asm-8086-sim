@@ -12,7 +12,7 @@ export class PressureDevice implements IoDevice<PressureState> {
 
   reset() { this.percent = 0 }
   setPercent(p: number) { this.percent = Math.max(0, Math.min(100, Math.round(p))) }
-  onRead(): number { return Math.min(0xc8, this.percent * 2) }
+  onRead(_p?: number, _s?: 8 | 16): number { return Math.min(0xc8, this.percent * 2) }
   onWrite(_p: number, v: number, _s: 8 | 16) { this.percent = Math.round(((v & 0xff) / 2)) }
   snapshot(): PressureState { return { percent: this.percent } }
 }

@@ -71,11 +71,18 @@ export const REFERENCE: RefEntry[] = [
   { mnem: 'STD / CLD', category: 'Logic & shifts', syntax: ['STD', 'CLD'], desc: 'Set or clear the direction flag. The course subset has no string instructions, so DF is displayed but not otherwise consumed.', flags: 'DF', example: 'CLD' },
   { mnem: 'XLAT', category: 'Data movement', syntax: ['XLAT'], desc: 'Table lookup: AL = byte at [BX + AL]. Used for translation tables.', flags: '—', example: 'LEA BX, TABLE\nMOV AL, 3\nXLAT' },
   { mnem: 'JNC', category: 'Control flow', syntax: ['JNC label'], desc: 'Jump if no carry (CF = 0). The complement of JC/JB.', flags: '—', example: 'JNC SKIP' },
+  { mnem: 'JP / JPE / JPO / JNP', category: 'Control flow', syntax: ['JP label', 'JPE label', 'JPO label', 'JNP label'], desc: 'Jump on Parity: JP/JPE if PF=1 (even parity), JPO/JNP if PF=0 (odd parity).', flags: 'reads PF', example: 'JP EVEN_PARITY' },
+  { mnem: 'PUSHF', category: 'Procedures & stack', syntax: ['PUSHF'], desc: 'Push 16-bit FLAGS register onto the stack (SP -= 2).', flags: '—', example: 'PUSHF' },
+  { mnem: 'POPF', category: 'Procedures & stack', syntax: ['POPF'], desc: 'Pop 16-bit word from the stack into the FLAGS register (SP += 2).', flags: 'restores all', example: 'POPF' },
+  { mnem: 'LAHF', category: 'Data movement', syntax: ['LAHF'], desc: 'Load AH from low byte of Flags (SF:ZF:0:AF:0:PF:1:CF).', flags: '—', example: 'LAHF' },
+  { mnem: 'SAHF', category: 'Data movement', syntax: ['SAHF'], desc: 'Store AH into low byte of Flags (SF, ZF, AF, PF, CF).', flags: 'SF ZF AF PF CF', example: 'SAHF' },
+  { mnem: 'INT 10H', category: 'I/O', syntax: ['MOV AH, func', 'INT 10H'], desc: 'BIOS Video services: AH=00h or AH=06h clear screen / scroll; AH=0Eh teletype char output in AL.', flags: '—', example: 'MOV AX, 0600H\nINT 10H' },
 ]
 
 export const INT21_SERVICES = [
   { ah: '01H', name: 'Read character', input: 'AH=1', output: 'AL = ASCII of key (echoed)' },
   { ah: '02H', name: 'Print character', input: 'DL = ASCII code', output: 'character displayed' },
+  { ah: '07H / 08H', name: 'Read character (no echo)', input: 'AH=7 or 8', output: 'AL = ASCII of key (hidden)' },
   { ah: '09H', name: 'Print string', input: 'DS:DX → string ending with $', output: 'string displayed' },
   { ah: '0AH', name: 'Buffered input', input: 'DS:DX → buffer (byte 0 = max)', output: 'line stored, byte 1 = count' },
   { ah: '4CH', name: 'Exit to DOS', input: 'AH=4CH', output: 'program terminates' },

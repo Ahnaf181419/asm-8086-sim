@@ -315,3 +315,43 @@ describe('hardware examples', () => {
     expect(bus.getDevice<KeyboardDevice>('keyboard')!.snapshot().bufferFull).toBe(false)
   })
 })
+
+describe('sharedBus & simulator hardware preview', () => {
+  it('getSharedBus provides all 9 emulation devices', async () => {
+    const { getSharedBus } = await import('../src/engine/devices/sharedBus')
+    const bus = getSharedBus()
+    const snap = bus.snapshot()
+    expect(snap.devices['leds']).toBeDefined()
+    expect(snap.devices['seven-segment']).toBeDefined()
+    expect(snap.devices['ascii-lcd']).toBeDefined()
+    expect(snap.devices['dot-matrix']).toBeDefined()
+    expect(snap.devices['push-buttons']).toBeDefined()
+    expect(snap.devices['keyboard']).toBeDefined()
+    expect(snap.devices['switches']).toBeDefined()
+    expect(snap.devices['thermometer']).toBeDefined()
+    expect(snap.devices['pressure']).toBeDefined()
+  })
+
+  it('machine running with shared bus updates LED peripheral snapshot', async () => {
+    const { getSharedBus } = await import('../src/engine/devices/sharedBus')
+    const bus = getSharedBus()
+    const src = `
+.MODEL SMALL
+.CODE
+MAIN PROC
+  MOV DX, 02070H
+  MOV AL, 0AAH
+  OUT DX, AL
+  HLT
+MAIN ENDP
+END MAIN
+`
+    const r = assemble(src)
+    expect(r.errors).toEqual([])
+    const m = new Machine(r.program!, bus)
+    m.run()
+    expect(m.status).toBe('halted')
+    const snap = bus.snapshot()
+    expect((snap.devices['leds'] as { value: number }).value).toBe(0xAA)
+  })
+})

@@ -7,6 +7,7 @@ export const KEYBOARD_ADDRESS = 0x2082
 export const SWITCHES_ADDRESS = 0x2084
 export const THERMOMETER_ADDRESS = 0x2086
 export const PRESSURE_ADDRESS = 0x2088
+export const ONE_BUTTON_ADDRESS = 0x20a0
 
 export const MIN_IO_ADDRESS = 0x2000
 export const MAX_IO_ADDRESS = 0x2fff

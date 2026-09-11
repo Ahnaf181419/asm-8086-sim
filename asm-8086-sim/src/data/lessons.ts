@@ -911,10 +911,37 @@ INCLUDE INDEC.ASM
 INCLUDE OUTDEC.ASM
 END MAIN` },
       { t: 'h', text: 'Online 2 — patterns and bit tricks' },
-      { t: 'ul', items: [
-        'Descending pattern (input 5 → print 54321 / 5432 / 543 / 54 / 5): nested loop, inner prints digits from n down to row index.',
-        'Bit manipulation: the question says the <b>third bit from the right</b>, which is bit <b>2</b> counting from 0 — so the mask is <code>00000100B</code>. <code>TEST BH, 00000100B</code> + JZ/JNZ, complement with <code>NOT</code>, count bits with <code>ROL</code> + <code>JC</code> in a loop, and get ×5 without MUL as <code>x*4 + x</code> (two <code>SHL</code>s then an <code>ADD</code>). All of this is worked through in the Logic, Shifts &amp; Rotates lesson.',
-      ] },
+      { t: 'p', html: '<b>Problem 1 (Descending countdown pattern):</b> Input 5 → prints 54321 / 5432 / 543 / 54 / 5 using nested loops.' },
+      { t: 'code', title: 'Pattern pyramid — open to run in simulator', exampleId: 'exam-pattern-countdown', code: `ROW_LOOP:
+    PUSH CX         ; save row counter
+    MOV BL, N       ; digit starts at N
+PRINT_COL:
+    MOV DL, BL
+    ADD DL, '0'
+    MOV AH, 2
+    INT 21H
+    DEC BL
+    LOOP PRINT_COL
+    ; newline (0DH, 0AH)
+    POP CX
+    DEC CX
+    JNZ ROW_LOOP` },
+      { t: 'p', html: '<b>Problem 2 (Bit manipulation on BH):</b> Test third bit from right (bit 2, mask <code>04H</code>). If 0, complement byte and count 1s in lower nibble. If 1, count 0s in upper nibble and multiply count by 5 without MUL (using <code>SHL</code>).' },
+      { t: 'code', title: 'Bit manipulation & count — open in simulator', exampleId: 'exam-bit-manipulation', code: `    TEST BH, 04H
+    JNZ BIT_IS_1
+    NOT BH          ; complement if bit 2 is 0
+    ; count 1s in lower nibble...
+    JMP DONE
+BIT_IS_1:
+    MOV BL, BH
+    MOV CL, 4
+    SHR BL, CL      ; count 0s in upper nibble
+    ; multiply count by 5: (count * 4) + count
+    MOV BL, AL
+    SHL AL, 1
+    SHL AL, 1
+    ADD AL, BL
+    MOV RESULT, AX` },
       { t: 'h', text: 'Online 3 — GCD with the Euclidean algorithm' },
       { t: 'code', title: 'GCD core loop — open it to run the finished version', exampleId: 'gcd', code: `READ:
     CALL INDEC
@@ -932,9 +959,28 @@ GCD_LOOP:
     MOV Y, DX      ; Y <- remainder
     JMP GCD_LOOP
 DONE:
-MOV AX, Y
+    MOV AX, Y
     CALL OUTDEC` },
-      { t: 'note', html: 'Read the Mid_Semester_Question_Quanta.txt in Resources for the full topic checklist — every topic there maps to one of these lessons.' },
+      { t: 'h', text: 'Mid-Semester Exam Quanta' },
+      { t: 'p', html: '<b>Cubic series sum &amp; parity test:</b> Compute S = 1³ + 2³ + ... + n³, then check if S is odd or even using <code>TEST BX, 1</code>.' },
+      { t: 'code', title: 'Cubic sum & odd/even — open in simulator', exampleId: 'exam-cubic-sum', code: `SUM_LOOP:
+    MOV AX, SI
+    MUL SI          ; k^2
+    MUL SI          ; k^3
+    ADD BX, AX      ; S += k^3
+    INC SI
+    LOOP SUM_LOOP
+    TEST BX, 1      ; check odd/even
+    JZ EVEN_CASE` },
+      { t: 'p', html: '<b>Array maximum element:</b> Scan an array of n words and maintain maximum in AX.' },
+      { t: 'code', title: 'Array maximum search — open in simulator', exampleId: 'exam-max-array', code: `MAX_LOOP:
+    ADD SI, 2
+    CMP ARR[SI], AX
+    JLE SKIP
+    MOV AX, ARR[SI] ; new max
+SKIP:
+    LOOP MAX_LOOP` },
+      { t: 'note', html: 'Read Mid_Semester_Question_Quanta.txt and Sample Online Questions in Resources for the complete original question sets.' },
     ],
   },
 

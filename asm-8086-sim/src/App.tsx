@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 
 export default function App() {
@@ -17,7 +18,9 @@ export default function App() {
         <div className="meta">8086 / MASM · personal study aid</div>
       </header>
       <main className="page">
-        <Outlet />
+        <Suspense fallback={<div style={{ padding: 24, fontFamily: 'var(--mono)', color: 'var(--accent)' }}>loading view…</div>}>
+          <Outlet />
+        </Suspense>
       </main>
     </div>
   )

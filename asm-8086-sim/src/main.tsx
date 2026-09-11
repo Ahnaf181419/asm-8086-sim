@@ -3,12 +3,14 @@ import { createRoot } from 'react-dom/client'
 import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom'
 import App from './App'
 import SimulatorPage from './pages/SimulatorPage'
-import LessonsPage from './pages/LessonsPage'
-import LessonView from './pages/LessonView'
-import ReferencePage from './pages/ReferencePage'
-import HardwareLabPage from './pages/HardwareLabPage'
+import { lazyImport } from './hooks/useLazyImport'
 import ErrorPage from './components/ErrorPage'
 import './styles/global.css'
+
+const LessonsPage = lazyImport(() => import('./pages/LessonsPage'))
+const LessonView = lazyImport(() => import('./pages/LessonView'))
+const ReferencePage = lazyImport(() => import('./pages/ReferencePage'))
+const HardwareLabPage = lazyImport(() => import('./pages/HardwareLabPage'))
 
 // when hosted under a subpath (GitHub Pages: /asm-8086-sim/), the router must
 // strip it; Vite's BASE_URL mirrors the build's --base flag ('/' elsewhere)

@@ -282,3 +282,144 @@
       'kb';
   }
 }
+
+/* ── integrated code workbench & split layout ────────────────────────────── */
+
+.hw-main-container {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  overflow: hidden;
+}
+
+.hw-split-layout {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  overflow: hidden;
+}
+
+.hw-editor-pane {
+  flex: 0 0 420px;
+  max-width: 50%;
+  min-width: 320px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid #1f2f1f;
+  background: #070b07;
+  min-height: 0;
+}
+
+.hw-editor-pane.full {
+  flex: 1 1 auto;
+  max-width: 100%;
+  border-right: none;
+}
+
+.hw-editor-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.hw-reg-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 10px;
+  background: #0f150f;
+  border-bottom: 1px solid #1f2f1f;
+  font-size: 11px;
+  font-family: var(--mono);
+  color: #7a9c7a;
+}
+.hw-reg-bar b {
+  color: #33ff66;
+  font-weight: 600;
+}
+.hw-flags-strip {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: auto;
+}
+.hw-flag-badge {
+  padding: 1px 4px;
+  border: 1px solid #1f2f1f;
+  border-radius: 2px;
+  font-size: 10px;
+  color: #4a6a4a;
+}
+.hw-flag-badge.on {
+  border-color: #33ff66;
+  color: #33ff66;
+  background: rgba(51, 255, 102, 0.1);
+}
+
+.hw-view-toggle {
+  display: inline-flex;
+  gap: 2px;
+  background: #0f150f;
+  border: 1px solid #1f2f1f;
+  border-radius: 3px;
+  padding: 2px;
+}
+.hw-view-toggle button {
+  background: transparent;
+  border: none;
+  color: #7a9c7a;
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 2px 8px;
+  cursor: pointer;
+  border-radius: 2px;
+}
+.hw-view-toggle button.sel {
+  background: #1f3f1f;
+  color: #33ff66;
+}
+
+.hw-error-strip {
+  padding: 4px 8px;
+  background: rgba(255, 85, 85, 0.1);
+  border-top: 1px solid #ff5555;
+  color: #ff5555;
+  font-size: 11px;
+  font-family: var(--mono);
+}
+
+.hw-port-map-panel {
+  margin-top: 10px;
+  border: 1px solid #1f2f1f;
+  background: #0a0e0a;
+  border-radius: 3px;
+  padding: 8px 12px;
+}
+.hw-port-map-panel summary {
+  cursor: pointer;
+  color: #33ff66;
+  font-family: var(--mono);
+  font-size: 12px;
+  user-select: none;
+}
+.hw-port-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+}
+.hw-port-table th, .hw-port-table td {
+  padding: 4px 8px;
+  text-align: left;
+  border-bottom: 1px solid #1f2f1f;
+}
+.hw-port-table th {
+  color: #7a9c7a;
+}
+.hw-port-table td code {
+  color: #33ff66;
+}
+

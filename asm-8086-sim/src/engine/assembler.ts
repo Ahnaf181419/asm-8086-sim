@@ -414,6 +414,7 @@ function evalDataItem(item: DataItem, unit: 1 | 2, out: number[], symbols: Map<s
 const CONTROL_FLOW = new Set([
   'JMP', 'CALL', 'JE', 'JZ', 'JNE', 'JNZ', 'JG', 'JNLE', 'JGE', 'JNL', 'JL', 'JNGE', 'JLE', 'JNG',
   'JA', 'JNBE', 'JAE', 'JNB', 'JB', 'JNAE', 'JBE', 'JNA', 'JC', 'JNC', 'JS', 'JNS', 'JO', 'JNO',
+  'JP', 'JPE', 'JPO', 'JNP',
   'LOOP', 'LOOPE', 'LOOPZ', 'LOOPNE', 'LOOPNZ', 'JCXZ',
 ])
 
@@ -479,8 +480,8 @@ function resolveInstruction(s: Stmt, symbols: Map<string, SymbolInfo>) {
 const TWO_OPERAND = ['MOV', 'ADD', 'SUB', 'ADC', 'SBB', 'CMP', 'AND', 'OR', 'XOR', 'XCHG', 'TEST', 'LEA', 'SHL', 'SAL', 'SHR', 'SAR', 'ROL', 'ROR', 'RCL', 'RCR']
 const ONE_OPERAND = ['PUSH', 'POP', 'INC', 'DEC', 'NEG', 'NOT', 'MUL', 'IMUL', 'DIV', 'IDIV', 'JMP', 'CALL', 'INT', 'LOOP', 'LOOPE', 'LOOPZ', 'LOOPNE', 'LOOPNZ', 'JCXZ']
 const IO_OPERAND = ['IN', 'OUT']
-const COND_JUMPS = ['JE', 'JZ', 'JNE', 'JNZ', 'JG', 'JNLE', 'JGE', 'JNL', 'JL', 'JNGE', 'JLE', 'JNG', 'JA', 'JNBE', 'JAE', 'JNB', 'JB', 'JNAE', 'JBE', 'JNA', 'JC', 'JNC', 'JS', 'JNS', 'JO', 'JNO']
-const ZERO_OPERAND = ['CBW', 'CWD', 'NOP', 'STC', 'CLC', 'CMC', 'STD', 'CLD', 'XLAT', 'HLT']
+const COND_JUMPS = ['JE', 'JZ', 'JNE', 'JNZ', 'JG', 'JNLE', 'JGE', 'JNL', 'JL', 'JNGE', 'JLE', 'JNG', 'JA', 'JNBE', 'JAE', 'JNB', 'JB', 'JNAE', 'JBE', 'JNA', 'JC', 'JNC', 'JS', 'JNS', 'JO', 'JNO', 'JP', 'JPE', 'JPO', 'JNP']
+const ZERO_OPERAND = ['CBW', 'CWD', 'NOP', 'STC', 'CLC', 'CMC', 'STD', 'CLD', 'XLAT', 'HLT', 'PUSHF', 'POPF', 'LAHF', 'SAHF']
 
 export const SUPPORTED_MNEMONICS: ReadonlySet<string> = new Set([
   ...TWO_OPERAND, ...ONE_OPERAND, ...IO_OPERAND, ...COND_JUMPS, ...ZERO_OPERAND, 'RET',
@@ -761,7 +762,7 @@ function checkSizes(mn: string, ops: ROperand[], s: Stmt) {
   if (mn === 'INT') {
     const a = ops[0]
     if (a.k !== 'imm') throw Object.assign(new Error('INT requires an immediate'), { asm: s.pos })
-    if (a.v !== 0x21) throw Object.assign(new Error(`unsupported interrupt INT ${a.v}H (only 21H)`, ), { asm: s.pos })
+    if (a.v !== 0x21 && a.v !== 0x10) throw Object.assign(new Error(`unsupported interrupt INT ${a.v.toString(16).toUpperCase()}H (only 10H and 21H supported)`), { asm: s.pos })
     return
   }
 

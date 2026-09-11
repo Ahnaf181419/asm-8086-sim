@@ -97,3 +97,50 @@ describe('practice: hardware examples drive the kit devices', () => {
   with7seg('practice-fac-742-7seg', '5018')
   with7seg('practice-tiles-7seg', '400')
 })
+
+describe('course exam & online problems: Mid Quanta and Online 2', () => {
+  it('exam-cubic-sum: computes 1^3+2^3+3^3+4^3 = 100, sets even flag AL=0', () => {
+    const ex = exampleById('exam-cubic-sum')!
+    const r = assemble(ex.source)
+    expect(r.errors).toEqual([])
+    const m = new Machine(r.program!)
+    m.run()
+    expect(m.status).toBe('halted')
+    expect(m.regs.BX).toBe(100) // S = 100
+    expect(m.regs.AX & 0xff).toBe(0) // IS_ODD = 0 (even)
+  })
+
+  it('exam-max-array: finds maximum element 9AH (154) in word array', () => {
+    const ex = exampleById('exam-max-array')!
+    const r = assemble(ex.source)
+    expect(r.errors).toEqual([])
+    const m = new Machine(r.program!)
+    m.run()
+    expect(m.status).toBe('halted')
+    expect(m.regs.BX).toBe(0x9a)
+  })
+
+  it('exam-pattern-countdown: prints number pyramid countdown to console', () => {
+    const ex = exampleById('exam-pattern-countdown')!
+    const r = assemble(ex.source)
+    expect(r.errors).toEqual([])
+    const m = new Machine(r.program!)
+    m.run()
+    expect(m.status).toBe('halted')
+    expect(m.output.replace(/\r/g, '').trim()).toBe('54321\n5432\n543\n54\n5')
+  })
+
+  it('exam-bit-manipulation: tests bit 2 of BH, counts 0s (3) and stores product 15', () => {
+    const ex = exampleById('exam-bit-manipulation')!
+    const r = assemble(ex.source)
+    expect(r.errors).toEqual([])
+    const m = new Machine(r.program!)
+    m.run()
+    expect(m.status).toBe('halted')
+    expect(m.output.trim()).toBe('3') // console display count
+    const resSym = m.program.symbols.get('RESULT')!
+    const resultVal = m.mem[resSym.value] | (m.mem[resSym.value + 1] << 8)
+    expect(resultVal).toBe(15) // 3 * 5 = 15
+  })
+})
+

@@ -15,6 +15,10 @@ import reverseArray from './asm/reverse-array.asm?raw'
 import userInputArray from './asm/user-input-array.asm?raw'
 import examEquation from './asm/exam-equation.asm?raw'
 import gcd from './asm/gcd.asm?raw'
+import examCubicSum from './asm/exam-cubic-sum.asm?raw'
+import examMaxArray from './asm/exam-max-array.asm?raw'
+import examPatternCountdown from './asm/exam-pattern-countdown.asm?raw'
+import examBitManipulation from './asm/exam-bit-manipulation.asm?raw'
 import dotMatrixAbc from './asm/dot-matrix-abc.asm?raw'
 import sevenSegmentCount from './asm/seven-segment-count.asm?raw'
 import asciiLcdHello from './asm/ascii-lcd-hello.asm?raw'
@@ -70,6 +74,10 @@ export const EXAMPLES: Example[] = [
   { id: 'user-input-array', name: 'Fill array from input', category: 'Arrays', desc: 'INDEC + N iterations into ARR DW (lecture 8, #4)', needsInput: true, source: userInputArray },
   { id: 'exam-equation', name: 'B = 3A − B + 2C', category: 'Exam prep', desc: 'Online 1: arithmetic translation with no MUL (3A = A+A+A)', needsInput: true, source: examEquation },
   { id: 'gcd', name: 'GCD (Euclidean algorithm)', category: 'Exam prep', desc: 'Online 3: CWD + IDIV loop until the remainder is 0', needsInput: true, source: gcd },
+  { id: 'exam-cubic-sum', name: 'Cubic sum 1³+…+n³ & Odd/Even', category: 'Exam prep', desc: 'Mid Exam Q1: S = 1³+2³+...+n³ with TEST S, 1 parity check', needsInput: false, source: examCubicSum },
+  { id: 'exam-max-array', name: 'Max element in array', category: 'Exam prep', desc: 'Mid Exam Q3: Search maximum word in an array of n numbers', needsInput: false, source: examMaxArray },
+  { id: 'exam-pattern-countdown', name: 'Countdown pattern pyramid', category: 'Exam prep', desc: 'Online 2 Q1: Nested loop printing 54321..5 pattern to console', needsInput: false, source: examPatternCountdown },
+  { id: 'exam-bit-manipulation', name: 'BH bitwise mask & nibble count', category: 'Exam prep', desc: 'Online 2 Q2: Bit 2 branch, NOT & count 1s or count 0s × 5 without MUL', needsInput: false, source: examBitManipulation },
 
   { id: 'dot-matrix-abc', name: 'Dot Matrix: ASM-8086', category: 'Hardware', desc: 'Walk a 40-byte pattern table and write 8 dot-matrix displays', needsInput: false, source: dotMatrixAbc },
   { id: 'seven-segment-count', name: 'Seven-Segment: count 0..7', category: 'Hardware', desc: 'Write the SEG_TABLE for digits 0..7 to 8 seven-seg displays', needsInput: false, source: sevenSegmentCount },
