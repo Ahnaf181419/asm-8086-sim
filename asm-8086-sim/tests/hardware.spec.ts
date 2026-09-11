@@ -74,6 +74,26 @@ describe('HardwareBus', () => {
     expect(() => bus.dispatchWrite(0x2fff, 0x1234, 16)).toThrow(/3000H/)
     expect(() => bus.dispatchRead(0x2fff, 16)).toThrow(/3000H/)
   })
+
+  it('tracks recentCycles in snapshot with order and caps at 30', () => {
+    const bus = new HardwareBus()
+    bus.attach(new LedsDevice())
+    bus.dispatchWrite(LED_ADDRESS, 0x11, 8)
+    bus.dispatchWrite(LED_ADDRESS, 0x22, 8)
+    expect(bus.snapshot().recentCycles).toHaveLength(2)
+    expect(bus.snapshot().recentCycles?.[0]).toMatchObject({ type: 'OUT', port: LED_ADDRESS, value: 0x22, size: 8 })
+    expect(bus.snapshot().recentCycles?.[1]).toMatchObject({ type: 'OUT', port: LED_ADDRESS, value: 0x11, size: 8 })
+
+    // fill more than 30 cycles
+    for (let i = 0; i < 35; i++) {
+      bus.dispatchWrite(LED_ADDRESS, i, 8)
+    }
+    expect(bus.snapshot().recentCycles).toHaveLength(30)
+    expect(bus.snapshot().recentCycles?.[0].value).toBe(34)
+
+    bus.reset()
+    expect(bus.snapshot().recentCycles).toEqual([])
+  })
 })
 
 import { DOT_MATRIX_ADDRESS } from '../src/engine/devices/portMap'
@@ -353,5 +373,34 @@ END MAIN
     expect(m.status).toBe('halted')
     const snap = bus.snapshot()
     expect((snap.devices['leds'] as { value: number }).value).toBe(0xAA)
+  })
+
+  it('8255 PPI ports 19H and 1BH route to 7-segment and LEDs (MDA-8086 / Lab 5)', async () => {
+    const { getSharedBus } = await import('../src/engine/devices/sharedBus')
+    const bus = getSharedBus()
+    const src = `
+.MODEL SMALL
+.CODE
+MAIN PROC
+  MOV AL, 10000000B
+  OUT 1FH, AL       ; 8255 Control Reg
+  MOV AL, 055H
+  OUT 1BH, AL       ; Port B -> LEDs
+  MOV AL, 03FH
+  OUT 19H, AL       ; Port A -> 7-Segment
+  HLT
+MAIN ENDP
+END MAIN
+`
+    const r = assemble(src)
+    expect(r.errors).toEqual([])
+    const m = new Machine(r.program!, bus)
+    m.run()
+    expect(m.status).toBe('halted')
+    const snap = bus.snapshot()
+    expect((snap.devices['leds'] as { value: number }).value).toBe(0x55)
+    expect(snap.ppi?.control).toBe(0x80)
+    expect(snap.ppi?.portB).toBe(0x55)
+    expect(snap.ppi?.portA).toBe(0x3F)
   })
 })

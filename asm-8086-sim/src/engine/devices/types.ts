@@ -25,4 +25,6 @@ export interface BusCycle {
 export interface BusSnapshot {
   devices: Record<string, unknown>
   lastCycle?: BusCycle | null
+  recentCycles?: BusCycle[]
+  ppi?: { portA: number; portB: number; portC: number; control: number }
 }

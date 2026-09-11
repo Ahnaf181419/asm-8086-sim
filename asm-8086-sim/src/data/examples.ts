@@ -27,6 +27,10 @@ import ledEchoSwitches from './asm/led-echo-switches.asm?raw'
 import keyboardToLcd from './asm/keyboard-to-lcd.asm?raw'
 import thermometerTo7seg from './asm/thermometer-to-7seg.asm?raw'
 import pressureBar from './asm/pressure-bar.asm?raw'
+import kitLedPattern from './asm/kit-led-pattern.asm?raw'
+import kit7segActiveLow from './asm/kit-7seg-active-low.asm?raw'
+import kit7segCycle from './asm/kit-7seg-cycle.asm?raw'
+import kit8255Ppi from './asm/kit-8255-ppi.asm?raw'
 import practiceC2f from './asm/practice-c2f.asm?raw'
 import practiceF2c from './asm/practice-f2c.asm?raw'
 import practiceF2k from './asm/practice-f2k.asm?raw'
@@ -87,6 +91,10 @@ export const EXAMPLES: Example[] = [
   { id: 'keyboard-to-lcd', name: 'Keyboard → LCD', category: 'Hardware', desc: 'Poll 2083H, read the key index from 2082H, translate to ASCII, acknowledge via 2083H', needsInput: false, source: keyboardToLcd },
   { id: 'thermometer-to-7seg', name: 'Thermometer → 7-Segment', category: 'Hardware', desc: 'Read the thermometer byte, look up low nibble in SEG_TABLE', needsInput: false, source: thermometerTo7seg },
   { id: 'pressure-bar', name: 'Pressure → LED bar', category: 'Hardware', desc: 'Map the pressure byte 0..200 to a 0..7 lit LED bar', needsInput: false, source: pressureBar },
+  { id: 'kit-led-pattern', name: 'Kit: LED Pattern (10101010b)', category: 'Hardware', desc: 'Alternating LED bit pattern output on Port 2070H (ledKIT.asm)', needsInput: false, source: kitLedPattern },
+  { id: 'kit-7seg-active-low', name: 'Kit: 7-Seg Digit 0 (Active-Low)', category: 'Hardware', desc: 'NOT AL inversion to drive digit 0 on Port 2030H (7segmentusingKIT.asm)', needsInput: false, source: kit7segActiveLow },
+  { id: 'kit-7seg-cycle', name: 'Kit: 7-Seg Cycle Digits', category: 'Hardware', desc: 'Alternating digits 0 and 1 on Port 2030H (7segmentusingkit3.asm)', needsInput: false, source: kit7segCycle },
+  { id: 'kit-8255-ppi', name: 'Kit: 8255 PPI Trainer (Lab 5)', category: 'Hardware', desc: 'Direct 8255 PPI ports 19H, 1BH, 1FH for LEDs & 7-Segment (LED.asm)', needsInput: false, source: kit8255Ppi },
 
   { id: 'practice-c2f', name: '37°C → °F', category: 'Practice', desc: 'F = C·9/5 + 32 with byte MUL/DIV; prints 98 (problem set 1)', needsInput: false, source: practiceC2f },
   { id: 'practice-f2c', name: '110°F → °C', category: 'Practice', desc: 'C = (F−32)·5/9; subtract first, then multiply (problem set 2)', needsInput: false, source: practiceF2c },

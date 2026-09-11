@@ -1,4 +1,4 @@
-import { useState, useEffect, Suspense, type ReactNode } from 'react'
+import { useState, useEffect, useMemo, Suspense, type ReactNode } from 'react'
 import { useHardwareMachine } from '../../hooks/useHardwareMachine'
 import { SPEEDS } from '../../hooks/useMachine'
 import { EXAMPLES } from '../../data/examples'
@@ -12,6 +12,11 @@ import { KeyboardPanel } from './KeyboardPanel'
 import { SwitchesPanel } from './SwitchesPanel'
 import { ThermometerPanel } from './ThermometerPanel'
 import { PressurePanel } from './PressurePanel'
+import { SEG_TABLE } from '../../engine/devices/sevenSegment'
+import type { BusCycle } from '../../engine/devices/types'
+import type { LedsState } from '../../engine/devices/leds'
+import type { SevenSegmentState } from '../../engine/devices/sevenSegment'
+import type { AsciiLcdState } from '../../engine/devices/asciiLcd'
 import { lazyImport } from '../../hooks/useLazyImport'
 import './hardware.css'
 
@@ -21,6 +26,25 @@ const HW_EXAMPLES = EXAMPLES.filter((e) => e.category === 'Hardware')
 
 function hex4(v: number): string {
   return (v ?? 0).toString(16).toUpperCase().padStart(4, '0')
+}
+function hex2(v: number): string {
+  return (v ?? 0).toString(16).toUpperCase().padStart(2, '0')
+}
+function bin8(v: number): string {
+  return (v ?? 0).toString(2).padStart(8, '0')
+}
+
+// Reverse-lookup SEG_TABLE: given a segment byte, find the matching hex char
+const SEG_REVERSE = new Map<number, string>()
+for (const [ch, code] of Object.entries(SEG_TABLE)) {
+  SEG_REVERSE.set(code, ch)
+}
+function decodeSeg(byte: number): string {
+  // try both active-high and active-low (NOT'd)
+  if (SEG_REVERSE.has(byte)) return SEG_REVERSE.get(byte)!
+  const inv = (~byte) & 0x7f
+  if (SEG_REVERSE.has(inv)) return SEG_REVERSE.get(inv)!
+  return byte === 0 ? '·' : '?'
 }
 
 // one floating "kit window": MFC-style caption from the C++ SetWindowText
@@ -33,6 +57,177 @@ function KitPanel({ name, children }: { name: HwPanelName; children: ReactNode }
       </div>
       <div className="hw-panel-body">{children}</div>
     </div>
+  )
+}
+
+// ── LED status dots ──
+function LedStatusRow({ value }: { value: number }) {
+  const bits = []
+  for (let i = 7; i >= 0; i--) {
+    bits.push(
+      <span key={i} className={`hw-studio-led-dot ${value & (1 << i) ? 'on' : ''}`} title={`bit ${i}`}>
+        {value & (1 << i) ? '●' : '○'}
+      </span>,
+    )
+  }
+  return (
+    <div className="hw-studio-card">
+      <div className="hw-studio-card-label">💡 LEDs</div>
+      <div className="hw-studio-led-row">{bits}</div>
+      <div className="hw-studio-card-detail">
+        Hex: <code>0x{hex2(value)}</code> · Dec: <code>{value}</code> · Bin: <code>{bin8(value)}</code>
+      </div>
+    </div>
+  )
+}
+
+// ── 7-Segment decoded readout ──
+function SegmentStatusRow({ bytes }: { bytes: Uint8Array }) {
+  const active = bytes.some((b) => b !== 0)
+  return (
+    <div className="hw-studio-card">
+      <div className="hw-studio-card-label">🔢 7-Segment</div>
+      <div className="hw-studio-seg-row">
+        {Array.from(bytes).map((b, i) => (
+          <span key={i} className={`hw-studio-seg-digit ${b ? 'on' : ''}`} title={`pos ${i}: 0x${hex2(b)} → ${decodeSeg(b)}`}>
+            {decodeSeg(b)}
+          </span>
+        ))}
+      </div>
+      {!active && <div className="hw-studio-card-detail" style={{ opacity: 0.5 }}>no segments active</div>}
+      {active && (
+        <div className="hw-studio-card-detail">
+          Raw: {Array.from(bytes).filter((b) => b).map((b, i) => <code key={i}>0x{hex2(b)}</code>).reduce<ReactNode[]>((acc, el, i) => (i ? [...acc, ' ', el] : [el]), [])}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function formatLcdRow(slice: Uint8Array): string {
+  return Array.from(slice)
+    .map((c) => (c >= 32 && c <= 126 ? String.fromCharCode(c) : '·'))
+    .join('')
+}
+
+// ── ASCII LCD text readout ──
+function LcdStatusRow({ chars }: { chars: Uint8Array }) {
+  const rows = [
+    formatLcdRow(chars.slice(0, 16)),
+    formatLcdRow(chars.slice(16, 32)),
+    formatLcdRow(chars.slice(32, 48)),
+  ]
+  const active = chars.some((c) => c !== 0)
+  return (
+    <div className="hw-studio-card">
+      <div className="hw-studio-card-label">📟 ASCII LCD</div>
+      <div className="hw-studio-lcd-readout">
+        {rows.map((r, i) => (
+          <div key={i} className={active ? '' : 'dim'}>{r || '················'}</div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── PPI Port state (8255) ──
+function PpiStatusRow({ ppi }: { ppi: { portA: number; portB: number; portC: number; control: number } }) {
+  const anyActive = ppi.portA || ppi.portB || ppi.portC || ppi.control
+  if (!anyActive) return null
+  return (
+    <div className="hw-studio-card">
+      <div className="hw-studio-card-label">⚙️ 8255 PPI</div>
+      <div className="hw-studio-ppi-grid">
+        <span>Port A (19H):</span><code>0x{hex2(ppi.portA)}</code>
+        <span>Port B (1BH):</span><code>0x{hex2(ppi.portB)}</code>
+        <span>Port C (1DH):</span><code>0x{hex2(ppi.portC)}</code>
+        <span>Control (1FH):</span><code>0x{hex2(ppi.control)}</code>
+      </div>
+    </div>
+  )
+}
+
+// ── I/O Bus Log ──
+function BusLogTable({ cycles }: { cycles: BusCycle[] }) {
+  if (cycles.length === 0) {
+    return (
+      <div className="hw-studio-card">
+        <div className="hw-studio-card-label">📋 I/O Bus Log</div>
+        <div className="hw-studio-card-detail" style={{ opacity: 0.5 }}>no bus activity yet — run your program</div>
+      </div>
+    )
+  }
+  return (
+    <div className="hw-studio-card">
+      <div className="hw-studio-card-label">📋 I/O Bus Log <span className="hw-studio-badge">{cycles.length}</span></div>
+      <div className="hw-studio-log-scroll">
+        <table className="hw-studio-log-table">
+          <thead>
+            <tr><th>#</th><th>Type</th><th>Port</th><th>Value</th><th>Size</th></tr>
+          </thead>
+          <tbody>
+            {cycles.map((c, i) => (
+              <tr key={i} className={c.type === 'OUT' ? 'out' : 'in'}>
+                <td>{cycles.length - i}</td>
+                <td>{c.type}</td>
+                <td>{hex4(c.port)}H</td>
+                <td>0x{c.value.toString(16).toUpperCase().padStart(c.size === 16 ? 4 : 2, '0')}</td>
+                <td>{c.size}-bit</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+// ── Studio Panel (collapsible drawer) ──
+function StudioPanel({
+  open,
+  onToggle,
+  snapshot,
+}: {
+  open: boolean
+  onToggle: () => void
+  snapshot: ReturnType<typeof import('../../engine/devices/bus').HardwareBus.prototype.snapshot>
+}) {
+  const ledsState = snapshot.devices.leds as LedsState | undefined
+  const segState = snapshot.devices['seven-segment'] as SevenSegmentState | undefined
+  const lcdState = snapshot.devices['ascii-lcd'] as AsciiLcdState | undefined
+  const ppi = snapshot.ppi
+  const cycles = snapshot.recentCycles ?? []
+
+  return (
+    <>
+      {/* floating tab when collapsed */}
+      {!open && (
+        <button
+          className="hw-studio-tab"
+          onClick={onToggle}
+          title="Open Hardware Studio — Live Results & I/O Bus Log"
+        >
+          <span className="hw-studio-tab-icon">◀</span>
+          <span className="hw-studio-tab-text">Studio</span>
+        </button>
+      )}
+      {/* the drawer itself */}
+      <div className={`hw-studio-drawer ${open ? 'open' : ''}`}>
+        <div className="hw-studio-header">
+          <span className="hw-studio-title">🔬 Hardware Studio</span>
+          <button className="hw-studio-close" onClick={onToggle} title="Collapse studio panel">▶</button>
+        </div>
+        <div className="hw-studio-body">
+          <div className="hw-studio-section-label">Live Results</div>
+          {ledsState && <LedStatusRow value={ledsState.value} />}
+          {segState && <SegmentStatusRow bytes={segState.bytes} />}
+          {lcdState && <LcdStatusRow chars={lcdState.chars} />}
+          {ppi && <PpiStatusRow ppi={ppi} />}
+          <div className="hw-studio-section-label" style={{ marginTop: 8 }}>Bus Activity</div>
+          <BusLogTable cycles={cycles} />
+        </div>
+      </div>
+    </>
   )
 }
 
@@ -51,6 +246,7 @@ export function HardwareLab() {
   const [source, setSource] = useState<string>(() => HW_EXAMPLES[0]?.source ?? '')
   const [exampleId, setExampleId] = useState(HW_EXAMPLES[0]?.id ?? '')
   const [viewMode, setViewMode] = useState<'split' | 'board' | 'code'>('split')
+  const [studioOpen, setStudioOpen] = useState(false)
 
   // initial compile on mount
   useEffect(() => {
@@ -67,9 +263,27 @@ export function HardwareLab() {
     }
   }
 
+  // Auto-scaffold: detect bare code (no .CODE directive) and wrap it
+  const wrapIfBare = useMemo(() => {
+    return (src: string): string => {
+      const upper = src.toUpperCase()
+      if (upper.includes('.CODE') || upper.includes('.MODEL')) return src
+      // Bare hardware code: wrap in MASM template
+      return `.MODEL SMALL\n.CODE\nMAIN PROC\n${src}\n  HLT\nMAIN ENDP\nEND MAIN\n`
+    }
+  }, [])
+
   const onSourceChange = (newSrc: string) => {
     setSource(newSrc)
-    machine.build(newSrc)
+    machine.build(wrapIfBare(newSrc))
+  }
+
+  const addBoilerplate = () => {
+    const upper = source.toUpperCase()
+    if (upper.includes('.CODE') || upper.includes('.MODEL')) return
+    const wrapped = `.MODEL SMALL\n.CODE\nMAIN PROC\n${source}\n  HLT\nMAIN ENDP\nEND MAIN\n`
+    setSource(wrapped)
+    machine.build(wrapped)
   }
 
   const toggleRun = () => {
@@ -85,6 +299,7 @@ export function HardwareLab() {
   const snap = machine.state.snap
   const curStmt = snap?.curStmt
   const currentLine = curStmt && (curStmt.pos.file === 'editor.asm' || curStmt.pos.file === '') ? curStmt.pos.line : null
+  const isBare = !(source.toUpperCase().includes('.CODE') || source.toUpperCase().includes('.MODEL'))
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
@@ -134,6 +349,16 @@ export function HardwareLab() {
           ⟲ RESET HW
         </button>
 
+        {isBare && (
+          <button
+            className="hw-btn hw-btn-boilerplate"
+            onClick={addBoilerplate}
+            title="Wrap bare code in .MODEL SMALL / .CODE / PROC boilerplate"
+          >
+            ✨ Add Boilerplate
+          </button>
+        )}
+
         {snapshot.lastCycle ? (
           <span
             className="hw-bus-pill"
@@ -178,6 +403,14 @@ export function HardwareLab() {
             title="Code editor only"
           >
             💻 Code
+          </button>
+          <button
+            type="button"
+            className={studioOpen ? 'sel' : ''}
+            onClick={() => setStudioOpen((p) => !p)}
+            title="Toggle Hardware Studio panel"
+          >
+            🔬 Studio
           </button>
         </div>
       </div>
@@ -273,8 +506,13 @@ export function HardwareLab() {
             </div>
           </div>
         )}
+
+        <StudioPanel
+          open={studioOpen}
+          onToggle={() => setStudioOpen((p) => !p)}
+          snapshot={snapshot}
+        />
       </div>
     </div>
   )
 }
-

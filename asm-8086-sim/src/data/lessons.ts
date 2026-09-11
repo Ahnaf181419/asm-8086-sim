@@ -1070,11 +1070,11 @@ END MAIN`,
         ['<code>00000000</code>', 'all off'],
         ['<code>11111111</code>', 'all on'],
       ] },
-      { t: 'code', title: 'Light only the even-numbered LEDs (0, 2, 4, 6)', code: `.MODEL SMALL
+      { t: 'code', title: 'Light only the even-numbered LEDs (0, 2, 4, 6)', exampleId: 'kit-led-pattern', code: `.MODEL SMALL
 .CODE
 MAIN PROC
     MOV DX, 2070H
-    MOV AL, 01010101B    ; bits 0, 2, 4, 6 set
+    MOV AL, 10101010B    ; bits 0, 2, 4, 6 set
     OUT DX, AL
     HLT
 MAIN ENDP
@@ -1112,6 +1112,20 @@ DELAY:
     JNC SWEEP            ; CF=0 -> still inside bits 0..7
     MOV BL, 01H          ; wrap back to LED 0
     JMP SWEEP
+MAIN ENDP
+END MAIN` },
+      { t: 'h', text: '8255 PPI Trainer Interface (Laboratory 5)' },
+      { t: 'p', html: 'On the physical MDA-8086 trainer board, peripheral devices are driven through an <b>8255A Programmable Peripheral Interface</b> chip. Port <code>1FH</code> configures the 8255 mode, while Port <code>1BH</code> writes to the LED bank and Port <code>19H</code> writes to the 7-segment display.' },
+      { t: 'code', title: '8255 PPI Trainer configuration and LED output', exampleId: 'kit-8255-ppi', code: `PPIC_C EQU 1FH
+PPIB   EQU 1BH
+.MODEL SMALL
+.CODE
+MAIN PROC
+    MOV AL, 10000000B   ; Mode 0: All ports configured as output
+    OUT PPIC_C, AL
+    MOV AL, 00000011B   ; Turn on low 2 LEDs on Port B
+    OUT PPIB, AL
+    HLT
 MAIN ENDP
 END MAIN` },
       { t: 'p', html: 'The reverse direction (LEDs → switches) is impossible, since the switches are read-only. But <b>push-buttons</b> (<code>2080H</code>) are 16 input bits — useful for reading 16 small buttons instead of 8 bigger switches, and the byte you read is little-endian: <code>2080H</code> returns the low 8 bits, <code>2081H</code> the high 8.' },
@@ -1189,6 +1203,30 @@ END MAIN`,
         ['8', 'abcdefg', '7FH', 'every segment — the classic 8'],
         ['9', 'abcdfg', '6FH', '6 missing segment e'],
       ] },
+      { t: 'code', title: 'Drive single digit with active-low inversion (NOT AL)', exampleId: 'kit-7seg-active-low', code: `.MODEL SMALL
+.CODE
+MAIN PROC
+    MOV AL, 11000000B   ; Active-low bit pattern for '0'
+    NOT AL              ; Invert to drive Port 2030H
+    MOV DX, 2030H
+    OUT DX, AL
+    HLT
+MAIN ENDP
+END MAIN` },
+      { t: 'code', title: 'Alternating between digits 0 and 1', exampleId: 'kit-7seg-cycle', code: `.MODEL SMALL
+.CODE
+MAIN PROC
+    MOV AL, 11000000B   ; '0'
+    NOT AL
+    MOV DX, 2030H
+    OUT DX, AL
+    MOV AL, 11111001B   ; '1'
+    NOT AL
+    MOV DX, 2030H
+    OUT DX, AL
+    HLT
+MAIN ENDP
+END MAIN` },
       { t: 'code', title: 'Lookup table for 0..F', code: `SEG_TABLE DB 03FH, 006H, 05BH, 04FH, 066H, 06DH, 07DH, 007H
           DB 07FH, 06FH, 077H, 07CH, 039H, 05EH, 079H, 071H` },
       { t: 'code', title: 'Write "0..7" across the 8 digits', exampleId: 'seven-segment-count', code: `.MODEL SMALL
