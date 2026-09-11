@@ -1,4 +1,4 @@
-import type { BusSnapshot, IoDevice } from './types'
+import type { BusCycle, BusSnapshot, IoDevice } from './types'
 import { MAX_IO_ADDRESS, MAX_NUM_OF_PORTS, MIN_IO_ADDRESS } from './portMap'
 
 export class HardwareBus {
@@ -6,6 +6,7 @@ export class HardwareBus {
   private deviceList: IoDevice[] = []
   private listeners = new Set<() => void>()
   private cachedSnapshot: BusSnapshot | null = null
+  private lastCycle: BusCycle | null = null
 
   attach(device: IoDevice): void { this.deviceList.push(device) }
 
@@ -13,6 +14,7 @@ export class HardwareBus {
     this.ports.fill(0)
     for (const d of this.deviceList) d.reset()
     this.cachedSnapshot = null
+    this.lastCycle = null
     this.notify()
   }
 
@@ -46,13 +48,15 @@ export class HardwareBus {
 
   dispatchRead(port: number, size: 8 | 16): number {
     const lo = this.readByte(port)
-    if (size === 8) return lo
-    return lo | (this.readByte(port + 1) << 8)
+    const val = size === 8 ? lo : lo | (this.readByte(port + 1) << 8)
+    this.lastCycle = { type: 'IN', port, value: val, size, timestamp: Date.now() }
+    return val
   }
 
   dispatchWrite(port: number, value: number, size: 8 | 16): void {
     this.writeByte(port, value)
     if (size === 16) this.writeByte(port + 1, (value >> 8) & 0xff)
+    this.lastCycle = { type: 'OUT', port, value, size, timestamp: Date.now() }
     this.cachedSnapshot = null
     this.notify()
   }
@@ -61,7 +65,7 @@ export class HardwareBus {
     if (this.cachedSnapshot) return this.cachedSnapshot
     const devices: Record<string, unknown> = {}
     for (const d of this.deviceList) devices[d.name] = d.snapshot()
-    this.cachedSnapshot = { devices }
+    this.cachedSnapshot = { devices, lastCycle: this.lastCycle }
     return this.cachedSnapshot
   }
 

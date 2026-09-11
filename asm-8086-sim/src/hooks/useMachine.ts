@@ -159,6 +159,27 @@ export function useMachine(opts?: { bus?: HardwareBus }) {
   // stable memory reader (reads live machine memory; safe to call in render)
   const readByte = useCallback((addr: number) => machineRef.current?.mem[addr] ?? 0, [])
 
+  const setReg = useCallback(
+    (name: string, value: number) => {
+      const m = machineRef.current
+      if (!m) return
+      const k = name.toUpperCase() as keyof typeof m.regs
+      if (k in m.regs) {
+        m.regs[k] = value & 0xffff
+        m.lastChanges.regs = new Set([k])
+        publish()
+      }
+    },
+    [publish],
+  )
+
+  const clearOutput = useCallback(() => {
+    const m = machineRef.current
+    if (!m) return
+    m.clearOutput()
+    publish()
+  }, [publish])
+
   return {
     state,
     running,
@@ -173,6 +194,8 @@ export function useMachine(opts?: { bus?: HardwareBus }) {
     reset,
     sendInput,
     readByte,
+    setReg,
+    clearOutput,
   }
 }
 

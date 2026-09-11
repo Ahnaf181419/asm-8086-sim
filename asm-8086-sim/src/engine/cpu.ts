@@ -76,6 +76,11 @@ export class Machine {
     return this.out.join('')
   }
 
+  clearOutput() {
+    this.out = []
+    this.outChars = 0
+  }
+
   // Feed console input; called by UI when status === 'waiting-input'.
   provideInput(text: string) {
     // normalize line endings: \r\n, \r and \n all become a single CR (0Dh),

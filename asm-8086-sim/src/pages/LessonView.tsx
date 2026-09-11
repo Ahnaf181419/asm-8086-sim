@@ -2,6 +2,7 @@ import { Link, useParams } from 'react-router-dom'
 import { LESSONS, lessonById, type LessonBlock } from '../data/lessons'
 import { exampleById } from '../data/examples'
 import LessonsNav from '../components/LessonsNav'
+import AddressCalculator from '../components/AddressCalculator'
 
 export default function LessonView() {
   const { id } = useParams()
@@ -33,7 +34,12 @@ export default function LessonView() {
         </h1>
         <div className="lesson-meta">source: {lesson.source}</div>
         {lesson.blocks.map((b, i) => (
-          <Block key={i} block={b} />
+          <div key={i}>
+            <Block block={b} />
+            {lesson.id === 'registers-addressing' && b.t === 'code' && b.title === 'Worked example from the lecture' && (
+              <AddressCalculator />
+            )}
+          </div>
         ))}
         <nav className="lesson-pager" aria-label="lesson navigation">
           {prev ? (

@@ -223,7 +223,7 @@ export default function SimulatorPage() {
         </TerminalPanel>
 
         <TerminalPanel title="OUTPUT — INT 21H CONSOLE" className="console-panel">
-          <Console output={snap?.output ?? ''} status={sim.status} onInput={sim.sendInput} />
+          <Console output={snap?.output ?? ''} status={sim.status} onInput={sim.sendInput} onClear={sim.clearOutput} />
         </TerminalPanel>
 
         <div className="statusbar sim-statusbar">
@@ -260,7 +260,7 @@ export default function SimulatorPage() {
 
       <div className="sim-right">
         <TerminalPanel title="REGISTERS + FLAGS" className="regs-panel">
-          <RegisterPanel snap={snap} changes={sim.state.changes} />
+          <RegisterPanel snap={snap} changes={sim.state.changes} onSetReg={sim.setReg} />
         </TerminalPanel>
 
         <TerminalPanel
@@ -321,7 +321,18 @@ export default function SimulatorPage() {
                     letterSpacing: '0.08em',
                   }}
                 >
-                  Live Peripheral Bus
+                  {snapshot.lastCycle ? (
+                    <span
+                      style={{
+                        color: snapshot.lastCycle.type === 'OUT' ? 'var(--accent)' : 'var(--info)',
+                        fontFamily: 'var(--mono)',
+                      }}
+                    >
+                      BUS {snapshot.lastCycle.type} {snapshot.lastCycle.port.toString(16).toUpperCase().padStart(4, '0')}H ➔ 0x{snapshot.lastCycle.value.toString(16).toUpperCase().padStart(2, '0')}
+                    </span>
+                  ) : (
+                    'Live Peripheral Bus'
+                  )}
                 </span>
                 <button
                   className="primary"

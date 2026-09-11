@@ -5,10 +5,12 @@ export default function Console({
   output,
   status,
   onInput,
+  onClear,
 }: {
   output: string
   status: MachineStatus
   onInput: (text: string) => void
+  onClear?: () => void
 }) {
   const [input, setInput] = useState('')
   const bodyRef = useRef<HTMLDivElement>(null)
@@ -64,6 +66,16 @@ export default function Console({
         <button className={waiting ? 'primary' : ''} onClick={submit}>
           send
         </button>
+        {onClear && (
+          <button
+            onClick={onClear}
+            title="Clear console output history"
+            aria-label="Clear console output"
+            style={{ fontSize: '11px', padding: '4px 8px' }}
+          >
+            ⌫ clear
+          </button>
+        )}
       </div>
     </div>
   )

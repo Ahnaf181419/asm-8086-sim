@@ -134,6 +134,26 @@ export function HardwareLab() {
           ⟲ RESET HW
         </button>
 
+        {snapshot.lastCycle ? (
+          <span
+            className="hw-bus-pill"
+            title={`Last I/O Cycle: ${snapshot.lastCycle.type} on port ${hex4(snapshot.lastCycle.port)}H (${snapshot.lastCycle.size}-bit)`}
+            style={{
+              padding: '2px 8px',
+              borderRadius: '3px',
+              fontSize: '11px',
+              fontFamily: 'var(--mono)',
+              border: '1px solid var(--border-bright)',
+              background: snapshot.lastCycle.type === 'OUT' ? 'rgba(51, 255, 102, 0.12)' : 'rgba(102, 204, 255, 0.12)',
+              color: snapshot.lastCycle.type === 'OUT' ? 'var(--accent)' : 'var(--info)',
+            }}
+          >
+            BUS: {snapshot.lastCycle.type} {hex4(snapshot.lastCycle.port)}H ➔ 0x{snapshot.lastCycle.value.toString(16).toUpperCase().padStart(2, '0')}
+          </span>
+        ) : (
+          <span style={{ fontSize: '11px', color: 'var(--text-faint)', fontFamily: 'var(--mono)' }}>BUS: IDLE</span>
+        )}
+
         <div className="hw-view-toggle" style={{ marginLeft: 'auto' }}>
           <button
             type="button"

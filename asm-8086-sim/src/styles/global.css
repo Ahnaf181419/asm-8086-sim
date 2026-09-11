@@ -57,6 +57,82 @@ body {
     radial-gradient(ellipse at 50% -20%, rgba(51, 255, 102, 0.06), transparent 60%);
 }
 
+/* ── theme overrides ─────────────────────────── */
+html[data-theme='amber'] {
+  --bg: #0d0a05;
+  --panel: #140f07;
+  --panel2: #1b1409;
+  --border: #33240e;
+  --border-bright: #66491d;
+  --text: #ffe0a3;
+  --text-dim: #cca05c;
+  --text-faint: #997439;
+  --text-ghost: #664d26;
+  --accent: #ffb000;
+  --accent-dim: #cc8d00;
+  --warn: #ffea75;
+  --flash: #ffe8b3;
+  --editor-bg: #0a0804;
+  --syn-comment: #997439;
+  --syn-keyword: #ffa500;
+  --syn-number: #ffea75;
+  --syn-string: #ff9966;
+  --syn-register: #7bd4ff;
+  --syn-label: #ffe0a3;
+  --syn-symbol: #ffd685;
+  --syn-op: #cca05c;
+}
+
+html[data-theme='cyan'] {
+  --bg: #050b0e;
+  --panel: #081116;
+  --panel2: #0c181f;
+  --border: #132a36;
+  --border-bright: #204b60;
+  --text: #c0f0ff;
+  --text-dim: #70b0cc;
+  --text-faint: #4e8099;
+  --text-ghost: #355866;
+  --accent: #00e5ff;
+  --accent-dim: #00b0c8;
+  --warn: #ffcc44;
+  --flash: #b6f3ff;
+  --editor-bg: #04090c;
+  --syn-comment: #4e8099;
+  --syn-keyword: #33e5ff;
+  --syn-number: #ffcc44;
+  --syn-string: #ffa06a;
+  --syn-register: #9ec4ff;
+  --syn-label: #85e8ff;
+  --syn-symbol: #b8f2ff;
+  --syn-op: #70b0cc;
+}
+
+html[data-theme='slate'] {
+  --bg: #101216;
+  --panel: #16191f;
+  --panel2: #1e222a;
+  --border: #2c323d;
+  --border-bright: #444e5e;
+  --text: #e6edf3;
+  --text-dim: #9aa4b2;
+  --text-faint: #6c7887;
+  --text-ghost: #48525e;
+  --accent: #58a6ff;
+  --accent-dim: #388bfd;
+  --warn: #f0883e;
+  --flash: #79c0ff;
+  --editor-bg: #0d0f12;
+  --syn-comment: #8b949e;
+  --syn-keyword: #ff7b72;
+  --syn-number: #d2a8ff;
+  --syn-string: #a5d6ff;
+  --syn-register: #79c0ff;
+  --syn-label: #ffa657;
+  --syn-symbol: #e6edf3;
+  --syn-op: #d2a8ff;
+}
+
 /* CRT scanlines overlay */
 body::after {
   content: '';
@@ -72,6 +148,17 @@ body::after {
   );
   z-index: 9999;
   mix-blend-mode: multiply;
+}
+
+html[data-crt='off'] body::after,
+body.no-crt::after {
+  display: none !important;
+}
+
+/* On lessons content, reduce scanlines so educational reading is crisp */
+.lessons-content, .ref-layout {
+  position: relative;
+  z-index: 10000;
 }
 
 ::selection { background: rgba(51, 255, 102, 0.25); }

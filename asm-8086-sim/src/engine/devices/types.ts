@@ -14,6 +14,15 @@ export interface IoDevice<Snapshot = unknown> {
   snapshot(): Snapshot
 }
 
+export interface BusCycle {
+  type: 'IN' | 'OUT'
+  port: number
+  value: number
+  size: 8 | 16
+  timestamp: number
+}
+
 export interface BusSnapshot {
   devices: Record<string, unknown>
+  lastCycle?: BusCycle | null
 }
