@@ -13,6 +13,17 @@ export interface AssembleOptions {
 const BASE_REGS = new Set(['BX', 'BP'])
 const IDX_REGS = new Set(['SI', 'DI'])
 
+// Any of these means the source is a full MASM program, not trainer-style
+// bare code. (EQU, ORG, labels and comments are all fine in bare code.)
+// Comments are stripped first — "; loop end" or "; see INCLUDE docs" in a
+// bare snippet must not trip the detector, and commented-out scaffolding
+// ("; .CODE") must not count as structure.
+const BARE_BLOCKER = /\.(MODEL|CODE|DATA|STACK|SEGMENT|FARDATA)\b|\b(PROC|ENDP|END|INCLUDE)\b/i
+
+function stripComments(src: string): string {
+  return src.replace(/;.*$/gm, '')
+}
+
 export function assemble(source: string, opts: AssembleOptions = {}): AssembleResult {
   const errors: AsmError[] = []
   const mainFile = opts.mainFile ?? 'main.asm'
@@ -28,8 +39,11 @@ export function assemble(source: string, opts: AssembleOptions = {}): AssembleRe
 
   // ── 2. assign segments ──
   // segment switches take effect for the statements that FOLLOW them, so
-  // every statement (including ORG) records the segment it belongs to
-  let seg: 'none' | 'data' | 'code' = 'none'
+  // every statement (including ORG) records the segment it belongs to.
+  // Trainer-style bare source (no segment/PROC scaffolding at all) gets an
+  // implicit code segment — paste-and-run like the MDA-8086 lab software.
+  const bare = source.trim().length > 0 && !BARE_BLOCKER.test(stripComments(source))
+  let seg: 'none' | 'data' | 'code' = bare ? 'code' : 'none'
   for (const s of stmts) {
     if (s.kind === 'directive') {
       if (s.mnemonic === 'DATA' || s.mnemonic === 'DATA?' || s.mnemonic === 'FARDATA' || s.mnemonic === 'FARDATA?') {

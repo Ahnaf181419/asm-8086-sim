@@ -206,10 +206,16 @@ END MAIN`)
 })
 
 describe('M2 — instructions outside a code segment are reported', () => {
-  it('a bare snippet with no .CODE is an error, not an empty success', () => {
-    const r = assemble('MOV AX, 5\nMOV BX, 7\n')
+  it('a structured source whose instructions fall outside .CODE is an error, not an empty success', () => {
+    const r = assemble('.MODEL SMALL\n.DATA\nX DB 1\nMOV AX, 5\nEND')
     expect(r.program).toBeNull()
     expect(r.errors[0].message).toMatch(/\.CODE/)
+  })
+
+  it('a trainer-style bare snippet gets an implicit code segment (see bare-code.spec.ts)', () => {
+    const r = assemble('MOV AX, 5\nMOV BX, 7\n')
+    expect(r.errors).toEqual([])
+    expect(r.program!.byAddr.size).toBe(2)
   })
 
   it('the same snippet assembles once .CODE is present', () => {

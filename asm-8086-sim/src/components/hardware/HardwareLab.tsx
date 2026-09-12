@@ -17,7 +17,7 @@ import type { BusCycle } from '../../engine/devices/types'
 import type { LedsState } from '../../engine/devices/leds'
 import type { SevenSegmentState } from '../../engine/devices/sevenSegment'
 import type { AsciiLcdState } from '../../engine/devices/asciiLcd'
-import { isBareAsm, wrapIfBare } from './hardwareScaffold'
+import { isBareAsm } from './hardwareScaffold'
 import { lazyImport } from '../../hooks/useLazyImport'
 import './hardware.css'
 
@@ -269,7 +269,7 @@ export function HardwareLab() {
 
   // initial compile on mount
   useEffect(() => {
-    if (source) machine.build(wrapIfBare(source))
+    if (source) machine.build(source)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -278,13 +278,16 @@ export function HardwareLab() {
     setExampleId(id)
     if (ex) {
       setSource(ex.source)
-      machine.build(wrapIfBare(ex.source))
+      machine.build(ex.source)
     }
   }
 
+  // The engine gives bare trainer-style code an implicit code segment, so
+  // the editor text goes straight to the assembler — no wrapping, and step
+  // highlight / error lines stay 1:1 with what the user typed.
   const onSourceChange = (newSrc: string) => {
     setSource(newSrc)
-    machine.build(wrapIfBare(newSrc))
+    machine.build(newSrc)
   }
 
   const addBoilerplate = () => {
@@ -306,10 +309,8 @@ export function HardwareLab() {
   const devices = snapshot.devices
   const snap = machine.state.snap
   const isBare = isBareAsm(source)
-  const lineOffset = isBare ? 3 : 0
   const curStmt = snap?.curStmt
-  const rawLine = curStmt && (curStmt.pos.file === 'editor.asm' || curStmt.pos.file === '') ? curStmt.pos.line : null
-  const currentLine = rawLine ? Math.max(1, rawLine - lineOffset) : null
+  const currentLine = curStmt && (curStmt.pos.file === 'editor.asm' || curStmt.pos.file === '') ? curStmt.pos.line : null
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
@@ -448,14 +449,11 @@ export function HardwareLab() {
 
       {machine.state.errors.length > 0 && (
         <div className="hw-error-strip" role="alert">
-          {machine.state.errors.map((e, idx) => {
-            const errLine = e.line ? Math.max(1, e.line - lineOffset) : null
-            return (
-              <div key={idx}>
-                ✗ {errLine ? `Line ${errLine}: ` : ''}{e.message}
-              </div>
-            )
-          })}
+          {machine.state.errors.map((e, idx) => (
+            <div key={idx}>
+              ✗ {e.line ? `Line ${e.line}: ` : ''}{e.message}
+            </div>
+          ))}
         </div>
       )}
 

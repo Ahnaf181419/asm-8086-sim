@@ -418,9 +418,9 @@ END MAIN
   })
 })
 
-import { isBareAsm, wrapIfBare } from '../src/components/hardware/hardwareScaffold'
+import { isBareAsm } from '../src/components/hardware/hardwareScaffold'
 
-describe('HardwareLab Scaffolding & Bare Code Wrapping', () => {
+describe('HardwareLab Scaffolding & Bare Code', () => {
   it('detects bare code correctly', () => {
     expect(isBareAsm('')).toBe(false)
     expect(isBareAsm('   ')).toBe(false)
@@ -429,14 +429,13 @@ describe('HardwareLab Scaffolding & Bare Code Wrapping', () => {
     expect(isBareAsm('CODE SEGMENT\nMAIN PROC\nMAIN ENDP\nCODE ENDS')).toBe(false)
   })
 
-  it('wraps bare lab code and executes successfully on the hardware bus', () => {
+  it('bare lab code executes successfully on the hardware bus — no wrapper needed', () => {
     const bare = `
 MOV DX, 2070H
 MOV AL, 10101010B
 OUT DX, AL
 `
-    const wrapped = wrapIfBare(bare)
-    const r = assemble(wrapped)
+    const r = assemble(bare)
     expect(r.errors).toEqual([])
     expect(r.program).not.toBeNull()
 
