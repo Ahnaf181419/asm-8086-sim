@@ -1,5 +1,9 @@
+const BARE_BLOCKER = /\.(MODEL|CODE|DATA|STACK|SEGMENT|FARDATA)\b|\b(PROC|ENDP|END|INCLUDE)\b/i
+
+function stripComments(src: string): string {
+  return src.replace(/;.*$/gm, '')
+}
+
 export function isBareAsm(src: string): boolean {
-  if (!src.trim()) return false
-  const upper = src.toUpperCase()
-  return !(upper.includes('.CODE') || upper.includes('.MODEL') || upper.includes('SEGMENT') || upper.includes('PROC'))
+  return src.trim().length > 0 && !BARE_BLOCKER.test(stripComments(src))
 }

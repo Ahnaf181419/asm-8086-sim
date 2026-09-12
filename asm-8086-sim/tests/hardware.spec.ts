@@ -427,6 +427,7 @@ describe('HardwareLab Scaffolding & Bare Code', () => {
     expect(isBareAsm('MOV AL, 55H\nOUT 1BH, AL')).toBe(true)
     expect(isBareAsm('.MODEL SMALL\n.CODE\nMAIN PROC\nHLT\nMAIN ENDP\nEND MAIN')).toBe(false)
     expect(isBareAsm('CODE SEGMENT\nMAIN PROC\nMAIN ENDP\nCODE ENDS')).toBe(false)
+    expect(isBareAsm('; .MODEL SMALL\nMOV AX, 1')).toBe(true)
   })
 
   it('bare lab code executes successfully on the hardware bus — no wrapper needed', () => {
