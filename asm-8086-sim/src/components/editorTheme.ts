@@ -22,9 +22,9 @@ export const asmDarkTheme = EditorView.theme(
       borderLeftWidth: '2px',
     },
     '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection': {
-      backgroundColor: 'rgba(51, 255, 102, 0.22)',
+      backgroundColor: 'color-mix(in srgb, var(--accent) 22%, transparent)',
     },
-    '.cm-activeLine': { backgroundColor: 'rgba(51, 255, 102, 0.05)' },
+    '.cm-activeLine': { backgroundColor: 'color-mix(in srgb, var(--accent) 5%, transparent)' },
     '.cm-gutters': {
       backgroundColor: 'var(--panel)',
       color: 'var(--text-faint)',
@@ -32,17 +32,17 @@ export const asmDarkTheme = EditorView.theme(
       borderRight: '1px solid var(--border)',
     },
     '.cm-activeLineGutter': {
-      backgroundColor: 'rgba(51, 255, 102, 0.08)',
+      backgroundColor: 'color-mix(in srgb, var(--accent) 8%, transparent)',
       color: 'var(--accent)',
     },
     '.cm-lineNumbers .cm-gutterElement': { padding: '0 8px 0 12px' },
     '.cm-matchingBracket, &.cm-focused .cm-matchingBracket': {
-      backgroundColor: 'rgba(51, 255, 102, 0.2)',
+      backgroundColor: 'color-mix(in srgb, var(--accent) 20%, transparent)',
       outline: '1px solid var(--accent-dim)',
     },
     '.cm-nonmatchingBracket': { color: 'var(--err)' },
     '.cm-scroller': { fontFamily: 'var(--mono)', lineHeight: '1.5' },
-    '.cm-selectionMatch': { backgroundColor: 'rgba(102, 204, 255, 0.18)' },
+    '.cm-selectionMatch': { backgroundColor: 'color-mix(in srgb, var(--info) 18%, transparent)' },
   },
   { dark: true },
 )

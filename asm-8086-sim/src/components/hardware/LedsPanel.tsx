@@ -20,7 +20,7 @@ export function LedsPanel({ state }: { state: LedsState | undefined }) {
               className={on ? 'hw-led on' : 'hw-led'}
               style={{ color: LED_COLORS[i] }}
             />
-            <text x={0} y={28} textAnchor="middle" fontSize="9" fill="#7a9c7a" fontFamily="var(--mono)">
+            <text x={0} y={28} textAnchor="middle" fontSize="9" style={{ fill: 'var(--text-faint)' }} fontFamily="var(--mono)">
               D{i}
             </text>
           </g>

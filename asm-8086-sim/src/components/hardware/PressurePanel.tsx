@@ -48,23 +48,23 @@ export function PressurePanel({
     <div className="hw-gauge-wrap">
       <svg viewBox="0 0 120 120" preserveAspectRatio="xMidYMid meet" aria-label="pressure gauge">
         {/* background arc */}
-        <path d={arcPath} stroke="#1f2f1f" strokeWidth={10} fill="none" strokeLinecap="round" />
+        <path d={arcPath} style={{ stroke: 'var(--border)' }} strokeWidth={10} fill="none" strokeLinecap="round" />
         {/* filled arc */}
-        {fillPath && <path d={fillPath} stroke="#33ff66" strokeWidth={10} fill="none" strokeLinecap="round" />}
+        {fillPath && <path d={fillPath} style={{ stroke: 'var(--accent)' }} strokeWidth={10} fill="none" strokeLinecap="round" />}
         {/* needle */}
         <line
           x1={cx}
           y1={cy}
           x2={needleEnd.x}
           y2={needleEnd.y}
-          stroke="#ff5555"
+          style={{ stroke: 'var(--err)' }}
           strokeWidth={2}
           strokeLinecap="round"
         />
-        <circle cx={cx} cy={cy} r={4} fill="#33ff66" />
+        <circle cx={cx} cy={cy} r={4} style={{ fill: 'var(--accent)' }} />
         {/* end labels */}
-        <text x={10} y={105} fontSize={9} fill="#7a9c7a" fontFamily="var(--mono)">0</text>
-        <text x={100} y={105} fontSize={9} fill="#7a9c7a" fontFamily="var(--mono)" textAnchor="middle">100</text>
+        <text x={10} y={105} fontSize={9} style={{ fill: 'var(--text-faint)' }} fontFamily="var(--mono)">0</text>
+        <text x={100} y={105} fontSize={9} style={{ fill: 'var(--text-faint)' }} fontFamily="var(--mono)" textAnchor="middle">100</text>
       </svg>
       <div className="hw-readout">{percent}%</div>
       <input

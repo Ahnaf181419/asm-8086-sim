@@ -373,7 +373,7 @@ export default function SimulatorPage() {
 
               <div
                 style={{
-                  background: '#0a0f0a',
+                  background: 'var(--bg)',
                   border: '1px solid var(--border)',
                   borderRadius: '4px',
                   padding: '6px',
@@ -387,7 +387,7 @@ export default function SimulatorPage() {
 
               <div
                 style={{
-                  background: '#0a0f0a',
+                  background: 'var(--bg)',
                   border: '1px solid var(--border)',
                   borderRadius: '4px',
                   padding: '6px',
@@ -401,7 +401,7 @@ export default function SimulatorPage() {
 
               <div
                 style={{
-                  background: '#0a0f0a',
+                  background: 'var(--bg)',
                   border: '1px solid var(--border)',
                   borderRadius: '4px',
                   padding: '6px',
@@ -415,7 +415,7 @@ export default function SimulatorPage() {
 
               <div
                 style={{
-                  background: '#0a0f0a',
+                  background: 'var(--bg)',
                   border: '1px solid var(--border)',
                   borderRadius: '4px',
                   padding: '6px',

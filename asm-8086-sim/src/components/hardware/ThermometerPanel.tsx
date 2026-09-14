@@ -24,15 +24,14 @@ export function ThermometerPanel({
       <div className="hw-thermo">
         <svg viewBox="0 0 50 170" preserveAspectRatio="xMidYMid meet" aria-label="thermometer">
           {/* bulb */}
-          <circle cx={25} cy={155} r={14} fill="#222" stroke="#33ff66" strokeWidth={1.5} />
+          <circle cx={25} cy={155} r={14} fill="#222" style={{ stroke: 'var(--accent)' }} strokeWidth={1.5} />
           {/* tube outline */}
           <rect
             x={20}
             y={BAR_TOP - 2}
             width={10}
             height={BAR_BOTTOM - BAR_TOP + 4}
-            fill="#0a0e0a"
-            stroke="#33ff66"
+            style={{ fill: 'var(--bg)', stroke: 'var(--accent)' }}
             strokeWidth={1}
             opacity={0.6}
           />
@@ -44,7 +43,7 @@ export function ThermometerPanel({
               y={bulbY}
               width={10}
               height={fillHeight}
-              fill="#33ff66"
+              style={{ fill: 'var(--accent)' }}
               opacity={0.95}
             />
           )}
@@ -53,8 +52,8 @@ export function ThermometerPanel({
             const y = BAR_BOTTOM - ((t - MIN_C) / RANGE) * BAR_HEIGHT
             return (
               <g key={t}>
-                <line x1={32} y1={y} x2={38} y2={y} stroke="#7a9c7a" strokeWidth={1} />
-                <text x={42} y={y + 3} fontSize={8} fill="#7a9c7a" fontFamily="var(--mono)">
+                <line x1={32} y1={y} x2={38} y2={y} style={{ stroke: 'var(--text-faint)' }} strokeWidth={1} />
+                <text x={42} y={y + 3} fontSize={8} style={{ fill: 'var(--text-faint)' }} fontFamily="var(--mono)">
                   {t > 0 ? `+${t}` : t}
                 </text>
               </g>
