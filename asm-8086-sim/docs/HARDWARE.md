@@ -2,9 +2,9 @@
 
 **Date:** 2026-09-09
 **Scope:** the `/hardware` route — engine I/O subsystem, device modules, React panels, examples and lessons
-**Status:** shipped; 385 tests pass (engine IN/OUT, bus dispatch, 9 device units); build, lint and deploy all clean.
+**Status:** shipped; 533 tests pass (engine IN/OUT, bus dispatch, 9 device units, hooks, pages); build, lint and deploy all clean. Post-ship additions: 8255 PPI port routing (Lab 5), the Hardware Studio panel (live results + I/O bus log), four kit examples, and lessons L21–L22 (classic practice twins) with ten more hardware examples.
 
-> This document describes the in-browser **Hardware Lab** — a second view of the same `asm-8086-sim` engine that adds nine I/O peripherals (`IN`/`OUT` over a central port-mapped bus) wired to a 3 × 3 grid of SVG panels. The classic Simulator tab is unchanged: it does not wire the bus, so its 14 existing lessons keep working exactly as before.
+> This document describes the in-browser **Hardware Lab** — a second view of the same `asm-8086-sim` engine that adds nine I/O peripherals (`IN`/`OUT` over a central port-mapped bus) wired to a 3 × 3 grid of SVG panels. The classic Simulator tab is unchanged: console lessons keep working exactly as before (22 lessons total now).
 
 ---
 
@@ -239,7 +239,7 @@ The same port numbering lets existing Emulation Kit MASM programs (e.g. the dot-
 
 ## 6. Lessons and examples
 
-The Hardware Lab adds six lessons (L15–L20) and eight runnable examples. All are wired into the existing lesson browser and example dropdown; the same code that loads `hello.asm` from the Simulator tab loads `dot-matrix-abc.asm` from the Hardware tab.
+The Hardware Lab ships six lessons (L15–L20) plus the classic-practice pair L21–L22, and twenty-three hardware examples of its own (eight kit programs, the bare-code set, and an 11-pattern LED cookbook in lesson 16) — the Simulator tab also wires the shared bus now, so hardware examples preview their peripherals there too. All are wired into the existing lesson browser and example dropdown; the same code that loads `hello.asm` from the Simulator tab loads `dot-matrix-abc.asm` from the Hardware tab.
 
 ### 6.1 Lessons
 
@@ -273,16 +273,20 @@ All eight are pinned by `tests/hardware.spec.ts:210-218` (the `hardware examples
 
 ## 7. Testing
 
-`npm test` runs **385** tests across six files:
+`npm test` runs **533** tests across eighteen files:
 
-| File                                      | Focus                                          | Count |
-|---|---|---|
-| `tests/engine.spec.ts`                    | Assembler + CPU core (MOV, ADD, JMP, INT 21H…) | ~190 |
-| `tests/regression.spec.ts`                | Course `.asm` files end-to-end                 | ~80  |
-| `tests/lessons.spec.ts`                   | Lesson integrity, example reachability, every lesson's worked solution assembles | ~50 |
-| `tests/editor-theme.spec.ts`              | Token contrast + CodeMirror palette drift guard | ~15 |
-| `tests/audit-2026-08-30.spec.ts`          | Audit-period correctness guards                | ~10  |
-| **`tests/hardware.spec.ts`**              | **IN/OUT, bus dispatch, 9 device units**       | **~40** |
+| File                                      | Focus                                          |
+|---|---|
+| `tests/engine.spec.ts`                    | Assembler + CPU core (MOV, ADD, JMP, INT 21H…), course fixtures |
+| `tests/regression.spec.ts`                | Course `.asm` files end-to-end                 |
+| `tests/lessons.spec.ts`                   | Lesson integrity, example reachability, solutions assemble |
+| `tests/practice.spec.ts`                  | Practice/exam outputs pinned to hand-computed values |
+| `tests/hardware.spec.ts`                  | **IN/OUT, bus dispatch, 9 device units, hardware examples** |
+| `tests/bare-code.spec.ts`                 | Implicit code segment for trainer-style bare code |
+| `tests/audit-2026-09-12-fixes.spec.ts`    | Audit-period fixes: bus read notify, shift OF, code ORG, PUSH SP |
+| `tests/port-map.spec.ts`                  | Port labels ↔ reference table ↔ engine constants |
+| `tests/useMachine.spec.ts` / `pages-smoke.spec.tsx` | Run-loop state machine + page-level smoke (jsdom) |
+| `tests/editor-theme.spec.ts`              | Token contrast + CodeMirror palette drift guard |
 
 The hardware suite is split into four describe blocks (`HardwareBus`, `Devices`, `Assembler IN/OUT`, `CPU IN/OUT via HardwareBus`, `hardware examples`) and exercises:
 
@@ -290,7 +294,7 @@ The hardware suite is split into four describe blocks (`HardwareBus`, `Devices`,
 - all 9 device state transitions (`toggleBit`, `pressKey`/`readAndClear`, `setCelsius`/`setPercent`, LCD row-major addressing, dot-matrix 7-bit row packing);
 - assembler accept/reject paths (`OUT 03000H, AL` rejected, `IN AL, BX` rejected, `OUT DX, AL` accepted);
 - end-to-end `Machine` execution with a real `HardwareBus` attached — both `OUT DX, AL` to the LED and `IN AL, DX` from the switches, asserting `AX` is correctly populated;
-- the eight hardware examples assembling with zero errors.
+- the twenty-three hardware examples assembling with zero errors.
 
 The suite catches drift in three directions: assembler rejects a malformed operand, the CPU errors on `IN` with no bus attached, and the bus throws on an unmapped port.
 

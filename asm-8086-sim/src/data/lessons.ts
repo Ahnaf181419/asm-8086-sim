@@ -1112,6 +1112,149 @@ DELAY:
     JMP SWEEP
 MAIN ENDP
 END MAIN` },
+      { t: 'h', text: 'The pattern cookbook — every lab pattern in short form' },
+      { t: 'p', html: 'LED labs ask for the same dozen patterns every year. Each recipe below is the complete program in <b>bare trainer form</b> — paste it into the Hardware tab and press run. They all drive port <code>2070H</code> and share the same software delay (<code>MOV CX, 0FFFFH</code> + <code>LOOP</code>). The Knight Rider sweep above completes the set as the ping-pong pattern.' },
+      { t: 'code', title: 'All lamps on, hold, then off', exampleId: 'led-all-on', code: `    MOV AL, 11111111B
+    MOV DX, 2070H
+    OUT DX, AL
+
+    MOV CX, 0FFFFH
+DELAY:
+    LOOP DELAY
+
+    MOV AL, 00000000B
+    OUT DX, AL
+
+    HLT` },
+      { t: 'code', title: 'Blink all lamps — XOR flips every bit at once', exampleId: 'led-blink-all', code: `    MOV AL, 11111111B
+    MOV DX, 2070H
+BLINK:
+    OUT DX, AL
+    MOV CX, 0FFFFH
+DELAY:
+    LOOP DELAY
+    XOR AL, 11111111B
+    JMP BLINK` },
+      { t: 'code', title: 'Alternate lamps swap — 10101010b ↔ 01010101b (NOT)', exampleId: 'led-alternate-swap', code: `    MOV AL, 10101010B
+    MOV DX, 2070H
+SWAP:
+    OUT DX, AL
+    MOV CX, 0FFFFH
+DELAY:
+    LOOP DELAY
+    NOT AL
+    JMP SWAP` },
+      { t: 'code', title: 'Chase left — one lamp runs LED0 → LED7 and wraps (ROL)', exampleId: 'led-chase-left', code: `    MOV AL, 00000001B
+    MOV DX, 2070H
+STEP:
+    OUT DX, AL
+    MOV CX, 0FFFFH
+DELAY:
+    LOOP DELAY
+    ROL AL, 1            ; bit 7 rotates back into bit 0
+    JMP STEP` },
+      { t: 'code', title: 'Chase right — one lamp runs LED7 → LED0 and wraps (ROR)', exampleId: 'led-chase-right', code: `    MOV AL, 10000000B
+    MOV DX, 2070H
+STEP:
+    OUT DX, AL
+    MOV CX, 0FFFFH
+DELAY:
+    LOOP DELAY
+    ROR AL, 1            ; bit 0 rotates back into bit 7
+    JMP STEP` },
+      { t: 'code', title: 'Fill the bank one lamp at a time, then drain it', exampleId: 'led-fill-drain', code: `    MOV AL, 00000001B
+    MOV DX, 2070H
+FILL:
+    OUT DX, AL
+    MOV CX, 0FFFFH
+DELAY:
+    LOOP DELAY
+    SHL AL, 1
+    OR AL, 00000001B     ; keep the lower lamps lit
+    JNC FILL             ; CF=1 -> bank full, switch to draining
+DRAIN:
+    OUT DX, AL
+    MOV CX, 0FFFFH
+DELAY2:
+    LOOP DELAY2
+    SHR AL, 1
+    JNZ DRAIN            ; bank empty when AL = 0
+    MOV AL, 00000001B
+    JMP FILL` },
+      { t: 'code', title: 'Converging loader — the lit ends march inward', exampleId: 'led-converge', code: `    MOV AL, 10000001B
+    MOV DX, 2070H
+STEP:
+    OUT DX, AL
+    MOV CX, 0FFFFH
+DELAY:
+    LOOP DELAY
+    MOV AH, AL
+    MOV BL, AL
+    SHL AH, 1            ; left end moves right
+    SHR BL, 1            ; right end moves left
+    OR AL, AH
+    OR AL, BL
+    CMP AL, 11111111B
+    JNE STEP
+    MOV AL, 10000001B    ; reset and converge again
+    JMP STEP` },
+      { t: 'code', title: 'Binary up-counter 00h → FFh (INC)', exampleId: 'led-count-up', code: `    MOV AL, 0
+    MOV DX, 2070H
+UP:
+    OUT DX, AL
+    MOV CX, 0FFFFH
+DELAY:
+    LOOP DELAY
+    INC AL
+    JMP UP` },
+      { t: 'code', title: 'Binary down-counter FFh → 00h (DEC)', exampleId: 'led-count-down', code: `    MOV AL, 11111111B
+    MOV DX, 2070H
+DOWN:
+    OUT DX, AL
+    MOV CX, 0FFFFH
+DELAY:
+    LOOP DELAY
+    DEC AL
+    JMP DOWN` },
+      { t: 'code', title: 'Pseudo-random lamps — 8-bit Galois LFSR', exampleId: 'led-random', code: `    MOV AL, 00000001B    ; any non-zero seed (0 would stick)
+    MOV DX, 2070H
+RAND:
+    OUT DX, AL
+    MOV CX, 0FFFFH
+DELAY:
+    LOOP DELAY
+    SHR AL, 1            ; CF = the bit that fell out
+    JNC RAND
+    XOR AL, 10111000B    ; taps: x^8+x^6+x^5+x^4+1 -> 255-step cycle
+    JMP RAND` },
+      { t: 'code', title: 'Pattern playlist — a DB table holds the whole show', exampleId: 'led-playlist', code: `.MODEL SMALL
+.STACK 100H
+.DATA
+  SHOW DB 10000001B, 11000011B, 01100110B
+       DB 11100111B, 00011000B, 11111111B
+  LEN EQU 6
+.CODE
+MAIN PROC
+    MOV AX, @DATA
+    MOV DS, AX
+    MOV DX, 2070H        ; LED port
+FOREVER:
+    LEA SI, SHOW
+    MOV CX, LEN
+NEXT:
+    MOV AL, [SI]
+    OUT DX, AL
+    PUSH CX              ; delay clobbers CX — save the counter
+    MOV CX, 0FFFFH
+DELAY:
+    LOOP DELAY
+    POP CX
+    INC SI
+    LOOP NEXT
+    JMP FOREVER
+MAIN ENDP
+END MAIN` },
+      { t: 'note', html: 'Two details the lab examiner loves to ask about: (1) the delay loop <b>clobbers CX</b> — the playlist saves the pattern counter with <code>PUSH CX</code> before the delay and restores it with <code>POP CX</code> after; (2) rotate (<code>ROL</code>/<code>ROR</code>) wraps the bit around, while shift (<code>SHL</code>/<code>SHR</code>) drops it out into CF — that single difference is what separates the chase patterns from the fill pattern.' },
       { t: 'h', text: '8255 PPI Trainer Interface (Laboratory 5)' },
       { t: 'p', html: 'On the physical MDA-8086 trainer board, peripheral devices are driven through an <b>8255A Programmable Peripheral Interface</b> chip. Port <code>1FH</code> configures the 8255 mode, while Port <code>1BH</code> writes to the LED bank and Port <code>19H</code> writes to the 7-segment display.' },
       { t: 'code', title: '8255 PPI Trainer configuration and LED output', exampleId: 'kit-8255-ppi', code: `PPIC_C EQU 1FH

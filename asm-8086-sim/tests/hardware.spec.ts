@@ -324,6 +324,17 @@ describe('hardware examples', () => {
     'kit-7seg-active-low',
     'kit-7seg-cycle',
     'kit-8255-ppi',
+    'led-all-on',
+    'led-blink-all',
+    'led-alternate-swap',
+    'led-chase-left',
+    'led-chase-right',
+    'led-fill-drain',
+    'led-converge',
+    'led-count-up',
+    'led-count-down',
+    'led-random',
+    'led-playlist',
   ]) {
     it(`example ${id} assembles`, async () => {
       const ex = exampleById(id)

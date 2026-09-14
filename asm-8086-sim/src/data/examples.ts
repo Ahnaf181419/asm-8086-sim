@@ -43,6 +43,18 @@ export const EXAMPLES: Example[] = [
   { id: 'kit-7seg-cycle', name: 'Kit: 7-Seg Cycle Digits', category: 'Hardware', desc: 'Alternating digits 0 and 1 on Port 2030H (7segmentusingkit3.asm)', needsInput: false },
   { id: 'kit-8255-ppi', name: 'Kit: 8255 PPI Trainer (Lab 5)', category: 'Hardware', desc: 'Direct 8255 PPI ports 19H, 1BH, 1FH for LEDs & 7-Segment (LED.asm)', needsInput: false },
 
+  { id: 'led-all-on', name: 'LEDs: all on → all off', category: 'Hardware', desc: 'Light the whole bank, hold, then switch it off — the shortest LED program', needsInput: false },
+  { id: 'led-blink-all', name: 'LEDs: blink all (XOR)', category: 'Hardware', desc: 'Toggle 11111111b ↔ 00000000b with XOR — the blinking pattern', needsInput: false },
+  { id: 'led-alternate-swap', name: 'LEDs: alternate swap (NOT)', category: 'Hardware', desc: 'Swap odd/even lamps 10101010b ↔ 01010101b with NOT', needsInput: false },
+  { id: 'led-chase-left', name: 'LEDs: chase left (ROL)', category: 'Hardware', desc: 'One lit lamp runs LED0 → LED7 and wraps — running lights with ROL', needsInput: false },
+  { id: 'led-chase-right', name: 'LEDs: chase right (ROR)', category: 'Hardware', desc: 'One lit lamp runs LED7 → LED0 and wraps — running lights with ROR', needsInput: false },
+  { id: 'led-fill-drain', name: 'LEDs: fill then drain', category: 'Hardware', desc: 'Fill the bank one lamp at a time (SHL+OR), then drain it (SHR+JNZ)', needsInput: false },
+  { id: 'led-converge', name: 'LEDs: converging loader', category: 'Hardware', desc: 'Lit ends march inward until the whole bank is on, then reset', needsInput: false },
+  { id: 'led-count-up', name: 'LEDs: binary count up', category: 'Hardware', desc: 'INC AL from 00h to FFh — the bank shows a binary up-counter', needsInput: false },
+  { id: 'led-count-down', name: 'LEDs: binary count down', category: 'Hardware', desc: 'DEC AL from FFh to 00h — the bank shows a binary down-counter', needsInput: false },
+  { id: 'led-random', name: 'LEDs: pseudo-random (LFSR)', category: 'Hardware', desc: '8-bit Galois LFSR — pseudo-random lamp patterns on a 255-step cycle', needsInput: false },
+  { id: 'led-playlist', name: 'LEDs: pattern playlist (DB table)', category: 'Hardware', desc: 'Table-driven: a DB list holds the show, SI walks it and repeats forever', needsInput: false },
+
   { id: 'practice-c2f', name: '37°C → °F', category: 'Practice', desc: 'F = C·9/5 + 32 with byte MUL/DIV; prints 98 (problem set 1)', needsInput: false },
   { id: 'practice-f2c', name: '110°F → °C', category: 'Practice', desc: 'C = (F−32)·5/9; subtract first, then multiply (problem set 2)', needsInput: false },
   { id: 'practice-f2k', name: '130°F → °K', category: 'Practice', desc: 'K = (F−32)·5/9 + 273 → AX = 0147H (problem set 3)', needsInput: false },

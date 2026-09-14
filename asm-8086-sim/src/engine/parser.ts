@@ -87,6 +87,14 @@ export function parseLine(line: string, file: string, lineNo: number): Stmt[] {
     return stmts
   }
 
+  // unlabeled DB/DW items — a continuation of the previous data line
+  // (e.g. a 40-byte pattern table wrapped across two lines)
+  if (DATA_DIRS.has(up)) {
+    const items = parseDataItems(rest, pos)
+    stmts.push({ kind: 'data', pos, mnemonic: up, items, size: up === 'DB' ? 1 : 2 })
+    return stmts
+  }
+
   // NAME PROC [NEAR|FAR]  /  NAME ENDP
   if (rest.length >= 1 && rest[0].kind === 'ident') {
     const second = rest[0].text.toUpperCase()
