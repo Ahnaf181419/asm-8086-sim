@@ -3,7 +3,7 @@
 // right bytes on a kit device. Expected values are computed by hand here —
 // the tests are the judge, the programs have to match them.
 import { describe, expect, it } from 'vitest'
-import { exampleById } from '../src/data/examples'
+import { exampleById, loadExampleSource } from '../src/data/examples'
 import { assemble } from '../src/engine/assembler'
 import { Machine } from '../src/engine/cpu'
 import { HardwareBus } from '../src/engine/devices/bus'
@@ -13,10 +13,12 @@ import { INDEC_SRC, OUTDEC_SRC } from '../src/data/courseLib'
 
 const lib: Record<string, string> = { 'INDEC.ASM': INDEC_SRC, 'OUTDEC.ASM': OUTDEC_SRC }
 
-function runConsole(id: string) {
+async function runConsole(id: string) {
   const ex = exampleById(id)
   if (!ex) throw new Error(`example "${id}" not found`)
-  const r = assemble(ex.source, { resolveInclude: (n) => lib[n.toUpperCase()] ?? null })
+  const src = await loadExampleSource(id)
+  if (src === undefined) throw new Error(`source for "${id}" not found`)
+  const r = assemble(src, { resolveInclude: (n) => lib[n.toUpperCase()] ?? null })
   expect(r.errors.map((e) => `${e.line}: ${e.message}`).join(' | '), id).toBe('')
   const m = new Machine(r.program!)
   m.run(2_000_000)
@@ -25,10 +27,12 @@ function runConsole(id: string) {
   return m.output.trim().replace(/\r\n/g, '\n')
 }
 
-function runHardware(id: string, bus: HardwareBus) {
+async function runHardware(id: string, bus: HardwareBus) {
   const ex = exampleById(id)
   if (!ex) throw new Error(`example "${id}" not found`)
-  const r = assemble(ex.source)
+  const src = await loadExampleSource(id)
+  if (src === undefined) throw new Error(`source for "${id}" not found`)
+  const r = assemble(src)
   expect(r.errors.map((e) => `${e.line}: ${e.message}`).join(' | '), id).toBe('')
   const m = new Machine(r.program!, bus)
   m.run(2_000_000)
@@ -65,24 +69,24 @@ describe('practice: console examples print the right number', () => {
     ['practice-avg10', 'SUM = 442\nAVG = 44'],
     ['practice-fac-742', '7! - 4! + 2! = 5018'],
     ['practice-tiles', 'TILES = 400'],
-  ])('%s -> %s', (id, expected) => {
-    expect(runConsole(id)).toBe(expected)
+  ])('%s -> %s', async (id, expected) => {
+    await expect(runConsole(id)).resolves.toBe(expected)
   })
 })
 
 describe('practice: hardware examples drive the kit devices', () => {
   const withLcd = (id: string, text: string) =>
-    it(`${id} -> LCD "${text}"`, () => {
+    it(`${id} -> LCD "${text}"`, async () => {
       const bus = new HardwareBus()
       bus.attach(new AsciiLcdDevice())
-      runHardware(id, bus)
+      await runHardware(id, bus)
       expect(lcdText(bus)).toBe(text)
     })
   const with7seg = (id: string, digits: string) =>
-    it(`${id} -> 7-seg "${digits}"`, () => {
+    it(`${id} -> 7-seg "${digits}"`, async () => {
       const bus = new HardwareBus()
       bus.attach(new SevenSegmentDevice())
-      runHardware(id, bus)
+      await runHardware(id, bus)
       expect(sevenSegDigits(bus)).toBe(digits)
     })
 
@@ -99,9 +103,9 @@ describe('practice: hardware examples drive the kit devices', () => {
 })
 
 describe('course exam & online problems: Mid Quanta and Online 2', () => {
-  it('exam-cubic-sum: computes 1^3+2^3+3^3+4^3 = 100, sets even flag AL=0', () => {
+  it('exam-cubic-sum: computes 1^3+2^3+3^3+4^3 = 100, sets even flag AL=0', async () => {
     const ex = exampleById('exam-cubic-sum')!
-    const r = assemble(ex.source)
+    const r = assemble((await loadExampleSource(ex.id))!)
     expect(r.errors).toEqual([])
     const m = new Machine(r.program!)
     m.run()
@@ -110,9 +114,9 @@ describe('course exam & online problems: Mid Quanta and Online 2', () => {
     expect(m.regs.AX & 0xff).toBe(0) // IS_ODD = 0 (even)
   })
 
-  it('exam-max-array: finds maximum element 9AH (154) in word array', () => {
+  it('exam-max-array: finds maximum element 9AH (154) in word array', async () => {
     const ex = exampleById('exam-max-array')!
-    const r = assemble(ex.source)
+    const r = assemble((await loadExampleSource(ex.id))!)
     expect(r.errors).toEqual([])
     const m = new Machine(r.program!)
     m.run()
@@ -120,9 +124,9 @@ describe('course exam & online problems: Mid Quanta and Online 2', () => {
     expect(m.regs.BX).toBe(0x9a)
   })
 
-  it('exam-pattern-countdown: prints number pyramid countdown to console', () => {
+  it('exam-pattern-countdown: prints number pyramid countdown to console', async () => {
     const ex = exampleById('exam-pattern-countdown')!
-    const r = assemble(ex.source)
+    const r = assemble((await loadExampleSource(ex.id))!)
     expect(r.errors).toEqual([])
     const m = new Machine(r.program!)
     m.run()
@@ -130,9 +134,9 @@ describe('course exam & online problems: Mid Quanta and Online 2', () => {
     expect(m.output.replace(/\r/g, '').trim()).toBe('54321\n5432\n543\n54\n5')
   })
 
-  it('exam-bit-manipulation: tests bit 2 of BH, counts 0s (3) and stores product 15', () => {
+  it('exam-bit-manipulation: tests bit 2 of BH, counts 0s (3) and stores product 15', async () => {
     const ex = exampleById('exam-bit-manipulation')!
-    const r = assemble(ex.source)
+    const r = assemble((await loadExampleSource(ex.id))!)
     expect(r.errors).toEqual([])
     const m = new Machine(r.program!)
     m.run()

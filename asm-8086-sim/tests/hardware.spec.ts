@@ -4,7 +4,7 @@ import { LED_ADDRESS, SWITCHES_ADDRESS, KEYBOARD_ADDRESS } from '../src/engine/d
 import { LedsDevice } from '../src/engine/devices/leds'
 import { assemble } from '../src/engine/assembler'
 import { Machine } from '../src/engine/cpu'
-import { exampleById } from '../src/data/examples'
+import { exampleById, loadExampleSource } from '../src/data/examples'
 
 describe('HardwareBus', () => {
   it('writes 8-bit value to the correct device and reads it back', () => {
@@ -325,17 +325,20 @@ describe('hardware examples', () => {
     'kit-7seg-cycle',
     'kit-8255-ppi',
   ]) {
-    it(`example ${id} assembles`, () => {
+    it(`example ${id} assembles`, async () => {
       const ex = exampleById(id)
       expect(ex).toBeDefined()
-      const r = assemble(ex!.source, { mainFile: `${id}.asm` })
+      const src = await loadExampleSource(id)
+      expect(src).toBeDefined()
+      const r = assemble(src!, { mainFile: `${id}.asm` })
       expect(r.errors).toEqual([])
     })
   }
 
-  it('keyboard-to-lcd: pressed key shows on the LCD and the buffer clears', () => {
+  it('keyboard-to-lcd: pressed key shows on the LCD and the buffer clears', async () => {
     const ex = exampleById('keyboard-to-lcd')!
-    const r = assemble(ex.source, { mainFile: 'keyboard-to-lcd.asm' })
+    const src = (await loadExampleSource(ex.id))!
+    const r = assemble(src, { mainFile: 'keyboard-to-lcd.asm' })
     expect(r.errors).toEqual([])
     const bus = new HardwareBus()
     bus.attach(new KeyboardDevice())

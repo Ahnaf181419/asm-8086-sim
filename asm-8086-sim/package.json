@@ -10,7 +10,10 @@
     "preview": "vite preview",
     "test": "vitest run",
     "build:pages": "tsc -b && PAGES_BASE=/asm-8086-sim/ vite build",
-    "preview:pages": "PAGES_BASE=/asm-8086-sim/ vite preview"
+    "preview:pages": "PAGES_BASE=/asm-8086-sim/ vite preview",
+    "typecheck": "tsc -b",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@codemirror/language": "^6.12.4",
@@ -23,10 +26,13 @@
     "react-router-dom": "^7.18.3"
   },
   "devDependencies": {
+    "@testing-library/react": "^16.3.3",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^6.1.0",
+    "@vitest/coverage-v8": "^4.1.11",
+    "jsdom": "^26.1.0",
     "oxlint": "^1.79.0",
     "typescript": "~6.0.2",
     "vite": "^8.2.2",

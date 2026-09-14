@@ -46,6 +46,16 @@ export class Machine {
   error: AsmError | null = null
   lastChanges: StepChanges = { regs: new Set(), flags: new Set(), memFrom: -1, memTo: 0 }
 
+  // Step-scoped change tracking. The Sets are reused across steps (clear()
+  // at step start) instead of reallocated — publish() copies them, so at
+  // 3000× speed this avoids ~540K allocations/second of pure GC churn.
+  private resetStepChanges() {
+    this.lastChanges.regs.clear()
+    this.lastChanges.flags.clear()
+    this.lastChanges.memFrom = -1
+    this.lastChanges.memTo = 0
+  }
+
   private dataImage: Uint8Array
 
   constructor(program: Program, ioBus?: HardwareBus) {
@@ -69,7 +79,7 @@ export class Machine {
     this.inputQueue = []
     this.steps = 0
     this.error = null
-    this.lastChanges = { regs: new Set(), flags: new Set(), memFrom: -1, memTo: 0 }
+    this.resetStepChanges()
   }
 
   get output(): string {
@@ -118,7 +128,7 @@ export class Machine {
   step(): MachineStatus {
     if (this.status === 'halted' || this.status === 'error') return this.status
     if (this.status === 'waiting-input') return this.status
-    this.lastChanges = { regs: new Set(), flags: new Set(), memFrom: -1, memTo: 0 }
+    this.resetStepChanges()
     this.status = 'running'
 
     const stmt = this.program.byAddr.get(this.ip)
@@ -337,6 +347,7 @@ export class Machine {
         const signBit = 1 << (bits - 1)
         const count = c.k === 'reg' ? this.getReg('CL') & 0x1f : c.k === 'imm' ? c.v & 0x1f : 1
         let v = this.getVal(d, size)
+        const origMsb = (v & signBit) !== 0
         if (count === 0) { this.ip = next; return }
         // RCL/RCR rotate THROUGH carry: seed the local carry with the current
         // CF so every iteration feeds the previous iteration's carry bit
@@ -353,11 +364,28 @@ export class Machine {
         this.setVal(d, v, size)
         if (mn === 'SHL' || mn === 'SAL' || mn === 'SHR' || mn === 'SAR') this.setLogicFlags(v, size)
         this.setFlag('cf', cf)
+        // OF for count=1 (defined behavior; count>1 is undefined on real
+        // silicon and left as-is): SHL/SAL/ROL/RCL = MSB(result) XOR CF;
+        // SHR = MSB(original); SAR = 0; ROR/RCR = two top bits of result XORed
+        if (count === 1) {
+          const msb = (v & signBit) !== 0
+          if (mn === 'SHL' || mn === 'SAL' || mn === 'ROL' || mn === 'RCL') this.setFlag('of', msb !== cf)
+          else if (mn === 'SHR') this.setFlag('of', origMsb)
+          else if (mn === 'SAR') this.setFlag('of', false)
+          else this.setFlag('of', msb !== ((v & (signBit >>> 1)) !== 0)) // ROR/RCR
+        }
         this.ip = next
         return
       }
       case 'PUSH': {
         const s = ops[0]
+        // 8086 quirk: PUSH SP stores the POST-decrement SP (the 80286+ pushes
+        // the pre-decrement value) — the classic CPU-detection idiom
+        if (s.k === 'reg' && !s.sreg && s.name === 'SP') {
+          this.push((this.regs.SP - 2) & 0xffff)
+          this.ip = next
+          return
+        }
         const v = s.k === 'reg' && s.sreg ? this.sregs[s.name] : this.getVal(s, 2)
         this.push(v & 0xffff)
         this.ip = next
@@ -581,7 +609,7 @@ export class Machine {
           const idx = this.inputQueue.indexOf(0x0d)
           if (idx !== -1) this.inputQueue.splice(0, idx + 1)
         }
-        this.mem[buf + 1] = chars.length
+        this.mem[(buf + 1) & 0xffff] = chars.length // mask: buffer at 0FFFFH wraps like the char stores below
         this.dirty(buf + 1, buf + 2)
         for (let i = 0; i < chars.length; i++) this.mem[(buf + 2 + i) & 0xffff] = chars[i]
         this.mem[(buf + 2 + chars.length) & 0xffff] = 0x0d

@@ -4,10 +4,39 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { assembleAndRun, assemble, Machine } from '../src/engine/program'
 
+// Shared course programs come straight from src/data/asm — the exact bytes
+// users load in the app — so a fix there can't leave the test corpus stale.
+// Only test-only fixtures (assignment1, ex1/ex3) stay in tests/fixtures.
+import sharedIndec from '../src/data/asm/INDEC.ASM?raw'
+import sharedOutdec from '../src/data/asm/OUTDEC.ASM?raw'
+import sharedInOutDigits from '../src/data/asm/in-out-digits.asm?raw'
+import sharedLargestTwo from '../src/data/asm/largest-two.asm?raw'
+import sharedMul8 from '../src/data/asm/mul8.asm?raw'
+import sharedNestedLoop from '../src/data/asm/nested-loop.asm?raw'
+import sharedPrintArrayByte from '../src/data/asm/print-array-byte.asm?raw'
+import sharedPrintArrayWord from '../src/data/asm/print-array-word.asm?raw'
+import sharedProcedure from '../src/data/asm/procedure.asm?raw'
+import sharedReverseArray from '../src/data/asm/reverse-array.asm?raw'
+import sharedUserInputArray from '../src/data/asm/user-input-array.asm?raw'
+
+const shared: Record<string, string> = {
+  'INDEC.ASM': sharedIndec,
+  'OUTDEC.ASM': sharedOutdec,
+  'in-out-digits.asm': sharedInOutDigits,
+  'largest-two.asm': sharedLargestTwo,
+  'mul8.asm': sharedMul8,
+  'nested-loop.asm': sharedNestedLoop,
+  'print-array-byte.asm': sharedPrintArrayByte,
+  'print-array-word.asm': sharedPrintArrayWord,
+  'procedure.asm': sharedProcedure,
+  'reverse-array.asm': sharedReverseArray,
+  'user-input-array.asm': sharedUserInputArray,
+}
+
 const dir = join(dirname(fileURLToPath(import.meta.url)), 'fixtures')
 
 function fx(name: string): string {
-  return readFileSync(join(dir, name), 'utf-8')
+  return shared[name] ?? readFileSync(join(dir, name), 'utf-8')
 }
 
 // include resolver matching fixture filenames case-insensitively (like MASM)

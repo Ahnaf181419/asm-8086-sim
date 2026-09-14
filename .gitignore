@@ -16,3 +16,6 @@ dist-ssr/
 
 # course materials — kept local, never published (see Resources/RECOVERY-NOTE.md)
 Resources/
+
+# test coverage output
+coverage/

@@ -104,12 +104,12 @@ export function assemble(source: string, opts: AssembleOptions = {}): AssembleRe
     }
     if (s.kind === 'data') {
       const nbytes = dataItemsSize(s.items!, s.size!, symbols, s, errors)
-      define(symbols, s.name!, { kind: 'data', value: dataOff, size: s.size, defined: s.pos }, errors)
+      if (s.name) define(symbols, s.name, { kind: 'data', value: dataOff, size: s.size, defined: s.pos }, errors)
       s.offset = dataOff
       s.nbytes = nbytes
       dataOff += nbytes
       if (dataOff > 0x10000) {
-        errors.push(errOf(s, `data segment exceeds 64KB (${dataOff} bytes) — '${s.name}' is too large`))
+        errors.push(errOf(s, `data segment exceeds 64KB (${dataOff} bytes)${s.name ? ` — '${s.name}' is too large` : ''}`))
         dataOverflow = true
       }
     }
@@ -143,6 +143,20 @@ export function assemble(source: string, opts: AssembleOptions = {}): AssembleRe
       define(symbols, s.name!, { kind: s.kind === 'proc' ? 'proc' : 'label', value: addr, defined: s.pos }, errors)
       continue
     }
+    if (s.kind === 'directive' && s.mnemonic === 'ORG') {
+      // COM-style layouts: ORG 100H inside .CODE (or bare code) moves the
+      // location counter, exactly like the data segment
+      const v = s.operandTokens?.[0] ? evalExpr(s.operandTokens[0], symbols, s, true) : NaN
+      if (Number.isNaN(v)) { errors.push(errOf(s, 'ORG requires a resolvable numeric expression')); continue }
+      if (v < 0 || v > 0x10000) { errors.push(errOf(s, `ORG address ${v} out of range`)); continue }
+      addr = v
+      continue
+    }
+    if (s.kind === 'data') {
+      // previously these were silently dropped here — name the actual cause
+      errors.push(errOf(s, `'${s.mnemonic}' has no effect in a code segment — data belongs in a .DATA segment`))
+      continue
+    }
     if (s.kind === 'instruction') {
       s.addr = addr
       if (firstInstr === null) firstInstr = addr
@@ -164,6 +178,12 @@ export function assemble(source: string, opts: AssembleOptions = {}): AssembleRe
   const byAddr = new Map<number, Stmt>()
   for (const s of stmts) {
     if (s.kind !== 'instruction' || s.addr === undefined) continue
+    const clash = byAddr.get(s.addr)
+    if (clash) {
+      // only reachable via ORG pointing backwards onto earlier code
+      errors.push(errOf(s, `instructions overlap at ${s.addr.toString(16).toUpperCase()}H — check your ORG directives`))
+      continue
+    }
     try {
       resolveInstruction(s, symbols)
     } catch (e) {

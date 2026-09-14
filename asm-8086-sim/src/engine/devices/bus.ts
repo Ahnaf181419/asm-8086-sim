@@ -1,4 +1,4 @@
-import type { BusCycle, BusSnapshot, IoDevice } from './types'
+import type { BusCycle, BusSnapshot, DeviceSnapshotMap, IoDevice } from './types'
 import {
   MAX_IO_ADDRESS,
   MAX_NUM_OF_PORTS,
@@ -23,7 +23,27 @@ export class HardwareBus {
   private listeners = new Set<() => void>()
   private cachedSnapshot: BusSnapshot | null = null
   private lastCycle: BusCycle | null = null
-  private recentCycles: BusCycle[] = []
+  // Fixed 30-slot ring: an OUT-tight loop at max speed used to copy a
+  // 31-element array per dispatch; now the newest-first view is only
+  // materialized when a snapshot is actually rebuilt.
+  private static readonly CYCLE_LOG_CAP = 30
+  private cycleLog: (BusCycle | undefined)[] = new Array(HardwareBus.CYCLE_LOG_CAP)
+  private cycleLogLen = 0
+
+  private recordCycle(cycle: BusCycle) {
+    this.cycleLog[this.cycleLogLen % HardwareBus.CYCLE_LOG_CAP] = cycle
+    this.cycleLogLen++
+    this.lastCycle = cycle
+  }
+
+  private recentCyclesView(): BusCycle[] {
+    const n = Math.min(this.cycleLogLen, HardwareBus.CYCLE_LOG_CAP)
+    const out: BusCycle[] = new Array(n)
+    for (let i = 0; i < n; i++) {
+      out[i] = this.cycleLog[(this.cycleLogLen - 1 - i) % HardwareBus.CYCLE_LOG_CAP]!
+    }
+    return out
+  }
 
   attach(device: IoDevice): void { this.deviceList.push(device) }
 
@@ -36,7 +56,8 @@ export class HardwareBus {
     for (const d of this.deviceList) d.reset()
     this.cachedSnapshot = null
     this.lastCycle = null
-    this.recentCycles = []
+    this.cycleLog = new Array(HardwareBus.CYCLE_LOG_CAP)
+    this.cycleLogLen = 0
     this.notify()
   }
 
@@ -93,30 +114,30 @@ export class HardwareBus {
   dispatchRead(port: number, size: 8 | 16): number {
     const lo = this.readByte(port)
     const val = size === 8 ? lo : lo | (this.readByte(port + 1) << 8)
-    const cycle: BusCycle = { type: 'IN', port, value: val, size, timestamp: Date.now() }
-    this.lastCycle = cycle
-    this.recentCycles = [cycle, ...this.recentCycles.slice(0, 29)]
+    // Reads can mutate devices (keyboard buffer pop on 2082H) and always
+    // update the cycle log — same invalidation the write path does.
+    this.recordCycle({ type: 'IN', port, value: val, size, timestamp: Date.now() })
+    this.cachedSnapshot = null
+    this.notify()
     return val
   }
 
   dispatchWrite(port: number, value: number, size: 8 | 16): void {
     this.writeByte(port, value)
     if (size === 16) this.writeByte(port + 1, (value >> 8) & 0xff)
-    const cycle: BusCycle = { type: 'OUT', port, value, size, timestamp: Date.now() }
-    this.lastCycle = cycle
-    this.recentCycles = [cycle, ...this.recentCycles.slice(0, 29)]
+    this.recordCycle({ type: 'OUT', port, value, size, timestamp: Date.now() })
     this.cachedSnapshot = null
     this.notify()
   }
 
   snapshot(): BusSnapshot {
     if (this.cachedSnapshot) return this.cachedSnapshot
-    const devices: Record<string, unknown> = {}
-    for (const d of this.deviceList) devices[d.name] = d.snapshot()
+    const devices: Partial<DeviceSnapshotMap> = {}
+    for (const d of this.deviceList) devices[d.name as keyof DeviceSnapshotMap] = d.snapshot() as never
     this.cachedSnapshot = {
       devices,
       lastCycle: this.lastCycle,
-      recentCycles: this.recentCycles,
+      recentCycles: this.recentCyclesView(),
       ppi: {
         portA: this.ppiPorts[PPI_PORT_A],
         portB: this.ppiPorts[PPI_PORT_B],

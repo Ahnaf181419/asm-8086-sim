@@ -1,17 +1,14 @@
 import { useState } from 'react'
+import { physicalAddress, parseHex16, hex5, hex4, bin20 } from './addressMath'
 
 export default function AddressCalculator() {
   const [segment, setSegment] = useState('A4FB')
   const [offset, setOffset] = useState('4872')
 
-  const segVal = parseInt(segment, 16) || 0
-  const offVal = parseInt(offset, 16) || 0
+  const segVal = parseHex16(segment)
+  const offVal = parseHex16(offset)
   const shiftedSeg = (segVal & 0xffff) * 16
-  const physVal = (shiftedSeg + (offVal & 0xffff)) & 0xfffff
-
-  const hex5 = (v: number) => v.toString(16).toUpperCase().padStart(5, '0')
-  const hex4 = (v: number) => v.toString(16).toUpperCase().padStart(4, '0')
-  const bin20 = (v: number) => v.toString(2).padStart(20, '0')
+  const physVal = physicalAddress(segment, offset)
 
   const setPreset = (s: string, o: string) => {
     setSegment(s)

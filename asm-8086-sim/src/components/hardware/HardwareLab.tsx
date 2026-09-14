@@ -1,7 +1,9 @@
-import { useState, useEffect, Suspense, type ReactNode } from 'react'
+import { useState, useEffect, useCallback, Suspense, type ReactNode } from 'react'
 import { useHardwareMachine } from '../../hooks/useHardwareMachine'
 import { SPEEDS } from '../../hooks/useMachine'
-import { EXAMPLES } from '../../data/examples'
+import { useDebouncedBuild } from '../../hooks/useDebouncedBuild'
+import { EXAMPLES, loadExampleSource } from '../../data/examples'
+import { portLabel } from '../../engine/devices/portMap'
 import { HW_TITLES, type HwPanelName } from './titles'
 import { LedsPanel } from './LedsPanel'
 import { SevenSegmentPanel } from './SevenSegmentPanel'
@@ -47,23 +49,6 @@ function decodeSeg(byte: number): string {
   const inv = (~byte) & 0x7f
   if (SEG_REVERSE.has(inv)) return SEG_REVERSE.get(inv)!
   return '?'
-}
-
-function portLabel(port: number): string {
-  if (port === 0x19) return 'PPI-A (7Seg)'
-  if (port === 0x1b) return 'PPI-B (LEDs)'
-  if (port === 0x1d) return 'PPI-C'
-  if (port === 0x1f) return 'PPI-Ctrl'
-  if (port === 0x2070) return 'LEDs'
-  if (port >= 0x2030 && port <= 0x2037) return `7Seg #${port - 0x2030}`
-  if (port >= 0x2040 && port <= 0x206f) return 'LCD'
-  if (port >= 0x2000 && port <= 0x2007) return `Matrix #${port - 0x2000}`
-  if (port === 0x2080 || port === 0x2081) return 'Buttons'
-  if (port === 0x2082 || port === 0x2083) return 'Keyboard'
-  if (port === 0x2084 || port === 0x2085) return 'Switches'
-  if (port === 0x2086) return 'Thermo'
-  if (port === 0x2088) return 'Pressure'
-  return `${hex4(port)}H`
 }
 
 // one floating "kit window": MFC-style caption from the C++ SetWindowText
@@ -262,32 +247,48 @@ export function HardwareLab() {
     setPercent,
   } = useHardwareMachine()
 
-  const [source, setSource] = useState<string>(() => HW_EXAMPLES[0]?.source ?? '')
+  const [source, setSource] = useState<string>('')
   const [exampleId, setExampleId] = useState(HW_EXAMPLES[0]?.id ?? '')
   const [viewMode, setViewMode] = useState<'split' | 'board' | 'code'>('split')
   const [studioOpen, setStudioOpen] = useState(false)
 
-  // initial compile on mount
+  // initial compile on mount — the example source arrives as a lazy chunk
   useEffect(() => {
-    if (source) machine.build(source)
+    const first = HW_EXAMPLES[0]
+    if (!first) return
+    let cancelled = false
+    void loadExampleSource(first.id).then((src) => {
+      if (!cancelled && src !== undefined) {
+        setSource(src)
+        machine.build(src)
+      }
+    })
+    return () => {
+      cancelled = true
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const loadExample = (id: string) => {
-    const ex = EXAMPLES.find((e) => e.id === id)
     setExampleId(id)
-    if (ex) {
-      setSource(ex.source)
-      machine.build(ex.source)
-    }
+    void loadExampleSource(id).then((src) => {
+      if (src === undefined) return
+      setSource(src)
+      machine.build(src)
+    })
   }
 
   // The engine gives bare trainer-style code an implicit code segment, so
   // the editor text goes straight to the assembler — no wrapping, and step
-  // highlight / error lines stay 1:1 with what the user typed.
+  // highlight / error lines stay 1:1 with what the user typed. The build is
+  // debounced so typing doesn't reassemble on every keystroke.
+  const debounced = useDebouncedBuild(
+    useCallback((src: string) => machine.build(src), [machine]),
+  )
+
   const onSourceChange = (newSrc: string) => {
     setSource(newSrc)
-    machine.build(newSrc)
+    debounced.schedule(newSrc)
   }
 
   const addBoilerplate = () => {
@@ -298,6 +299,7 @@ export function HardwareLab() {
   }
 
   const toggleRun = () => {
+    debounced.flush()
     if (machine.running) {
       machine.pause()
       return
@@ -332,7 +334,14 @@ export function HardwareLab() {
         <button className="hw-btn" onClick={toggleRun}>
           {machine.running ? '⏸ pause' : '▶ run'}
         </button>
-        <button className="hw-btn" onClick={() => machine.step()} title="execute one instruction">
+        <button
+          className="hw-btn"
+          onClick={() => {
+            debounced.flush()
+            machine.step()
+          }}
+          title="execute one instruction"
+        >
           ⏭ step
         </button>
         <label className="hw-speed">
@@ -472,45 +481,45 @@ export function HardwareLab() {
           <div className="hw-board">
             <div className="hw-grid">
               <KitPanel name="dot-matrix">
-                <DotMatrixPanel state={devices['dot-matrix'] as never} />
+                <DotMatrixPanel state={devices['dot-matrix']} />
               </KitPanel>
               <KitPanel name="seven-segment">
-                <SevenSegmentPanel state={devices['seven-segment'] as never} />
+                <SevenSegmentPanel state={devices['seven-segment']} />
               </KitPanel>
               <KitPanel name="ascii-lcd">
-                <AsciiLcdPanel state={devices['ascii-lcd'] as never} />
+                <AsciiLcdPanel state={devices['ascii-lcd']} />
               </KitPanel>
               <KitPanel name="thermometer">
                 <ThermometerPanel
-                  state={devices.thermometer as never}
+                  state={devices.thermometer}
                   onSetCelsius={setCelsius}
                 />
               </KitPanel>
               <KitPanel name="leds">
-                <LedsPanel state={devices.leds as never} />
+                <LedsPanel state={devices.leds} />
               </KitPanel>
               <KitPanel name="switches">
                 <SwitchesPanel
-                  state={devices.switches as never}
+                  state={devices.switches}
                   onToggleBit={(i) => toggleBit('switches', i)}
                 />
               </KitPanel>
               <KitPanel name="push-buttons">
                 <PushButtonsPanel
-                  state={devices['push-buttons'] as never}
+                  state={devices['push-buttons']}
                   onToggleBit={(i) => toggleBit('buttons', i)}
                 />
               </KitPanel>
               <KitPanel name="keyboard">
                 <KeyboardPanel
-                  state={devices.keyboard as never}
+                  state={devices.keyboard}
                   onPressKey={pressKey}
                   onClearBuffer={clearKeyboardBuffer}
                 />
               </KitPanel>
               <KitPanel name="pressure">
                 <PressurePanel
-                  state={devices.pressure as never}
+                  state={devices.pressure}
                   onSetPercent={setPercent}
                 />
               </KitPanel>

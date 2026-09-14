@@ -1,21 +1,18 @@
-import { Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import TerminalPanel from '../components/TerminalPanel'
 import RegisterPanel from '../components/RegisterPanel'
 import MemoryView from '../components/MemoryView'
 import Console from '../components/Console'
-import { SPEEDS, useMachine } from '../hooks/useMachine'
-import { EXAMPLES, exampleById } from '../data/examples'
-import { getSharedBus } from '../engine/devices/sharedBus'
+import { SPEEDS } from '../hooks/useMachine'
+import { useHardwareMachine } from '../hooks/useHardwareMachine'
+import { useDebouncedBuild } from '../hooks/useDebouncedBuild'
+import { EXAMPLES, exampleById, loadExampleSource } from '../data/examples'
 import { lazyImport } from '../hooks/useLazyImport'
 import { LedsPanel } from '../components/hardware/LedsPanel'
 import { SevenSegmentPanel } from '../components/hardware/SevenSegmentPanel'
 import { AsciiLcdPanel } from '../components/hardware/AsciiLcdPanel'
 import { SwitchesPanel } from '../components/hardware/SwitchesPanel'
-import type { LedsState } from '../engine/devices/leds'
-import type { SevenSegmentState } from '../engine/devices/sevenSegment'
-import type { AsciiLcdState } from '../engine/devices/asciiLcd'
-import type { SwitchesState, SwitchesDevice } from '../engine/devices/switches'
 import '../components/hardware/hardware.css'
 
 // CodeMirror is about half the bundle and neither /lessons nor /reference
@@ -34,41 +31,48 @@ export default function SimulatorPage() {
     return id ? exampleById(id) : undefined
   })()
 
-  const [source, setSource] = useState<string>(() => {
-    if (initialExample) return initialExample.source
-    return localStorage.getItem(LS_KEY) ?? EXAMPLES[0].source
-  })
+  const [source, setSource] = useState<string>('')
+  const [selectedId, setSelectedId] = useState<string>('')
   const [memFocus, setMemFocus] = useState<'data' | 'stack' | 'hardware'>(() => {
     if (initialExample?.category === 'Hardware') return 'hardware'
     return 'data'
   })
   const [autoAssemble, setAutoAssemble] = useState(true)
 
-  // shared bus: hardware examples (IN/OUT) drive the /hardware devices
-  const bus = getSharedBus()
-  const sim = useMachine({ bus })
+  // shared bus: hardware examples (IN/OUT) drive the /hardware devices.
+  // Same hook the Hardware Lab uses — one bridge, one subscription contract.
+  const { machine: sim, snapshot, toggleBit } = useHardwareMachine()
+  const toggleSwitch = useCallback((i: number) => toggleBit('switches', i), [toggleBit])
 
-  const snapshot = useSyncExternalStore(
-    useCallback((cb) => bus.subscribe(cb), [bus]),
-    useCallback(() => bus.snapshot(), [bus]),
-    useCallback(() => bus.snapshot(), [bus]),
-  )
-
-  const toggleSwitch = useCallback(
-    (i: number) => {
-      const sw = bus.getDevice<SwitchesDevice>('switches')
-      if (sw) {
-        sw.toggleBit(i)
-        bus.notify()
-      }
-    },
-    [bus],
-  )
-
-  // initial assemble (mount only)
-  const initialSource = useRef(source)
+  // initial load + assemble (mount only): example sources arrive as lazy
+  // chunks, so the first build happens once the source resolves
   useEffect(() => {
-    sim.build(initialSource.current)
+    let cancelled = false
+    const boot = async () => {
+      let src: string | undefined
+      let id = ''
+      if (initialExample) {
+        id = initialExample.id
+        src = await loadExampleSource(id)
+      } else {
+        const stored = localStorage.getItem(LS_KEY)
+        if (stored) {
+          src = stored
+        } else {
+          id = EXAMPLES[0].id
+          src = await loadExampleSource(id)
+        }
+      }
+      if (!cancelled && src !== undefined) {
+        setSource(src)
+        setSelectedId(id)
+        sim.build(src)
+      }
+    }
+    void boot()
+    return () => {
+      cancelled = true
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -76,20 +80,32 @@ export default function SimulatorPage() {
     localStorage.setItem(LS_KEY, src)
   }, [])
 
+  // debounced keystroke pipeline: full reassemble + 64KB image + sync
+  // localStorage write happen on the trailing edge, flushed on Run/Step
+  const autoAssembleRef = useRef(autoAssemble)
+  autoAssembleRef.current = autoAssemble
+  const debounced = useDebouncedBuild(
+    useCallback((src: string) => {
+      if (autoAssembleRef.current) sim.build(src)
+    }, [sim]),
+    persist,
+  )
+
   const onChange = (v: string) => {
     setSource(v)
-    persist(v)
-    if (autoAssemble) sim.build(v)
+    setSelectedId('')
+    debounced.schedule(v)
   }
 
   // shared run/pause logic for the toolbar button and F5
   const toggleRun = useCallback(() => {
+    debounced.flush()
     if (sim.running) sim.pause()
     else {
       if (sim.status === 'halted' || sim.status === 'error') sim.reset()
       sim.run()
     }
-  }, [sim])
+  }, [sim, debounced])
 
   // keyboard shortcuts. These fired unconditionally before, so F10 stepped the
   // machine while the caret was in the console input or the editor.
@@ -105,6 +121,7 @@ export default function SimulatorPage() {
       // Ctrl+Shift+R resets the machine (PLAN §5); allow it even while typing
       if (e.key.toUpperCase() === 'R' && e.ctrlKey && e.shiftKey) {
         e.preventDefault()
+        debounced.flush()
         sim.reset()
         return
       }
@@ -114,12 +131,13 @@ export default function SimulatorPage() {
         toggleRun()
       } else if (e.key === 'F10') {
         e.preventDefault()
+        debounced.flush()
         sim.step()
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [sim, toggleRun])
+  }, [sim, toggleRun, debounced])
 
   // The line to highlight, in main-file source-line terms. The editor converts
   // it to a document offset and clamps it — a stale snapshot can name a line
@@ -132,19 +150,23 @@ export default function SimulatorPage() {
   const loadExample = (id: string) => {
     const ex = exampleById(id)
     if (!ex) return
-    setSource(ex.source)
-    persist(ex.source)
-    sim.build(ex.source)
+    void loadExampleSource(id).then((src) => {
+      if (src === undefined) return
+      setSource(src)
+      setSelectedId(id)
+      persist(src)
+      sim.build(src)
+    })
     if (ex.category === 'Hardware') {
       setMemFocus('hardware')
     }
   }
 
   const speedIndex = Math.max(0, SPEEDS.indexOf(sim.speed))
-  // Derive the selection from the source rather than from a state variable that
-  // only `loadExample` writes — otherwise the dropdown keeps naming an example
-  // the user has since edited away from.
-  const selectedExample = EXAMPLES.find((e) => e.source === source)?.id ?? ''
+  // Selection is id-tracked: loadExample sets it, manual edits clear it —
+  // otherwise the dropdown keeps naming an example the user has edited away
+  // from. (Sources are lazy chunks now, so string-matching is off the table.)
+  const selectedExample = selectedId
 
   return (
     <div className="sim-layout">
@@ -162,7 +184,10 @@ export default function SimulatorPage() {
             {sim.running ? '❚❚ pause' : '▶ run'}
           </button>
           <button
-            onClick={sim.step}
+            onClick={() => {
+              debounced.flush()
+              sim.step()
+            }}
             disabled={!sim.state.program}
             title="F10 — execute one instruction"
             aria-label="step one instruction (F10)"
@@ -171,7 +196,10 @@ export default function SimulatorPage() {
           </button>
           <button
             className="danger"
-            onClick={sim.reset}
+            onClick={() => {
+              debounced.flush()
+              sim.reset()
+            }}
             disabled={!sim.state.program}
             title="Ctrl+Shift+R — reset the machine"
             aria-label="reset the machine (Ctrl+Shift+R)"
@@ -354,7 +382,7 @@ export default function SimulatorPage() {
                 <div style={{ fontSize: '10px', color: 'var(--accent)', marginBottom: '2px', fontWeight: 600 }}>
                   LEDs (Port 2070H)
                 </div>
-                <LedsPanel state={snapshot.devices.leds as LedsState | undefined} />
+                <LedsPanel state={snapshot.devices.leds} />
               </div>
 
               <div
@@ -368,7 +396,7 @@ export default function SimulatorPage() {
                 <div style={{ fontSize: '10px', color: 'var(--accent)', marginBottom: '2px', fontWeight: 600 }}>
                   7-Segment Display (Port 2030H)
                 </div>
-                <SevenSegmentPanel state={snapshot.devices['seven-segment'] as SevenSegmentState | undefined} />
+                <SevenSegmentPanel state={snapshot.devices['seven-segment']} />
               </div>
 
               <div
@@ -382,7 +410,7 @@ export default function SimulatorPage() {
                 <div style={{ fontSize: '10px', color: 'var(--accent)', marginBottom: '2px', fontWeight: 600 }}>
                   ASCII LCD 3×16 (Port 2040H)
                 </div>
-                <AsciiLcdPanel state={snapshot.devices['ascii-lcd'] as AsciiLcdState | undefined} />
+                <AsciiLcdPanel state={snapshot.devices['ascii-lcd']} />
               </div>
 
               <div
@@ -396,7 +424,7 @@ export default function SimulatorPage() {
                 <div style={{ fontSize: '10px', color: 'var(--accent)', marginBottom: '2px', fontWeight: 600 }}>
                   Slide Switches (Port 2084H) — Click to Toggle
                 </div>
-                <SwitchesPanel state={snapshot.devices.switches as SwitchesState | undefined} onToggleBit={toggleSwitch} />
+                <SwitchesPanel state={snapshot.devices.switches} onToggleBit={toggleSwitch} />
               </div>
             </div>
           ) : (
