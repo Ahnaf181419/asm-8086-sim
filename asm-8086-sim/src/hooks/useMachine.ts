@@ -34,9 +34,15 @@ export function useMachine(opts?: { bus?: HardwareBus }) {
   const runRef = useRef(false)
   const resumeRef = useRef(false)
 
+  const bus = opts?.bus
+
   const publish = useCallback(() => {
     const m = machineRef.current
     if (!m) return
+    // One bus notification per publish rather than one per I/O cycle — see
+    // HardwareBus.flush(). publish() is called after every step batch, so
+    // panels still update every frame.
+    bus?.flush()
     setState((prev) => ({
       ...prev,
       snap: m.snapshot(),
@@ -47,7 +53,7 @@ export function useMachine(opts?: { bus?: HardwareBus }) {
         memTo: m.lastChanges.memTo,
       },
     }))
-  }, [])
+  }, [bus])
 
   const stop = useCallback(() => {
     runRef.current = false
@@ -61,7 +67,7 @@ export function useMachine(opts?: { bus?: HardwareBus }) {
       stop()
       const result = assemble(source, { resolveInclude, mainFile: 'editor.asm' })
       if (result.program) {
-        machineRef.current = new Machine(result.program, opts?.bus)
+        machineRef.current = new Machine(result.program, bus)
         setState({ program: result.program, errors: result.errors, snap: machineRef.current.snapshot(), changes: emptyChanges() })
       } else {
         machineRef.current = null
@@ -69,7 +75,7 @@ export function useMachine(opts?: { bus?: HardwareBus }) {
       }
       return result
     },
-    [stop, opts?.bus],
+    [stop, bus],
   )
 
   const step = useCallback(() => {

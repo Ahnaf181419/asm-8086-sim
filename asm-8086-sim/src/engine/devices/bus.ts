@@ -29,11 +29,29 @@ export class HardwareBus {
   private static readonly CYCLE_LOG_CAP = 30
   private cycleLog: (BusCycle | undefined)[] = new Array(HardwareBus.CYCLE_LOG_CAP)
   private cycleLogLen = 0
+  private seq = 0
+  // Dispatch marks the bus dirty instead of notifying. A tight OUT loop at
+  // top speed fires up to 3000 cycles per animation frame, and notifying on
+  // each one walked every listener and rebuilt a snapshot that nothing read
+  // before the next cycle overwrote it. flush() delivers one notification
+  // per frame; UI-driven mutations still notify() immediately.
+  private pendingNotify = false
 
   private recordCycle(cycle: BusCycle) {
     this.cycleLog[this.cycleLogLen % HardwareBus.CYCLE_LOG_CAP] = cycle
     this.cycleLogLen++
     this.lastCycle = cycle
+    this.cachedSnapshot = null
+    this.pendingNotify = true
+  }
+
+  // Deliver any notification the dispatch path deferred. Called once per
+  // animation frame by the run loop (see useMachine.publish); a no-op when
+  // no I/O happened, so an idle machine costs nothing.
+  flush(): void {
+    if (!this.pendingNotify) return
+    this.pendingNotify = false
+    this.notify()
   }
 
   private recentCyclesView(): BusCycle[] {
@@ -58,6 +76,8 @@ export class HardwareBus {
     this.lastCycle = null
     this.cycleLog = new Array(HardwareBus.CYCLE_LOG_CAP)
     this.cycleLogLen = 0
+    this.seq = 0
+    this.pendingNotify = false
     this.notify()
   }
 
@@ -116,18 +136,16 @@ export class HardwareBus {
     const val = size === 8 ? lo : lo | (this.readByte(port + 1) << 8)
     // Reads can mutate devices (keyboard buffer pop on 2082H) and always
     // update the cycle log — same invalidation the write path does.
-    this.recordCycle({ type: 'IN', port, value: val, size, timestamp: Date.now() })
-    this.cachedSnapshot = null
-    this.notify()
+    // recordCycle invalidates the snapshot and marks the bus dirty; the
+    // notification itself waits for flush().
+    this.recordCycle({ type: 'IN', port, value: val, size, seq: this.seq++ })
     return val
   }
 
   dispatchWrite(port: number, value: number, size: 8 | 16): void {
     this.writeByte(port, value)
     if (size === 16) this.writeByte(port + 1, (value >> 8) & 0xff)
-    this.recordCycle({ type: 'OUT', port, value, size, timestamp: Date.now() })
-    this.cachedSnapshot = null
-    this.notify()
+    this.recordCycle({ type: 'OUT', port, value, size, seq: this.seq++ })
   }
 
   snapshot(): BusSnapshot {
@@ -153,8 +171,12 @@ export class HardwareBus {
     return () => { this.listeners.delete(cb) }
   }
 
+  // Immediate delivery. Correct for UI-driven mutations (a switch flipped, a
+  // key pressed, a reset) which happen once per user action; the engine's
+  // I/O path goes through flush() instead.
   notify(): void {
     this.cachedSnapshot = null
+    this.pendingNotify = false
     for (const l of this.listeners) l()
   }
 

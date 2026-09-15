@@ -19,7 +19,10 @@ export interface BusCycle {
   port: number
   value: number
   size: 8 | 16
-  timestamp: number
+  // Monotonic sequence number, not wall-clock time. The bus log displays
+  // ORDER, never a clock, and Date.now() was being called twice per I/O
+  // instruction in a loop that can run 3000 times per animation frame.
+  seq: number
 }
 
 // Device-name → snapshot-state map: the single source of truth for what

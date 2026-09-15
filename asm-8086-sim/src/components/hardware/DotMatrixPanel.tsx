@@ -41,6 +41,7 @@ export function DotMatrixPanel({ state }: { state: DotMatrixState | undefined })
       <svg
         viewBox={`0 0 ${totalW} ${totalH}`}
         preserveAspectRatio="xMidYMid meet"
+        role="img"
         aria-label="8 displays of 5x7 dot matrix"
       >
         {dots.map((d) => (

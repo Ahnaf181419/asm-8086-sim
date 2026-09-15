@@ -26,6 +26,7 @@ export default function ReferencePage() {
       <input
         className="ref-search"
         type="text"
+        aria-label="search instructions"
         placeholder="search: mov, divide, jump if zero…"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
@@ -76,7 +77,7 @@ export default function ReferencePage() {
         </tbody>
       </table>
 
-      <h1 style={{ fontSize: 16, marginTop: 36 }}>INT 21H SERVICES</h1>
+      <h2>INT 21H SERVICES</h2>
       <table className="ref-table">
         <thead>
           <tr>
@@ -100,7 +101,7 @@ export default function ReferencePage() {
         </tbody>
       </table>
 
-      <h1 style={{ fontSize: 16, marginTop: 36 }}>I/O PORT MAP (MDA-8086 EMULATION KIT)</h1>
+      <h2>I/O PORT MAP (MDA-8086 EMULATION KIT)</h2>
       <table className="ref-table">
         <thead>
           <tr>
@@ -124,7 +125,7 @@ export default function ReferencePage() {
         </tbody>
       </table>
 
-      <h1 style={{ fontSize: 16, marginTop: 36 }}>REGISTERS</h1>
+      <h2>REGISTERS</h2>
       <table className="ref-table">
         <thead>
           <tr>

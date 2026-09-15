@@ -24,6 +24,19 @@ function stripComments(src: string): string {
   return src.replace(/;.*$/gm, '')
 }
 
+// Does this source need an implicit code segment?
+//
+// Exported because the Hardware Lab asks the same question to decide whether
+// to offer its "Add Boilerplate" button. That decision MUST agree with the
+// assembler's: when they disagree the button appears for source the engine
+// already treats as wrapped, and pressing it nests a second .CODE. The two
+// used to be independent copies of this predicate and drifted apart once
+// already (commit 82091a8) — hence one definition, here, next to the
+// assembler that acts on it.
+export function isBareAsm(src: string): boolean {
+  return src.trim().length > 0 && !BARE_BLOCKER.test(stripComments(src))
+}
+
 export function assemble(source: string, opts: AssembleOptions = {}): AssembleResult {
   const errors: AsmError[] = []
   const mainFile = opts.mainFile ?? 'main.asm'
@@ -42,7 +55,7 @@ export function assemble(source: string, opts: AssembleOptions = {}): AssembleRe
   // every statement (including ORG) records the segment it belongs to.
   // Trainer-style bare source (no segment/PROC scaffolding at all) gets an
   // implicit code segment — paste-and-run like the MDA-8086 lab software.
-  const bare = source.trim().length > 0 && !BARE_BLOCKER.test(stripComments(source))
+  const bare = isBareAsm(source)
   let seg: 'none' | 'data' | 'code' = bare ? 'code' : 'none'
   for (const s of stmts) {
     if (s.kind === 'directive') {

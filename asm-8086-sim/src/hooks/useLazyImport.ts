@@ -15,10 +15,20 @@ export interface ChunkRecoveryEnv {
   reload(): void
 }
 
+// sessionStorage throws — not returns null — where site data is blocked.
+// Swallowing that here means the worst case is "no reload guard", i.e. the
+// error bubbles to the route errorElement, rather than a storage exception
+// replacing the chunk error that actually mattered.
 const defaultEnv: ChunkRecoveryEnv = {
-  getItem: key => sessionStorage.getItem(key),
-  setItem: (key, value) => sessionStorage.setItem(key, value),
-  removeItem: key => sessionStorage.removeItem(key),
+  getItem: key => {
+    try { return sessionStorage.getItem(key) } catch { return null }
+  },
+  setItem: (key, value) => {
+    try { sessionStorage.setItem(key, value) } catch { /* no guard available */ }
+  },
+  removeItem: key => {
+    try { sessionStorage.removeItem(key) } catch { /* nothing stored */ }
+  },
   reload: () => location.reload(),
 }
 

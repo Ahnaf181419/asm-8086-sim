@@ -1,4 +1,5 @@
-// Curated example programs — exact course files from Resources/
+// Curated example programs — exact course files from the course materials.
+import { loadWithChunkRecovery } from '../hooks/useLazyImport'
 
 export interface Example {
   id: string
@@ -34,6 +35,7 @@ export const EXAMPLES: Example[] = [
   { id: 'seven-segment-count', name: 'Seven-Segment: count 0..7', category: 'Hardware', desc: 'Write the SEG_TABLE for digits 0..7 to 8 seven-seg displays', needsInput: false },
   { id: 'ascii-lcd-hello', name: 'ASCII LCD: three lines', category: 'Hardware', desc: 'Write a three-row message to the 3 × 16 character LCD', needsInput: false },
   { id: 'led-knight-rider', name: 'LEDs: Knight Rider sweep', category: 'Hardware', desc: 'Single lit LED sweeps across the 8-LED bank with a software delay', needsInput: false },
+  { id: 'led-bounce', name: 'LEDs: ping-pong bounce', category: 'Hardware', desc: 'One lamp runs up, turns round at LED 7, runs back down — a direction flag in BL', needsInput: false },
   { id: 'led-echo-switches', name: 'LEDs: echo from switches', category: 'Hardware', desc: 'Read the 8 slide switches into LEDs in an infinite loop', needsInput: false },
   { id: 'keyboard-to-lcd', name: 'Keyboard → LCD', category: 'Hardware', desc: 'Poll 2083H, read the key index from 2082H, translate to ASCII, acknowledge via 2083H', needsInput: false },
   { id: 'thermometer-to-7seg', name: 'Thermometer → 7-Segment', category: 'Hardware', desc: 'Read the thermometer byte, look up low nibble in SEG_TABLE', needsInput: false },
@@ -90,7 +92,12 @@ const sourceLoaders = import.meta.glob('./asm/*.asm', {
   eager: false,
 }) as Record<string, () => Promise<string>>
 
+// Wrapped in the same chunk-failure recovery the lazy ROUTES use. A stale
+// deploy or a dropped connection rejects this import from the browser's module
+// map, and every call site used `void ...then()` with no catch — the picker
+// silently did nothing and an unhandled rejection hit the console.
 export async function loadExampleSource(id: string): Promise<string | undefined> {
   const loader = sourceLoaders[`./asm/${id}.asm`]
-  return loader ? await loader() : undefined
+  if (!loader) return undefined
+  return loadWithChunkRecovery(loader)
 }

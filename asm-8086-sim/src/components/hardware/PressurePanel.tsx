@@ -46,7 +46,7 @@ export function PressurePanel({
 
   return (
     <div className="hw-gauge-wrap">
-      <svg viewBox="0 0 120 120" preserveAspectRatio="xMidYMid meet" aria-label="pressure gauge">
+      <svg role="img" viewBox="0 0 120 120" preserveAspectRatio="xMidYMid meet" aria-label="pressure gauge">
         {/* background arc */}
         <path d={arcPath} style={{ stroke: 'var(--border)' }} strokeWidth={10} fill="none" strokeLinecap="round" />
         {/* filled arc */}

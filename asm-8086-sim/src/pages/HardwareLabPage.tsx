@@ -5,6 +5,7 @@ import { IO_PORT_MAP } from '../data/reference'
 export default function HardwareLabPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 10, minHeight: 0 }}>
+      <h1 className="sr-only">Hardware Lab — MDA-8086 Emulation Kit with nine peripherals</h1>
       <TerminalPanel title="HARDWARE LAB — Emulation Kit (9 peripherals)" style={{ flex: '1 1 auto', minHeight: 0 }}>
         <HardwareLab />
       </TerminalPanel>

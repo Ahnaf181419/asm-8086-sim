@@ -1,5 +1,6 @@
 import { useState, type KeyboardEvent } from 'react'
 import type { MachineSnapshot } from '../engine/cpu'
+import { parseRegValue } from './parseRegValue'
 
 const REGS16 = ['AX', 'BX', 'CX', 'DX', 'SI', 'DI', 'BP', 'SP'] as const
 
@@ -19,8 +20,8 @@ const FLAGS: [string, string][] = [
 
 const FLAG_TOOLTIPS: Record<string, string> = {
   of: 'OF (Overflow): 1 if signed operation caused two’s complement overflow',
-  df: 'DF (Direction): 0 = string ops auto-increment (CLD), 1 = auto-decrement (STD)',
-  if: 'IF (Interrupt): 1 = CPU responds to maskable external interrupts (STI/CLI)',
+  df: 'DF (Direction): 0 = string ops auto-increment (CLD), 1 = auto-decrement (STD). STD/CLD set it here, but no string instruction reads it yet.',
+  if: 'IF (Interrupt): 1 = CPU responds to maskable external interrupts. Not modelled — this simulator has no STI/CLI and no interrupt controller, so IF always reads 0.',
   sf: 'SF (Sign): 1 if MSB of result is 1 (negative in two’s complement)',
   zf: 'ZF (Zero): 1 if arithmetic/logical result is zero (JE, JZ)',
   af: 'AF (Auxiliary): 1 if carry occurred from bit 3 to bit 4 (BCD / DAA / DAS)',
@@ -50,18 +51,16 @@ export default function RegisterPanel({
     setEditVal(hex4(curVal))
   }
 
+  // The field is prefilled in hex, so hex is the default reading: "10" is
+  // 0010H. That was true before and silently surprising — typing 19 stored
+  // 25 — because nothing on screen said so and the decimal branch was
+  // unreachable for any non-negative input. Decimal is now explicit (a d
+  // suffix, or a leading sign) and parseRegValue is exported so the rule is
+  // testable rather than buried in a handler.
   const saveEdit = (name: string) => {
     if (!onSetReg) return
-    let parsed = NaN
-    const t = editVal.trim()
-    if (/^[0-9a-fA-F]+h?$/i.test(t)) {
-      parsed = parseInt(t.replace(/h$/i, ''), 16)
-    } else if (/^-?\d+$/.test(t)) {
-      parsed = parseInt(t, 10)
-    }
-    if (!isNaN(parsed)) {
-      onSetReg(name, parsed & 0xffff)
-    }
+    const parsed = parseRegValue(editVal)
+    if (parsed !== null) onSetReg(name, parsed & 0xffff)
     setEditingReg(null)
   }
 
@@ -103,16 +102,20 @@ export default function RegisterPanel({
                   onChange={(e) => setEditVal(e.target.value)}
                   onBlur={() => saveEdit(name)}
                   onKeyDown={(e) => onEditKeyDown(e, name)}
+                  aria-label={`${name} value — hex, or add d for decimal`}
+                  title="hex by default · 100d or -5 for decimal · Esc to cancel"
                 />
               ) : (
-                <span
-                  className="reg-hex"
-                  title={onSetReg ? 'Click to edit register value' : undefined}
-                  style={onSetReg ? { cursor: 'pointer', borderBottom: '1px dashed var(--border-bright)' } : undefined}
+                <button
+                  type="button"
+                  className={`reg-hex${onSetReg ? ' reg-hex-edit' : ''}`}
+                  title={onSetReg ? `Edit ${name} — hex, or a leading - for decimal` : undefined}
+                  aria-label={onSetReg ? `${name} = ${hex4(v)}H, edit` : undefined}
+                  disabled={!onSetReg}
                   onClick={() => startEdit(name, v)}
                 >
                   {hex4(v)}
-                </span>
+                </button>
               )}
               {name === 'AX' || name === 'BX' || name === 'CX' || name === 'DX' ? (
                 <span className="reg-byte">

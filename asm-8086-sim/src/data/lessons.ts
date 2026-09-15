@@ -1162,6 +1162,44 @@ DELAY:
     LOOP DELAY
     ROR AL, 1            ; bit 0 rotates back into bit 7
     JMP STEP` },
+      { t: 'p', html: 'Both chases <b>wrap</b>: the lamp leaves one end and reappears at the other. A <b>ping-pong bounce</b> turns round instead, and that needs something the pattern byte cannot hold — <code>00010000</code> looks identical going up and going down, so the program has to remember its own direction.' },
+      { t: 'code', title: 'Ping-pong bounce: a direction flag in BL', exampleId: 'led-bounce', code: `.MODEL SMALL
+.STACK 100H
+.CODE
+MAIN PROC
+    MOV AL, 00000001B    ; start at LED 0
+    MOV BL, 0            ; 0 = moving left, 1 = moving right
+    MOV DX, 2070H
+STEP:
+    OUT DX, AL
+    MOV CX, 0FFFFH
+DELAY:
+    LOOP DELAY
+
+    CMP BL, 0
+    JNE GOING_RIGHT
+
+    CMP AL, 10000000B    ; moving left — reached the top lamp?
+    JE  TURN_RIGHT
+    SHL AL, 1
+    JMP STEP
+TURN_RIGHT:
+    MOV BL, 1
+    SHR AL, 1
+    JMP STEP
+
+GOING_RIGHT:
+    CMP AL, 00000001B    ; moving right — reached the bottom lamp?
+    JE  TURN_LEFT
+    SHR AL, 1
+    JMP STEP
+TURN_LEFT:
+    MOV BL, 0
+    SHL AL, 1
+    JMP STEP
+MAIN ENDP
+END MAIN` },
+      { t: 'note', html: 'Each turn flips the flag <b>and</b> steps in the new direction in the same frame. Flip the flag only, and the end lamp is drawn twice in a row — the bounce visibly stutters at both ends.' },
       { t: 'code', title: 'Fill the bank one lamp at a time, then drain it', exampleId: 'led-fill-drain', code: `    MOV AL, 00000001B
     MOV DX, 2070H
 FILL:
@@ -2377,6 +2415,712 @@ MAIN ENDP
 INCLUDE OUTDEC.ASM
 END MAIN`, after: '30 · 15 = 450 = 1C2H. Note how SI parks the first quotient — DIV only touches AX and DX, so BX and SI are safe scratch registers.' },
       { t: 'note', html: '<b>Rounding reality check.</b> Integer division truncates: the true average of the ten numbers is 44.2, and the F→C conversion of 110°F is 43.33 — the 8086 gives 44 and 43. If a problem asks you to round, add half the divisor first (<code>ADD AX, 5</code> before <code>DIV</code> by 10) and note it in a comment.' },
+    ],
+  },
+  // ─────────────────────────────────────────────── 23
+  {
+    id: 'led-7seg-lab',
+    num: 23,
+    title: 'Lab Plan: LED Patterns and Seven-Segment',
+    source: 'Laboratory session runsheet — draws on lessons 16 and 17',
+    blocks: [
+      { t: 'p', html: 'This is the <b>runsheet for the hardware lab</b>: write and demonstrate LED patterns and a seven-segment display. Lesson 16 teaches the LED bank and lesson 17 teaches segment encoding — this page is the working order. Both halves are graded by <b>what the program has to keep track of</b>, easiest first: fixed frames, then one moving lamp, then a lamp that needs a direction, then accumulating lamps, then arithmetic and tables. Work straight down and each step adds exactly one idea to the last.' },
+      { t: 'p', html: 'Every listing here is runnable as printed — they are checked by the test suite, so nothing on this page is pseudo-code. Open the <b>Hardware</b> tab beside it and load each one from the example picker.' },
+      { t: 'note', html: '<b>Bench setup, one minute.</b> Hardware tab &rarr; pick an example &rarr; <b>F5</b> to run, <b>F10</b> to step one instruction, <b>F4</b> to reset. The board keeps its state when you switch tabs, so <b>&#x27F2; RESET HW</b> before each demo or the previous pattern is still lit.' },
+
+      { t: 'h', text: 'The two ports, and nothing else' },
+      { t: 'table', head: ['Port', 'Device', 'Direction', 'What one byte means'], rows: [
+        ['<code>2070H</code>', 'LED bank', 'OUT', '8 lamps, bit 0 = LED&nbsp;0. A set bit lights a lamp.'],
+        ['<code>2084H</code>', 'Slide switches', 'IN', '8 switches, bit 0 = switch&nbsp;0. A set bit means up.'],
+        ['<code>2030H</code>&hellip;<code>2037H</code>', 'Seven-segment', 'OUT', 'One digit per port. Bit 0 = segment <code>a</code> &hellip; bit 6 = <code>g</code>, bit 7 = decimal point.'],
+      ] },
+      { t: 'note', html: 'Both banks are byte ports above 255, so the address will not fit an immediate: you must load it into <code>DX</code> first. <code>OUT 2070H, AL</code> is an assembly error — <code>MOV DX, 2070H</code> then <code>OUT DX, AL</code> is the only form that works.' },
+
+      { t: 'h', text: 'The shape every pattern program has' },
+      { t: 'p', html: 'All twelve patterns are the same four-step loop. Change only step 2 and you have a different pattern — that is the whole lab.' },
+      { t: 'code', title: 'The skeleton — bare trainer form, paste and run', exampleId: 'kit-led-pattern', code: `L1:
+    MOV AL, 10101010B    ; 1. build the frame in AL
+    MOV DX, 2070H        ; 2. name the port
+    OUT DX, AL           ; 3. show it
+
+    MOV CX, 0FFFFH       ; 4. hold it long enough to see
+DELAY:
+    LOOP DELAY
+
+    JMP L1` },
+      { t: 'note', html: '<b>Without the delay you see nothing.</b> The frames still change, but at machine speed all eight lamps blur into a steady half-brightness glow. If your pattern "does not work", check the delay before you check the logic. Drop the speed slider to <code>1 / frame</code> and press <b>F10</b> to watch it frame by frame.' },
+
+      { t: 'h', text: 'Part 1 — the LED pattern cookbook' },
+      { t: 'p', html: 'The patterns are ordered by <b>what you have to keep track of</b>, easiest first. Work down the list: each step adds exactly one idea to the one before it, and by the bottom you can build a pattern nobody showed you. Every entry is a runnable example — open it from the picker and read the one line that differs.' },
+      { t: 'table', head: ['#', 'Pattern', 'What you must track', 'Key instruction'], rows: [
+        ['1', 'All on &rarr; all off', 'Nothing — two fixed frames', '<code>MOV AL, 0FFH</code>'],
+        ['2', 'Blink all', 'Nothing — one byte, toggled', '<code>XOR AL, 0FFH</code>'],
+        ['3', 'Alternate swap', 'Nothing — one byte, inverted', '<code>NOT AL</code>'],
+        ['4', 'Chase left', 'The pattern byte only', '<code>ROL AL, 1</code>'],
+        ['5', 'Chase right', 'The pattern byte only', '<code>ROR AL, 1</code>'],
+        ['6', 'Sweep and restart', 'The pattern byte + the carry flag', '<code>SHL</code> then <code>JNC</code>'],
+        ['7', 'Ping-pong bounce', 'The byte <b>and a direction flag</b>', '<code>SHL</code>/<code>SHR</code> chosen by <code>BL</code>'],
+        ['8', 'Fill then drain', 'The byte + which phase you are in', '<code>SHL</code>+<code>OR</code>, then <code>SHR</code>'],
+        ['9', 'Converge', 'Two moving ends, accumulated', '<code>SHL</code> and <code>SHR</code> then <code>OR</code>'],
+        ['10', 'Binary count up', 'Nothing — the byte is the counter', '<code>INC AL</code>'],
+        ['11', 'Binary count down', 'Nothing — the byte is the counter', '<code>DEC AL</code>'],
+        ['12', 'Pseudo-random', 'The byte, fed back on itself', '<code>SHR</code> + <code>XOR</code> with a tap mask'],
+        ['13', 'Table playlist', 'A pointer into a <code>DB</code> list', '<code>MOV AL, [SI]</code> + <code>INC SI</code>'],
+        ['14', 'Echo the switches', 'Nothing — the board is the state', '<code>IN</code> then <code>OUT</code>'],
+      ] },
+
+      { t: 'h', text: 'Level 1 — fixed frames' },
+      { t: 'p', html: 'No arithmetic at all: decide the bytes in advance and write them out in order. If you can only get one pattern working, get this one working.' },
+      { t: 'code', title: '1 · All lamps on, hold, then off', exampleId: 'led-all-on', code: `    MOV AL, 11111111B
+    MOV DX, 2070H
+    OUT DX, AL
+
+    MOV CX, 0FFFFH
+D1: LOOP D1
+
+    MOV AL, 00000000B
+    OUT DX, AL` },
+      { t: 'note', html: 'This one <b>ends</b> — there is no <code>JMP</code> back, so it runs once and the machine halts. Every pattern after it loops forever, which is what the lab wants: the examiner has to be able to watch it.' },
+      { t: 'code', title: '2 · Blink: every lamp toggles each frame', exampleId: 'led-blink-all', code: `    MOV AL, 11111111B
+L1:
+    MOV DX, 2070H
+    OUT DX, AL
+    MOV CX, 0FFFFH
+D1: LOOP D1
+    XOR AL, 11111111B    ; FF <-> 00
+    JMP L1` },
+      { t: 'code', title: '3 · Alternate swap: odd lamps, then even lamps', exampleId: 'led-alternate-swap', code: `    MOV AL, 10101010B
+L1:
+    MOV DX, 2070H
+    OUT DX, AL
+    MOV CX, 0FFFFH
+D1: LOOP D1
+    NOT AL               ; AA <-> 55
+    JMP L1` },
+      { t: 'note', html: '<code>XOR AL, 0FFH</code> and <code>NOT AL</code> do exactly the same thing to every bit. Use <code>NOT</code> when you mean "the opposite pattern"; use <code>XOR</code> when you want to flip only <i>some</i> bits — <code>XOR AL, 00001111B</code> toggles the bottom four and leaves the top four alone. That is the difference the examiner is testing.' },
+
+      { t: 'h', text: 'Level 2 — one moving lamp' },
+      { t: 'p', html: 'Now the byte changes shape each frame. <b>Rotate</b> moves a lamp and wraps it round the ends; <b>shift</b> moves it and drops it off the edge.' },
+      { t: 'code', title: '4 · Chase left: a lamp runs LED 0 &rarr; LED 7 and wraps', exampleId: 'led-chase-left', code: `    MOV AL, 00000001B    ; LED 0 lit
+L1:
+    MOV DX, 2070H
+    OUT DX, AL
+    MOV CX, 0FFFFH
+D1: LOOP D1
+    ROL AL, 1            ; bit 7 wraps round to bit 0
+    JMP L1` },
+      { t: 'code', title: '5 · Chase right: the same, downward', exampleId: 'led-chase-right', code: `    MOV AL, 10000000B    ; LED 7 lit
+L1:
+    MOV DX, 2070H
+    OUT DX, AL
+    MOV CX, 0FFFFH
+D1: LOOP D1
+    ROR AL, 1            ; bit 0 wraps round to bit 7
+    JMP L1` },
+      { t: 'note', html: '<b>Why <code>ROL</code> and not <code>SHL</code>.</b> <code>SHL</code> pushes the lit bit off the top and feeds in a zero, so after eight frames the bank goes dark and <i>stays</i> dark. <code>ROL</code> carries bit 7 round to bit 0, so the chase runs forever with no extra code. If your chase dies after one pass, this is why.' },
+      { t: 'code', title: '6 · Sweep and restart: SHL, then catch the fall-off with CF', exampleId: 'led-knight-rider', code: `    MOV BL, 01H
+SWEEP:
+    MOV DX, 2070H
+    MOV AL, BL
+    OUT DX, AL
+    MOV CX, 0FFFFH
+DELAY:
+    LOOP DELAY
+    SHL BL, 1
+    JNC SWEEP            ; CF=0 -> the lamp is still on the bank
+    MOV BL, 01H          ; CF=1 -> it fell off the top, start again
+    JMP SWEEP` },
+      { t: 'note', html: 'On the board this looks <b>identical</b> to the <code>ROL</code> chase — and that is the point worth understanding. <code>ROL</code> gets the wrap for free in one instruction; <code>SHL</code> + <code>JNC</code> costs three, but hands you an explicit "the lamp just reached the end" moment. You only need that when something has to <i>happen</i> at the end — which is exactly the next pattern.' },
+
+      { t: 'h', text: 'Level 3 — the program has to remember something' },
+      { t: 'p', html: 'Everything so far was decidable from the pattern byte alone. A <b>bounce</b> is not: <code>00010000</code> looks the same whether the lamp is travelling up or down, so the program has to carry that fact itself. One register holds the direction, and the end-of-run test flips it.' },
+      { t: 'code', title: '7 · Ping-pong bounce: a direction flag in BL', exampleId: 'led-bounce', code: `    MOV AL, 00000001B    ; start at LED 0
+    MOV BL, 0            ; 0 = moving left, 1 = moving right
+    MOV DX, 2070H
+STEP:
+    OUT DX, AL
+    MOV CX, 0FFFFH
+DELAY:
+    LOOP DELAY
+
+    CMP BL, 0
+    JNE GOING_RIGHT
+
+    CMP AL, 10000000B    ; moving left — at the top lamp?
+    JE  TURN_RIGHT
+    SHL AL, 1
+    JMP STEP
+TURN_RIGHT:
+    MOV BL, 1            ; remember the new direction
+    SHR AL, 1
+    JMP STEP
+
+GOING_RIGHT:
+    CMP AL, 00000001B    ; moving right — at the bottom lamp?
+    JE  TURN_LEFT
+    SHR AL, 1
+    JMP STEP
+TURN_LEFT:
+    MOV BL, 0
+    SHL AL, 1
+    JMP STEP` },
+      { t: 'note', html: 'Note that each turn <b>flips the flag and steps in the new direction in the same frame</b>. If you only flip the flag, the end lamp is drawn twice in a row and the bounce visibly stutters at both ends. That stutter is the single most common bug in this pattern.' },
+
+      { t: 'h', text: 'Level 4 — lamps that accumulate' },
+      { t: 'p', html: 'Up to now exactly one lamp was lit. To make lamps <i>pile up</i>, <code>OR</code> the new position into the pattern instead of replacing it.' },
+      { t: 'code', title: '8 · Fill the bank one lamp at a time, then drain it', exampleId: 'led-fill-drain', code: `    MOV AL, 00000001B
+    MOV DX, 2070H
+FILL:
+    OUT DX, AL
+    MOV CX, 0FFFFH
+DELAY:
+    LOOP DELAY
+    SHL AL, 1
+    OR  AL, 00000001B    ; keep every lamp below the new one lit
+    JNC FILL             ; CF=1 -> the bank is full, start draining
+
+DRAIN:
+    OUT DX, AL
+    MOV CX, 0FFFFH
+DELAY2:
+    LOOP DELAY2
+    SHR AL, 1
+    JNZ DRAIN            ; AL = 0 -> the bank is empty
+    MOV AL, 00000001B
+    JMP FILL` },
+      { t: 'note', html: 'Two phases, two delay loops, two different exit tests — <code>JNC</code> to leave the fill (the carry falls out of the top) and <code>JNZ</code> to leave the drain (the byte reaches zero). Reusing one label for both delays is fine; reusing one <i>exit test</i> is not.' },
+      { t: 'code', title: '9 · Converge: both ends march inward until the bank is full', exampleId: 'led-converge', code: `    MOV AL, 10000001B    ; both end lamps
+    MOV DX, 2070H
+STEP:
+    OUT DX, AL
+    MOV CX, 0FFFFH
+DELAY:
+    LOOP DELAY
+    MOV AH, AL
+    MOV BL, AL
+    SHL AH, 1            ; the left end moves right
+    SHR BL, 1            ; the right end moves left
+    OR  AL, AH
+    OR  AL, BL           ; keep everything already lit
+    CMP AL, 11111111B
+    JNE STEP
+    MOV AL, 10000001B    ; full — reset and converge again
+    JMP STEP` },
+
+      { t: 'h', text: 'Level 5 — arithmetic and data' },
+      { t: 'p', html: 'The bank is eight bits, so any byte is a valid frame. Count in it, or feed it from a table.' },
+      { t: 'code', title: '10 · Binary count up', exampleId: 'led-count-up', code: `    MOV AL, 0
+L1:
+    MOV DX, 2070H
+    OUT DX, AL
+    MOV CX, 0FFFFH
+D1: LOOP D1
+    INC AL               ; 00 -> FF, then wraps round
+    JMP L1` },
+      { t: 'code', title: '11 · Binary count down', exampleId: 'led-count-down', code: `    MOV AL, 0FFH
+L1:
+    MOV DX, 2070H
+    OUT DX, AL
+    MOV CX, 0FFFFH
+D1: LOOP D1
+    DEC AL
+    JMP L1` },
+      { t: 'note', html: 'Watch LED 0 on the counter: it changes every frame, LED 1 every second frame, LED 2 every fourth. The bank is showing you binary place value directly — which is usually the answer when the examiner asks what this pattern demonstrates.' },
+      { t: 'code', title: '12 · Pseudo-random lamps (8-bit LFSR)', exampleId: 'led-random', code: `    MOV AL, 01H          ; the seed must not be zero
+L1:
+    MOV DX, 2070H
+    OUT DX, AL
+    MOV CX, 0FFFFH
+D1: LOOP D1
+    SHR AL, 1
+    JNC L1               ; bit shifted out was 0 -> no feedback
+    XOR AL, 10111000B    ; bit was 1 -> XOR the tap mask back in
+    JMP L1` },
+      { t: 'note', html: 'A <b>linear-feedback shift register</b>. It looks random but repeats after 255 frames, and a seed of <code>00000000</code> is a trap — zero shifts to zero forever and the bank stays dark. Always seed it non-zero.' },
+      { t: 'p', html: 'The last pattern stops hard-coding the show. Put the frames in a <code>DB</code> list and walk it with <code>SI</code>: adding a frame becomes editing data, not editing code. This one needs <code>.DATA</code>, so it must be written in full MASM form rather than bare.' },
+      { t: 'code', title: '13 · Table-driven playlist', exampleId: 'led-playlist', code: `.MODEL SMALL
+.STACK 100H
+.DATA
+    SHOW DB 10000001B, 11000011B, 01100110B
+         DB 11100111B, 00011000B, 11111111B
+    LEN  EQU 6
+.CODE
+MAIN PROC
+    MOV AX, @DATA
+    MOV DS, AX
+    MOV DX, 2070H
+FOREVER:
+    LEA SI, SHOW
+    MOV CX, LEN
+NEXT:
+    MOV AL, [SI]
+    OUT DX, AL
+    PUSH CX              ; the delay clobbers CX — save the frame counter
+    MOV CX, 0FFFFH
+DELAY:
+    LOOP DELAY
+    POP CX
+    INC SI
+    LOOP NEXT
+    JMP FOREVER
+MAIN ENDP
+END MAIN` },
+      { t: 'note', html: '<b>Two loops, one CX.</b> <code>LOOP</code> always counts <code>CX</code> down, so the inner delay would destroy the outer frame counter. <code>PUSH CX</code> / <code>POP CX</code> around the delay is the fix, and forgetting it is the classic nested-loop bug — the show either runs once or never advances.' },
+
+      { t: 'h', text: 'Level 6 — the board as input' },
+      { t: 'code', title: '14 · Echo the slide switches onto the LEDs', exampleId: 'led-echo-switches', code: `ECHO:
+    MOV DX, 2084H        ; switches IN
+    IN  AL, DX
+    MOV DX, 2070H        ; LEDs OUT
+    OUT DX, AL
+    JMP ECHO` },
+      { t: 'note', html: 'Two different <code>MOV DX</code> loads, because <code>DX</code> names the port for whichever transfer comes next and the CPU does not remember which was which. Drop the second one and you write the lamp pattern back to the switch port, where nothing is listening — the bank stays dark and the code looks correct.' },
+
+      { t: 'h', text: 'Writing a pattern nobody showed you' },
+      { t: 'p', html: 'This is what the examiner asks after your demo runs. Every pattern above is the same skeleton with a different step 1, so answer in that order:' },
+      { t: 'ul', items: [
+        '<b>Can I list the frames?</b> If there are only a few, put them in a <code>DB</code> table and use pattern 13. This always works and is never wrong.',
+        '<b>Is each frame the previous one moved?</b> Rotate (<code>ROL</code>/<code>ROR</code>) to wrap, shift (<code>SHL</code>/<code>SHR</code>) to fall off the end and catch it with <code>JNC</code>.',
+        '<b>Do lamps stay lit once they come on?</b> <code>OR</code> the new lamp in instead of replacing the byte.',
+        '<b>Does it depend on which way I am going?</b> Then it needs a direction register, like pattern 7 — the byte alone cannot tell you.',
+        '<b>Is it a number?</b> <code>INC</code>, <code>DEC</code>, <code>ADD</code> — the bank is just eight bits, and any arithmetic is a legal frame.',
+      ] },
+      { t: 'note', html: '<b>Bare or full MASM?</b> Patterns 1–12 and 14 are shown in <b>bare trainer form</b> — paste and run, no scaffolding. Pattern 13 needs <code>.DATA</code> for its table, and a data segment requires the full <code>.MODEL SMALL</code> / <code>.CODE</code> / <code>PROC</code> / <code>END</code> form. If you add a table to a bare program it will not assemble; press <b>&#x2728; Add Boilerplate</b> in the Hardware tab to convert it first.' },
+
+      { t: 'h', text: 'Part 2 — seven-segment' },
+      { t: 'p', html: 'A digit is one byte on one port. Bit 0 is segment <code>a</code> at the top, running clockwise through <code>b</code>, <code>c</code>, <code>d</code>, <code>e</code> to bit 5 = <code>f</code>, with bit 6 = <code>g</code> the middle bar and bit 7 the decimal point. So <b>0</b> is every segment except the middle: <code>00111111</code> = <code>3FH</code>. You do not derive these in the lab — you copy the table into <code>.DATA</code> and index it.' },
+      { t: 'table', head: ['Digit', 'Byte', 'Digit', 'Byte', 'Digit', 'Byte', 'Digit', 'Byte'], rows: [
+        ['0', '<code>3FH</code>', '4', '<code>66H</code>', '8', '<code>7FH</code>', 'C', '<code>39H</code>'],
+        ['1', '<code>06H</code>', '5', '<code>6DH</code>', '9', '<code>6FH</code>', 'D', '<code>5EH</code>'],
+        ['2', '<code>5BH</code>', '6', '<code>7DH</code>', 'A', '<code>77H</code>', 'E', '<code>79H</code>'],
+        ['3', '<code>4FH</code>', '7', '<code>07H</code>', 'B', '<code>7CH</code>', 'F', '<code>71H</code>'],
+      ] },
+      { t: 'note', html: '<b>Which display is which.</b> The eight ports run <code>2030H</code>&hellip;<code>2037H</code> <b>left to right</b>: <code>2030H</code> is the leftmost digit. When you show a number, the <i>most significant</i> digit goes to the <i>lowest</i> port. Reversing it is the single most common seven-segment mistake, and the code looks perfectly correct either way.' },
+
+      { t: 'h', text: 'Level 1 — one digit, standing still' },
+      { t: 'code', title: '1 · Show digit 0 on the first display', exampleId: 'kit-7seg-active-low', code: `L1:
+    MOV AL, 00111111B    ; 3FH — every segment except g
+    MOV DX, 2030H        ; leftmost display
+    OUT DX, AL
+    JMP L1` },
+      { t: 'note', html: '<b>The active-low trap.</b> Some trainer boards sink current instead of sourcing it, so a <b>0</b> bit lights a segment: your "0" shows up as a lit middle bar with everything else dark — the exact photographic negative of what you drew. The fix is one instruction, <code>NOT AL</code> before the <code>OUT</code>. If your digit looks inverted, that is what happened; nothing else in your code is wrong.' },
+      { t: 'code', title: '2 · Alternate between two digits on one display', exampleId: 'kit-7seg-cycle', code: `L1:
+    MOV AL, 3FH          ; 0
+    MOV DX, 2030H
+    OUT DX, AL
+    MOV CX, 0FFFFH
+D1: LOOP D1
+
+    MOV AL, 06H          ; 1
+    OUT DX, AL
+    MOV CX, 0FFFFH
+D2: LOOP D2
+    JMP L1` },
+
+      { t: 'h', text: 'Level 2 — many displays, from a table' },
+      { t: 'p', html: 'Never write sixteen <code>CMP</code>/<code>JE</code> pairs. Put <code>SEG_TABLE</code> in <code>.DATA</code> and walk it. Because the display ports are <b>consecutive</b>, one <code>INC SI</code> and one <code>INC DX</code> advance the digit and the display together — that pairing is the whole trick.' },
+      { t: 'code', title: '3 · Count 0..7 across the eight displays', exampleId: 'seven-segment-count', code: `.MODEL SMALL
+.STACK 100H
+.DATA
+    SEG_TABLE DB 3FH, 06H, 5BH, 4FH, 66H, 6DH, 7DH, 07H
+.CODE
+MAIN PROC
+    MOV AX, @DATA
+    MOV DS, AX
+
+    MOV CX, 8
+    LEA SI, SEG_TABLE
+    MOV DX, 2030H        ; base port of the seven-segment block
+WRITE_LOOP:
+    MOV AL, [SI]         ; next segment byte
+    OUT DX, AL
+    INC SI               ; next table entry
+    INC DX               ; next display
+    LOOP WRITE_LOOP
+
+    HLT
+MAIN ENDP
+END MAIN` },
+      { t: 'note', html: '<code>MOV AL, SI</code> is <b>not</b> how you read the table — that is an operand size mismatch (<code>AL</code> is 8-bit, <code>SI</code> is 16-bit) and the assembler rejects it. <code>SI</code> holds an <i>address</i>; <code>[SI]</code> is the byte living there.' },
+
+      { t: 'h', text: 'Level 3 — looking up a digit you computed' },
+      { t: 'p', html: 'Walking a table works when you want entry 0, then 1, then 2. When you have a <i>value</i> and need its segment byte, you want a <b>lookup</b>. Two ways, both one line:' },
+      { t: 'table', head: ['Form', 'Meaning', 'Cost'], rows: [
+        ['<code>LEA BX, SEG_TABLE</code><br><code>XLAT</code>', 'AL &larr; the byte at <code>BX + AL</code>', 'One instruction, but it overwrites <code>AL</code> — save the digit first if you still need it'],
+        ['<code>MOV AL, SEG_TABLE[BX]</code>', 'AL &larr; the byte at <code>SEG_TABLE + BX</code>', 'Reads more clearly and leaves <code>BX</code> as the index'],
+      ] },
+      { t: 'code', title: '4 · A live sensor value on the display', exampleId: 'thermometer-to-7seg', code: `.MODEL SMALL
+.DATA
+    SEG_TABLE DB 3FH, 06H, 5BH, 4FH, 66H, 6DH, 7DH, 07H, 7FH, 6FH
+              DB 77H, 7CH, 39H, 5EH, 79H, 71H     ; A..F
+.CODE
+MAIN PROC
+    MOV AX, @DATA
+    MOV DS, AX
+READ:
+    MOV DX, 2086H        ; thermometer
+    IN  AL, DX
+    AND AL, 0FH          ; low nibble -> a single hex digit 0..F
+    LEA BX, SEG_TABLE
+    XLAT                 ; AL = SEG_TABLE[AL]
+    MOV DX, 2030H
+    OUT DX, AL
+    JMP READ
+MAIN ENDP
+END MAIN` },
+      { t: 'note', html: 'The <code>AND AL, 0FH</code> is not decoration. The sensor returns a full byte; <code>SEG_TABLE</code> has sixteen entries. Index it with anything larger and <code>XLAT</code> happily reads whatever byte follows the table in memory and lights a meaningless pattern. <b>Mask before you index</b> — every lookup in this lab needs it.' },
+
+      { t: 'h', text: 'Level 4 — showing a whole number' },
+      { t: 'p', html: 'This is the one the lab actually asks for: put a computed result — <code>30</code>, <code>1440</code>, <code>5018</code> — on the display block. You cannot show a number; you can only show digits, so you have to take it apart.' },
+      { t: 'p', html: 'Divide by 10 repeatedly: each remainder is the next digit, and they come out <b>backwards</b> (units first). Rather than reversing them by hand, <b>push each one on the stack</b> — popping returns them in the opposite order, which is the order the displays want. The stack is doing the reversal for free.' },
+      { t: 'code', title: '5 · A computed result across as many displays as it needs', exampleId: 'practice-fac-sum-7seg', code: `.MODEL SMALL
+.STACK 100H
+.DATA
+    SEG_TABLE DB 3FH, 06H, 5BH, 4FH, 66H, 6DH, 7DH, 07H, 7FH, 6FH
+.CODE
+MAIN PROC
+    MOV AX, @DATA
+    MOV DS, AX
+
+    MOV AX, 30           ; the value to display
+
+    MOV BX, 10
+    XOR CX, CX           ; CX counts the digits we push
+DIVLP:
+    XOR DX, DX           ; DX:AX / 10 -> AX = quotient, DX = remainder
+    DIV BX
+    PUSH DX              ; stack the digit (units pushed first)
+    INC CX
+    OR  AX, AX
+    JNE DIVLP            ; keep going until the quotient is 0
+
+    MOV DX, 2030H        ; leftmost display
+OUTLP:
+    POP BX               ; first pop = most significant digit
+    MOV AL, SEG_TABLE[BX]
+    OUT DX, AL
+    INC DX               ; next display to the right
+    LOOP OUTLP
+
+    HLT
+MAIN ENDP
+END MAIN` },
+      { t: 'note', html: '<code>DIV BX</code> is a <b>word</b> divide, so it uses <code>DX:AX</code> — and that is why <code>XOR DX, DX</code> sits at the top of the loop. Forget it and the leftover remainder from the previous iteration becomes the high half of your dividend, giving a divide overflow or nonsense digits. Clear <code>DX</code> before every word <code>DIV</code>.' },
+      { t: 'p', html: 'Once that display half works, <b>stop rewriting it</b>. Lift it into a procedure and every later problem is "compute a number in <code>AX</code>, then <code>CALL SHOW_NUM</code>". The version below does exactly that and is the shape to bring to the lab.' },
+      { t: 'code', title: '6 · The reusable shape: compute in AX, then CALL SHOW_NUM', exampleId: 'practice-fac-mul-7seg', code: `.MODEL SMALL
+.STACK 100H
+.DATA
+    SEG_TABLE DB 3FH, 06H, 5BH, 4FH, 66H, 6DH, 7DH, 07H, 7FH, 6FH
+.CODE
+MAIN PROC
+    MOV AX, @DATA
+    MOV DS, AX
+
+    ; ---- the only part that changes between problems ----
+    MOV CX, 1
+    CALL FACT            ; 1! = 1
+    MOV BX, AX
+    MOV CX, 2
+    CALL FACT            ; 2! = 2
+    MUL BX               ; 1! x 2! = 2
+    MOV BX, AX
+    MOV CX, 6
+    CALL FACT            ; 6! = 720
+    MUL BX               ; x 2 = 1440
+    ; -----------------------------------------------------
+
+    CALL SHOW_NUM        ; 1440 -> four displays from 2030H
+    HLT
+MAIN ENDP
+
+; AX = n  ->  AX = n!
+FACT PROC
+    MOV AX, 1
+NEXT:
+    MUL CX
+    LOOP NEXT
+    RET
+FACT ENDP
+
+; AX = the number to display, left-aligned from 2030H
+SHOW_NUM PROC
+    MOV BX, 10
+    XOR CX, CX
+DIVLP:
+    XOR DX, DX           ; clear the high half before every word DIV
+    DIV BX
+    PUSH DX              ; stack the digit, units first
+    INC CX
+    OR  AX, AX
+    JNE DIVLP
+
+    MOV DX, 2030H
+OUTLP:
+    POP BX               ; first pop = most significant digit
+    MOV AL, SEG_TABLE[BX]
+    OUT DX, AL
+    INC DX
+    LOOP OUTLP
+    RET
+SHOW_NUM ENDP
+END MAIN` },
+      { t: 'p', html: 'Four more worked problems use that identical <code>SHOW_NUM</code> and change only the arithmetic block. Each is in the example picker; lesson 22 derives the arithmetic.' },
+      { t: 'table', head: ['Problem', 'Result', 'Displays used', 'Example'], rows: [
+        ['3! + 4!', '30', '2', '<b>7-Seg: 3! + 4!</b>'],
+        ['(4! + 3!) &minus; 2!', '28', '2', '<b>7-Seg: (4! + 3!) &minus; 2!</b>'],
+        ['(1! &times; 2!) &times; 6!', '1440', '4', '<b>7-Seg: (1! &times; 2!) &times; 6!</b>'],
+        ['7! &minus; 4! + 2!', '5018', '4', '<b>7-Seg: 7! &minus; 4! + 2!</b>'],
+        ['Tiles for an 80&times;80 floor', '400', '3', '<b>7-Seg: tiles 80&times;80</b>'],
+      ] },
+      { t: 'note', html: 'The tiles problem hides a byte/word trap: <code>DIV BL</code> is a <b>byte</b> divide, so it leaves the quotient in <code>AL</code> and the <i>remainder</i> in <code>AH</code>. Feeding <code>AX</code> straight into <code>MUL</code> afterwards multiplies by that stray remainder. Clear it with <code>MOV AH, 0</code> before you use the result as a word.' },
+
+      { t: 'h', text: 'Answering "now make it show something else"' },
+      { t: 'ul', items: [
+        '<b>One fixed digit?</b> Copy its byte from the table and <code>OUT</code> it. Level 1.',
+        '<b>A digit you worked out?</b> Mask it to 0..F, then <code>XLAT</code>. Level 3.',
+        '<b>A number bigger than 9?</b> <code>DIV</code> by 10 in a loop, <code>PUSH</code> each remainder, <code>POP</code> them onto consecutive ports. Level 4 — and this is the answer that covers every case.',
+        '<b>Which display first?</b> Lowest port is leftmost, so the most significant digit goes to <code>2030H</code>.',
+        '<b>Digit looks inverted?</b> The board is active-low. <code>NOT AL</code> before the <code>OUT</code>.',
+      ] },
+
+      { t: 'h', text: 'Part 3 — driving the board through the 8255' },
+      { t: 'p', html: 'Some kits route the LEDs and displays through an <b>8255 PPI</b> instead of the direct ports: port A (<code>19H</code>) feeds the seven-segment, port B (<code>1BH</code>) feeds the LEDs, and the control register (<code>1FH</code>) has to be programmed first. If your board is wired this way the direct addresses do nothing at all.' },
+      { t: 'code', title: '8255 PPI: set the mode, then drive both devices', exampleId: 'kit-8255-ppi', code: `    MOV AL, 10000000B    ; all ports output, mode 0
+    OUT 1FH, AL          ; control register
+
+    MOV AL, 3FH          ; digit 0
+    OUT 19H, AL          ; port A -> seven-segment
+
+    MOV AL, 10101010B
+    OUT 1BH, AL          ; port B -> LEDs` },
+      { t: 'note', html: 'These four ports are below 256, so here the immediate form <code>OUT 1FH, AL</code> <b>is</b> legal — and it is the only place in this lab where it is. Everything on the <code>2000H</code> block still needs <code>DX</code>.' },
+
+      { t: 'h', text: 'Before you demonstrate' },
+      { t: 'ul', items: [
+        '<b>Reset the board</b> between programs, or the last pattern is still lit under the new one.',
+        '<b>Know your delay.</b> Be ready to answer "what happens if you remove it" — the answer is that the lamps blur to a constant glow, not that nothing changes.',
+        '<b>Name your key instruction.</b> For each pattern, one instruction does the work: <code>ROL</code>, <code>NOT</code>, <code>XOR</code>, <code>INC</code>. That is the question you will be asked.',
+        '<b>Know which patterns need memory.</b> Everything up to the chases works from the pattern byte alone; the bounce needs a direction register, and fill/drain needs to know its phase. "Why does this one need an extra register?" is the follow-up question.',
+        '<b>Left is the low port.</b> <code>2030H</code> is the leftmost display, so the most significant digit goes there. Check it on the board before you call the demonstrator over.',
+        '<b>Have the table, not the arithmetic.</b> Nobody derives <code>6DH</code> under examination — write <code>SEG_TABLE</code> into your <code>.DATA</code> and index it.',
+        '<b>Check <code>DX</code> before every <code>OUT</code>.</b> Reading a switch and then writing a lamp needs two different loads; a forgotten second <code>MOV DX</code> sends your pattern to the input port.',
+      ] },
+
+      { t: 'practice',
+        q: 'Build the seven-segment byte for <b>5</b> from its segments (<code>a</code>, <code>c</code>, <code>d</code>, <code>f</code>, <code>g</code>) one bit at a time, and print it as hex. Check it against the table.',
+        hint: 'Start from <code>0</code> and <code>OR</code> in one mask per lit segment. Segment <code>a</code> is bit 0, so <code>00000001B</code>; <code>g</code> is bit 6, so <code>01000000B</code>.',
+        solution: `; Build the seven-segment byte for '5' one segment at a time.
+; 5 lights a, c, d, f, g -> bits 0, 2, 3, 5, 6 -> 01101101b = 6DH
+.MODEL SMALL
+.STACK 100H
+.DATA
+    MSG   DB 'SEG(5) = $'
+    HEXD  DB '0123456789ABCDEF'
+.CODE
+MAIN PROC
+    MOV AX, @DATA
+    MOV DS, AX
+
+    LEA DX, MSG
+    MOV AH, 9
+    INT 21H
+
+    MOV AL, 0
+    OR  AL, 00000001B    ; segment a  (bit 0)
+    OR  AL, 00000100B    ; segment c  (bit 2)
+    OR  AL, 00001000B    ; segment d  (bit 3)
+    OR  AL, 00100000B    ; segment f  (bit 5)
+    OR  AL, 01000000B    ; segment g  (bit 6)
+
+    CALL PUTHEX          ; prints 6D
+    MOV AH, 4CH
+    INT 21H
+MAIN ENDP
+
+; Print AL as two hex digits.
+; DH carries the byte across the calls: PUTNIB needs BX for XLAT, so a copy
+; stashed in BL would be destroyed by the first call.
+PUTHEX PROC
+    PUSH AX
+    PUSH BX
+    PUSH CX
+    PUSH DX
+    MOV DH, AL
+    MOV CL, 4
+    SHR AL, CL           ; high nibble
+    CALL PUTNIB
+    MOV AL, DH
+    AND AL, 0FH          ; low nibble
+    CALL PUTNIB
+    POP DX
+    POP CX
+    POP BX
+    POP AX
+    RET
+PUTHEX ENDP
+
+PUTNIB PROC
+    LEA BX, HEXD
+    XLAT                 ; AL = HEXD[AL]
+    MOV DL, AL
+    MOV AH, 2
+    INT 21H
+    RET
+PUTNIB ENDP
+END MAIN`,
+        after: '<code>1 + 4 + 8 + 32 + 64 = 109 = 6DH</code>, which is the table entry. Note what <code>PUTHEX</code> has to do: <code>PUTNIB</code> needs <code>BX</code> for <code>XLAT</code>, so parking the value in <code>BL</code> would have it overwritten by the first call and the second digit would print garbage. That register-clobbering bug is the most common one in lab code — a helper quietly eats the register holding your result.' },
+
+      { t: 'practice',
+        q: 'Print the two frames of the <b>alternate swap</b> pattern — <code>10101010B</code> and its complement — then prove every lamp really does change between them.',
+        hint: '<code>NOT</code> flips all eight bits. If both frames are complements, <code>XOR</code>ing them must give <code>FFH</code>: a set bit means that lamp changed state.',
+        solution: `; The alternating LED pattern and its complement.
+; Odd lamps 10101010b = AAH; NOT gives the even lamps 01010101b = 55H.
+.MODEL SMALL
+.STACK 100H
+.DATA
+    M1    DB 'phase A = $'
+    M2    DB 0DH, 0AH, 'phase B = $'
+    M3    DB 0DH, 0AH, 'XOR check = $'
+    HEXD  DB '0123456789ABCDEF'
+.CODE
+MAIN PROC
+    MOV AX, @DATA
+    MOV DS, AX
+
+    MOV BL, 10101010B    ; phase A
+
+    LEA DX, M1
+    MOV AH, 9
+    INT 21H
+    MOV AL, BL
+    CALL PUTHEX          ; AA
+
+    NOT BL               ; phase B is the complement
+    LEA DX, M2
+    MOV AH, 9
+    INT 21H
+    MOV AL, BL
+    CALL PUTHEX          ; 55
+
+    ; A XOR B must be FF - every lamp changes state between the two frames
+    MOV AL, 10101010B
+    XOR AL, BL
+    LEA DX, M3
+    MOV AH, 9
+    INT 21H
+    CALL PUTHEX          ; FF
+
+    MOV AH, 4CH
+    INT 21H
+MAIN ENDP
+
+PUTHEX PROC
+    PUSH AX
+    PUSH BX
+    PUSH CX
+    PUSH DX
+    MOV DH, AL
+    MOV CL, 4
+    SHR AL, CL
+    CALL PUTNIB
+    MOV AL, DH
+    AND AL, 0FH
+    CALL PUTNIB
+    POP DX
+    POP CX
+    POP BX
+    POP AX
+    RET
+PUTHEX ENDP
+
+PUTNIB PROC
+    LEA BX, HEXD
+    XLAT
+    MOV DL, AL
+    MOV AH, 2
+    INT 21H
+    RET
+PUTNIB ENDP
+END MAIN`,
+        after: 'Prints <code>AA</code>, <code>55</code>, <code>FF</code>. On the board, replace the three print blocks with <code>MOV DX, 2070H</code> / <code>OUT DX, AL</code> and a delay, and you have the running pattern — the arithmetic is identical.' },
+
+      { t: 'practice',
+        q: 'A two-digit number has to appear on two seven-segment displays. Split <b>47</b> into its digits and print the <b>segment byte</b> each display would receive.',
+        hint: 'Byte <code>DIV</code> by 10 leaves the quotient (tens) in <code>AL</code> and the remainder (units) in <code>AH</code>. Feed each digit through <code>XLAT</code> against <code>SEG_TABLE</code>. Park the second digit somewhere your print helper does not touch.',
+        solution: `; Split 47 for a two-digit seven-segment display.
+; DIV 10 gives tens in AL and units in AH; XLAT turns each into its
+; SEG_TABLE byte, which is what you would OUT to 2030H and 2031H.
+.MODEL SMALL
+.STACK 100H
+.DATA
+    SEG_TABLE DB 3FH, 06H, 5BH, 4FH, 66H, 6DH, 7DH, 07H, 7FH, 6FH
+    M1        DB 'left display  2030H = $'
+    M2        DB 0DH, 0AH, 'right display 2031H = $'
+    HEXD      DB '0123456789ABCDEF'
+.CODE
+MAIN PROC
+    MOV AX, @DATA
+    MOV DS, AX
+
+    MOV AX, 47
+    MOV BL, 10
+    DIV BL               ; AL = 4 (tens), AH = 7 (units)
+    MOV CH, AH           ; park the units digit - PUTHEX uses DH
+
+    LEA BX, SEG_TABLE
+    XLAT                 ; AL = SEG_TABLE[4] = 66H
+    LEA DX, M1
+    PUSH AX
+    MOV AH, 9
+    INT 21H
+    POP AX
+    CALL PUTHEX          ; 66  -> OUT 2030H, AL  (leftmost)
+
+    MOV AL, CH
+    LEA BX, SEG_TABLE
+    XLAT                 ; AL = SEG_TABLE[7] = 07H
+    LEA DX, M2
+    PUSH AX
+    MOV AH, 9
+    INT 21H
+    POP AX
+    CALL PUTHEX          ; 07  -> OUT 2031H, AL
+
+    MOV AH, 4CH
+    INT 21H
+MAIN ENDP
+
+PUTHEX PROC
+    PUSH AX
+    PUSH BX
+    PUSH CX
+    PUSH DX
+    MOV DH, AL
+    MOV CL, 4
+    SHR AL, CL
+    CALL PUTNIB
+    MOV AL, DH
+    AND AL, 0FH
+    CALL PUTNIB
+    POP DX
+    POP CX
+    POP BX
+    POP AX
+    RET
+PUTHEX ENDP
+
+PUTNIB PROC
+    LEA BX, HEXD
+    XLAT
+    MOV DL, AL
+    MOV AH, 2
+    INT 21H
+    RET
+PUTNIB ENDP
+END MAIN`,
+        after: '<code>66H</code> is a 4 and <code>07H</code> is a 7. <b>Port <code>2030H</code> is the leftmost display</b> and the ports run left to right, so the <b>tens</b> digit goes to the <b>lower</b> port: <code>2030H</code> gets 4 and <code>2031H</code> gets 7. Send them the other way round and the board reads 74 — the easiest mark to lose in the whole lab, and you cannot tell from the code alone that it is wrong.' },
+
+      { t: 'note', html: '<b>Where the full sources live.</b> Every program named here is in the example picker under <b>Hardware</b>, and lesson 16 (LEDs and switches) and lesson 17 (seven-segment displays) carry the complete listings with line-by-line commentary. This page is the order to work through them in.' },
     ],
   },
 ]

@@ -46,7 +46,10 @@ export default function Console({
 
   return (
     <div className="console-shell">
-      <div ref={bodyRef} className="console">
+      {/* role="log" + polite is the pattern for an append-only stream: the
+          status chip announces that the machine halted, but without this the
+          program's actual output was never announced at all. */}
+      <div ref={bodyRef} className="console" role="log" aria-live="polite" aria-atomic="false" aria-label="program output">
         {norm.length === 0 ? <span className="console-empty">DOS output will appear here…</span> : norm}
         {!norm.endsWith('\n') && norm.length > 0 ? <span className="console-prompt">▊</span> : null}
       </div>

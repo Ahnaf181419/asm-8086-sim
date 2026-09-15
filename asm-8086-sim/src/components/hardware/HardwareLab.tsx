@@ -21,11 +21,18 @@ import type { SevenSegmentState } from '../../engine/devices/sevenSegment'
 import type { AsciiLcdState } from '../../engine/devices/asciiLcd'
 import { isBareAsm } from './hardwareScaffold'
 import { lazyImport } from '../../hooks/useLazyImport'
+import { useRunShortcuts } from '../../hooks/useRunShortcuts'
+import { readStored, writeStored } from '../../lib/safeStorage'
 import './hardware.css'
 
 const CodeEditor = lazyImport(() => import('../CodeEditor'))
 
 const HW_EXAMPLES = EXAMPLES.filter((e) => e.category === 'Hardware')
+
+// The lab has a full editor and the same debounced build pipeline as the
+// simulator, but persisted nothing: navigating to /reference and back threw
+// the work away. Its own key, so the two editors do not overwrite each other.
+const LS_KEY = 'asm-8086-sim:hw-source'
 
 function hex4(v: number): string {
   return (v ?? 0).toString(16).toUpperCase().padStart(4, '0')
@@ -251,18 +258,31 @@ export function HardwareLab() {
   const [exampleId, setExampleId] = useState(HW_EXAMPLES[0]?.id ?? '')
   const [viewMode, setViewMode] = useState<'split' | 'board' | 'code'>('split')
   const [studioOpen, setStudioOpen] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
-  // initial compile on mount — the example source arrives as a lazy chunk
+  // initial compile on mount — a saved buffer wins, otherwise the first
+  // example arrives as a lazy chunk
   useEffect(() => {
+    let cancelled = false
+    const stored = readStored(LS_KEY)
+    if (stored) {
+      setSource(stored)
+      setExampleId('')
+      machine.build(stored)
+      return
+    }
     const first = HW_EXAMPLES[0]
     if (!first) return
-    let cancelled = false
-    void loadExampleSource(first.id).then((src) => {
-      if (!cancelled && src !== undefined) {
-        setSource(src)
-        machine.build(src)
-      }
-    })
+    loadExampleSource(first.id)
+      .then((src) => {
+        if (!cancelled && src !== undefined) {
+          setSource(src)
+          machine.build(src)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setLoadError('could not load the starting example — check your connection and reload')
+      })
     return () => {
       cancelled = true
     }
@@ -271,23 +291,35 @@ export function HardwareLab() {
 
   const loadExample = (id: string) => {
     setExampleId(id)
-    void loadExampleSource(id).then((src) => {
-      if (src === undefined) return
-      setSource(src)
-      machine.build(src)
-    })
+    if (!id) return
+    loadExampleSource(id)
+      .then((src) => {
+        if (src === undefined) return
+        setSource(src)
+        writeStored(LS_KEY, src)
+        machine.build(src)
+      })
+      .catch(() => {
+        setLoadError(`could not load example '${id}' — check your connection and try again`)
+      })
   }
 
   // The engine gives bare trainer-style code an implicit code segment, so
   // the editor text goes straight to the assembler — no wrapping, and step
   // highlight / error lines stay 1:1 with what the user typed. The build is
   // debounced so typing doesn't reassemble on every keystroke.
+  const persist = useCallback((src: string) => {
+    writeStored(LS_KEY, src)
+  }, [])
+
   const debounced = useDebouncedBuild(
     useCallback((src: string) => machine.build(src), [machine]),
+    persist,
   )
 
   const onSourceChange = (newSrc: string) => {
     setSource(newSrc)
+    setExampleId('')
     debounced.schedule(newSrc)
   }
 
@@ -295,10 +327,11 @@ export function HardwareLab() {
     if (!isBareAsm(source)) return
     const wrapped = `.MODEL SMALL\n.CODE\nMAIN PROC\n${source}\n  HLT\nMAIN ENDP\nEND MAIN\n`
     setSource(wrapped)
+    writeStored(LS_KEY, wrapped)
     machine.build(wrapped)
   }
 
-  const toggleRun = () => {
+  const toggleRun = useCallback(() => {
     debounced.flush()
     if (machine.running) {
       machine.pause()
@@ -306,7 +339,10 @@ export function HardwareLab() {
     }
     if (machine.status === 'halted' || machine.status === 'error') machine.reset()
     machine.run()
-  }
+  }, [debounced, machine])
+
+  // Same F5 / F10 / F4 as the simulator — the lab had no shortcuts at all.
+  useRunShortcuts({ toggleRun, step: machine.step, reset: machine.reset, flush: debounced.flush })
 
   const devices = snapshot.devices
   const snap = machine.state.snap
@@ -317,7 +353,7 @@ export function HardwareLab() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
       <div className="hw-toolbar">
-        <span className="hw-status">● {machine.statusLabel}</span>
+        <span className="hw-status" role="status" aria-live="polite">● {machine.statusLabel}</span>
         <select
           className="hw-select"
           value={exampleId}
@@ -344,16 +380,18 @@ export function HardwareLab() {
         >
           ⏭ step
         </button>
-        <label className="hw-speed">
+        <label className="hw-speed" title="instructions executed per animation frame">
           speed
           <select
             value={machine.speed}
             onChange={(e) => machine.setSpeed(Number(e.target.value))}
-            aria-label="run speed"
+            aria-label="run speed, instructions per frame"
           >
+            {/* These are instructions per animation frame, not a multiplier —
+                "3000×" read as one and is not. */}
             {SPEEDS.map((s) => (
               <option key={s} value={s}>
-                {s}×
+                {s} / frame
               </option>
             ))}
           </select>
@@ -456,8 +494,9 @@ export function HardwareLab() {
         </div>
       )}
 
-      {machine.state.errors.length > 0 && (
+      {(loadError || machine.state.errors.length > 0) && (
         <div className="hw-error-strip" role="alert">
+          {loadError && <div>✗ {loadError}</div>}
           {machine.state.errors.map((e, idx) => (
             <div key={idx}>
               ✗ {e.line ? `Line ${e.line}: ` : ''}{e.message}

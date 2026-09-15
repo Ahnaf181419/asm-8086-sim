@@ -44,6 +44,9 @@ export class Machine {
   inputQueue: number[] = []
   steps = 0
   error: AsmError | null = null
+  // Set by run() when it returned because maxSteps ran out rather than
+  // because the machine stopped. See run() for why this is not an error.
+  hitStepLimit = false
   lastChanges: StepChanges = { regs: new Set(), flags: new Set(), memFrom: -1, memTo: 0 }
 
   // Step-scoped change tracking. The Sets are reused across steps (clear()
@@ -79,6 +82,7 @@ export class Machine {
     this.inputQueue = []
     this.steps = 0
     this.error = null
+    this.hitStepLimit = false
     this.resetStepChanges()
   }
 
@@ -155,14 +159,22 @@ export class Machine {
     return this.status
   }
 
-  // run up to `maxSteps` instructions or until halt/wait/error
+  // run up to `maxSteps` instructions or until halt/wait/error.
+  //
+  // A 'running' return means the budget ran out with the machine still
+  // runnable — NOT that the program finished. That is a legitimate outcome
+  // here (every LED pattern example loops forever by design), so it is not
+  // an error; but it has to be distinguishable from completion, which a bare
+  // status return is not. `hitStepLimit` is that signal.
   run(maxSteps = 200_000): MachineStatus {
+    this.hitStepLimit = false
     let n = 0
     while (n < maxSteps) {
       const st = this.step()
       if (st !== 'running' && st !== 'ready') return st
       n++
     }
+    this.hitStepLimit = true
     return this.status
   }
 
@@ -216,10 +228,17 @@ export class Machine {
         const size = sizeOf(d)
         const a = this.getVal(d, size)
         const r = mn === 'INC' ? a + 1 : a - 1
+        // INC/DEC leave CF untouched (that is what makes them safe for
+        // address arithmetic). Restoring the VALUE is not enough: the
+        // setArithFlags call below also marks 'cf' in lastChanges, and the
+        // register panel highlights straight from that set — so CF flashed
+        // as "just changed" on every INC/DEC, contradicting the reference
+        // page's own "CF is NOT affected". Undo the mark as well.
         const cf = this.flags.cf
+        const cfWasMarked = this.lastChanges.flags.has('cf')
         this.setArithFlags(a, 1, r, mn === 'INC', size)
         this.flags.cf = cf
-        this.lastChanges.flags.add('cf')
+        if (!cfWasMarked) this.lastChanges.flags.delete('cf')
         this.setVal(d, r, size)
         this.ip = next
         return
@@ -345,7 +364,11 @@ export class Machine {
         const bits = size === 1 ? 8 : 16
         const mask = size === 1 ? 0xff : 0xffff
         const signBit = 1 << (bits - 1)
-        const count = c.k === 'reg' ? this.getReg('CL') & 0x1f : c.k === 'imm' ? c.v & 0x1f : 1
+        // The 8086 uses ALL EIGHT bits of CL and will happily shift 32 times.
+        // The 5-bit mask (& 0x1F) arrived with the 80186 — masking here made
+        // `MOV CL,32 / SHR AX,CL` leave AX untouched where real hardware and
+        // emu8086 both give 0, with nothing to tell the student which is right.
+        const count = c.k === 'reg' ? this.getReg('CL') & 0xff : c.k === 'imm' ? c.v & 0xff : 1
         let v = this.getVal(d, size)
         const origMsb = (v & signBit) !== 0
         if (count === 0) { this.ip = next; return }
@@ -394,7 +417,7 @@ export class Machine {
       case 'POP': {
         const d = ops[0]
         const v = this.pop()
-        if (d.k === 'reg' && d.sreg) this.sregs[d.name] = v
+        if (d.k === 'reg' && d.sreg) this.setReg(d.name, v)
         else this.setVal(d, v, 2)
         this.ip = next
         return
@@ -650,7 +673,9 @@ export class Machine {
       return
     }
     if (name in this.sregs) {
+      if (this.sregs[name] === val) return
       this.sregs[name] = val
+      this.lastChanges.regs.add(name)
       return
     }
     if (this.regs[name] === val) return

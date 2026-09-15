@@ -41,7 +41,7 @@ export function SevenSegmentPanel({ state }: { state: SevenSegmentState | undefi
 
   return (
     <>
-      <svg viewBox="0 0 360 78" preserveAspectRatio="xMidYMid meet" aria-label="8 seven-segment digits">
+      <svg role="img" viewBox="0 0 360 78" preserveAspectRatio="xMidYMid meet" aria-label="8 seven-segment digits">
         {Array.from(bytes).map((b, i) => (
           <Digit key={i} byte={b} x={i * 44 + 4} />
         ))}

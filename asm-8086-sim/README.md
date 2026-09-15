@@ -1,7 +1,7 @@
 # ASM-8086-SIM
 
 Web-based study aid for an 8086 / MASM assembly-language course.
-Browser simulator (INT 21H console I/O), 22 lessons sourced from the
+Browser simulator (INT 21H console I/O), 23 lessons sourced from the
 course materials, a searchable instruction reference, and a Hardware
 Lab simulating the MDA-8086 Emulation Kit trainer board.
 
@@ -12,7 +12,7 @@ Lab simulating the MDA-8086 Emulation Kit trainer board.
 
 ## Test
 
-    npm test                    # 533 tests: engine, regression, lessons, hardware, hooks, pages
+    npm test                    # engine, regression, lessons, hardware, hooks, pages
     npm run test:watch          # vitest in watch mode
     npm run test:coverage       # v8 coverage report
     npm run typecheck           # tsc -b (all three tsconfigs)
@@ -21,6 +21,27 @@ Lab simulating the MDA-8086 Emulation Kit trainer board.
 
     npm run build        # /dist for static hosting at the root path
     npm run build:pages  # /dist for hosting at /asm-8086-sim/ (GitHub Pages)
+
+## Deploy
+
+Two targets serve the same `dist`:
+
+- **GitHub Pages** (canonical) — `.github/workflows/deploy.yml` runs lint,
+  typecheck, tests and `build:pages` on every push and PR, and deploys from
+  `main`. Built under the `/asm-8086-sim/` base path with a `404.html` SPA
+  fallback, since Pages has no rewrite support.
+- **Vercel** — `vercel.json` supplies the SPA rewrite plus the real security
+  headers. The CSP is duplicated there deliberately: the build injects a
+  `<meta>` policy that covers both targets, but a meta tag cannot express
+  `frame-ancestors`, so only the header form is complete.
+
+## Keyboard
+
+    F5   run / pause
+    F10  step one instruction
+    F4   reset the machine
+
+Available on both the simulator and the Hardware Lab.
 
 ## Bare trainer-style code
 
@@ -33,6 +54,26 @@ the editor 1:1. Programs without a trailing `HLT` simply halt when
 they fall off the end. The Hardware Lab's "Add Boilerplate" button
 materializes the full `.MODEL SMALL` template when you need it for
 a submission.
+
+## Lab runsheet
+
+Lesson 23 — **Lab Plan: LED Patterns and Seven-Segment** — is the working
+order for the hardware lab session. Both halves are graded by *what the
+program has to keep track of*, easiest first:
+
+    Part 1  LEDs          Part 2  Seven-segment
+    1 fixed frames        1 one digit, standing still
+    2 one moving lamp     2 many displays, from a table
+    3 a direction flag    3 looking up a digit you computed
+    4 accumulating lamps  4 showing a whole number (DIV/PUSH/POP)
+    5 arithmetic + tables
+    6 the board as input
+
+Fourteen LED patterns and six seven-segment programs, the 8255 PPI route,
+the active-low and port-ordering traps, "how to write a pattern nobody
+showed you", and three worked practice problems. Every listing is pinned by
+`tests/lessons.spec.ts` to assemble as printed — nothing on the page is
+pseudo-code.
 
 ## Hardware Lab
 
@@ -62,9 +103,11 @@ programs written for the original trainer board run unmodified. See
     src/components/hardware/ # 9 SVG device panels + HardwareLab orchestrator
     src/pages/          # Simulator / Lessons / Reference / Hardware routes
     src/data/           # lessons, examples, instruction reference tables
+    src/lib/            # sanitizeHtml, safeStorage
     tests/              # Vitest — engine tested against real course .asm files
 
 See `PLAN.md` for the full architecture and engine specification.
-See `docs/AUDIT-2026-08-30.md` for the audit trail and remediation history.
+See `docs/AUDIT-2026-09-14.md` for the latest audit and
+`docs/AUDIT-2026-08-30.md` for the earlier one.
 See `docs/HARDWARE.md` for the Hardware Lab architecture, port map and
 device module reference.

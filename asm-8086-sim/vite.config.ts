@@ -13,12 +13,20 @@ const base = process.env.PAGES_BASE ?? '/'
 // and React's inline style attributes; the two Google Fonts origins are the
 // only external resources the page loads.
 function cspMeta(): Plugin {
+  // base-uri and form-action do NOT fall back to default-src, so they have to
+  // be stated. frame-ancestors cannot be set from a meta tag at all — that one
+  // is carried by vercel.json, which is the only target here that can send
+  // real headers. 'self' in font-src so a future self-hosted face is not
+  // silently blocked.
   const policy =
     "default-src 'self'; " +
     "script-src 'self'; " +
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-    "font-src https://fonts.gstatic.com; " +
-    "img-src 'self' data:"
+    "font-src 'self' https://fonts.gstatic.com; " +
+    "img-src 'self' data:; " +
+    "base-uri 'self'; " +
+    "form-action 'self'; " +
+    "object-src 'none'"
   return {
     name: 'inject-csp',
     apply: 'build',

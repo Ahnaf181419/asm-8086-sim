@@ -27,7 +27,15 @@ export function assembleAndRun(source: string, input = '', opts: AssembleOptions
     output: m.output,
     status,
     steps: m.steps,
-    error: m.error ? `${m.error.file}:${m.error.line} ${m.error.message}` : null,
+    // A program that never terminates used to come back as
+    // {status:'running', error:null} — indistinguishable from success to any
+    // caller that checks `error`. Budget exhaustion is not a machine fault,
+    // so it is reported here rather than on the Machine itself.
+    error: m.error
+      ? `${m.error.file}:${m.error.line} ${m.error.message}`
+      : m.hitStepLimit
+        ? `step limit exceeded after ${m.steps} instructions — the program did not terminate`
+        : null,
   }
 }
 

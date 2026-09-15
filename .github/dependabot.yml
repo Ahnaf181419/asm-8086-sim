@@ -1,0 +1,28 @@
+# Automated dependency updates.
+#
+# The 561-test suite plus lint, typecheck and build all run on pull_request,
+# which is exactly the condition that makes automated bumps safe to accept:
+# nothing merges without the same gates a hand-written change faces.
+#
+# Minor and patch updates are grouped into one PR per ecosystem per week so
+# routine bumps cost one review, not fifteen. Majors come through on their
+# own, because those are the ones worth reading.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /asm-8086-sim
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  # The workflow pins actions by commit SHA (supply-chain hardening), which
+  # means nothing updates them unless something is watching.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

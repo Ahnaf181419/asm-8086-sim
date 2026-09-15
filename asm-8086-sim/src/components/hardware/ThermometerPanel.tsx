@@ -22,7 +22,7 @@ export function ThermometerPanel({
   return (
     <>
       <div className="hw-thermo">
-        <svg viewBox="0 0 50 170" preserveAspectRatio="xMidYMid meet" aria-label="thermometer">
+        <svg role="img" viewBox="0 0 50 170" preserveAspectRatio="xMidYMid meet" aria-label="thermometer">
           {/* bulb */}
           <circle cx={25} cy={155} r={14} fill="#222" style={{ stroke: 'var(--accent)' }} strokeWidth={1.5} />
           {/* tube outline */}

@@ -1,5 +1,9 @@
 # ASM-8086-SIM — Project Audit & Review
 
+> Superseded in part. See `docs/AUDIT-2026-09-14.md` for the most recent
+> full-project audit; rows below marked **resolved since** were fixed after
+> this document was written.
+
 **Date:** 2026-08-30 · **Method:** two independent reviewer subagents (engine / UI) + maintainer probe verification + regression tests · **Scope:** complete project (`asm-8086-sim/`)
 
 **Verdict at start:** NOT ready — 3 engine Criticals, 2 UI Criticals, 9 Importants, ~25 Minors.
@@ -31,7 +35,7 @@ Legend: 🔴 Critical · 🟠 Important · 🟡 Minor — Result: ✅ fixed · �
 | M5 | 🟡 | Segment regs accepted in non-MOV pair ops (`ADD DS, AX`). | checkSizes | ✅ sreg restricted to MOV/PUSH/POP |
 | M6 | 🟡 | `resolveEntry` error has no position. | assembler | ⏸️ accepted (rare; message is self-explanatory) |
 | M7 | 🟡 | AF nibble-borrow edge in SBB; unimplemented flag consumers. | cpu | ⏸️ accepted (AF read by nothing in course subset) |
-| M8 | 🟡 | `[BX][SI]`, `$` counter, JP/JPO, code-ORG unsupported; garbage like `1D2` handled as error. | parser | ⏸️ accepted (outside course subset, clean errors) |
+| M8 | 🟡 | `[BX][SI]`, `$` counter, JP/JPO, code-ORG unsupported; garbage like `1D2` handled as error. | parser | ✅ **resolved since** — all four are implemented (`parseMemoryOperand` flattens brackets, `$` works in the data segment, JP/JPO/JNP are in `COND_JUMPS`, code-segment ORG landed in the 2026-09-12 batch). `1D2` is still a clean error, by design. |
 
 ## B. UI findings (`src/`)
 
@@ -51,7 +55,7 @@ Legend: 🔴 Critical · 🟠 Important · 🟡 Minor — Result: ✅ fixed · �
 | U12 | 🟡 | Error list renders `undefined:3`. | SimulatorPage | ✅ gated on `e.file` |
 | U13 | 🟡 | `/lessons` index shows lesson-1 content but no active nav item. | LessonsPage | ✅ redirects to first lesson |
 | U14 | 🟡 | Stack view wraps past 0xFFFF (rows re-render as 0000…). | MemoryView | ✅ rows trimmed at 0xFFF8 |
-| U15 | 🟡 | Per-keystroke LS write + full reassemble. | SimulatorPage | ⏸️ accepted at course scale |
+| U15 | 🟡 | Per-keystroke LS write + full reassemble. | SimulatorPage | ✅ **resolved since** — `useDebouncedBuild` moved both to a 150 ms trailing edge, flushed on Run/Step. |
 | U16 | 🟡 | `readByte` reads mutable ref during render (impure). | useMachine | ⏸️ accepted (every mutation is followed by setState; documented) |
 | U17 | 🟡 | No catch-all route (unknown path → router error dump). | main.tsx | ✅ `*` → redirect `/` |
 

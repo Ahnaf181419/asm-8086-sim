@@ -710,3 +710,52 @@
 
 
 
+
+/* ── simulator hardware preview ───────────────────────────────
+   The /​ route's "hardware" memory-focus pane. This was ~105 lines of JSX in
+   which the same six-property card object was written out four times and
+   rebuilt on every render; it belongs here next to the classes it duplicated. */
+.sim-hw-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 100%;
+  padding: 8px;
+  overflow-y: auto;
+}
+
+.sim-hw-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.sim-hw-bus {
+  font-size: 11px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.sim-hw-cycle { font-family: var(--mono); }
+.sim-hw-cycle.out { color: var(--accent); }
+.sim-hw-cycle.in { color: var(--info); }
+
+.sim-hw-open { font-size: 11px; padding: 2px 8px; flex-shrink: 0; }
+
+.sim-hw-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px;
+}
+
+.sim-hw-card-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 2px;
+}

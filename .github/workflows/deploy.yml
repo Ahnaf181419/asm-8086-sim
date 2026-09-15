@@ -12,9 +12,14 @@ permissions:
   pages: write
   id-token: write
 
+# Scoped to the ref, not to "pages". A single shared group meant a PR run
+# entered the same group as an in-flight production deploy and cancelled it —
+# leaving the site on the previous revision with a green PR check and no
+# failed run to investigate. PR runs still supersede each other; a deploy
+# from main is never cancelled by one.
 concurrency:
-  group: pages
-  cancel-in-progress: true
+  group: pages-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
@@ -37,6 +42,9 @@ jobs:
 
       - name: Lint
         run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
 
       - name: Test
         run: npm test

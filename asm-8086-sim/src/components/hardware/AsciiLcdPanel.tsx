@@ -16,7 +16,7 @@ export function AsciiLcdPanel({ state }: { state: AsciiLcdState | undefined }) {
   return (
     <>
       <div className="hw-lcd-wrap">
-        <svg viewBox="0 0 248 78" preserveAspectRatio="xMidYMid meet" aria-label="3x16 ASCII LCD">
+        <svg role="img" viewBox="0 0 248 78" preserveAspectRatio="xMidYMid meet" aria-label="3x16 ASCII LCD">
           <rect x={2} y={2} width={244} height={74} rx={4} className="hw-lcd-bg" />
           {cells.map((cell, i) => (
             <text

@@ -65,19 +65,59 @@ export default function LessonView() {
   )
 }
 
+// Sanitize once per lesson, not once per cell per render.
+//
+// sanitizeHtml constructs a DOMParser and parses a whole document per call,
+// and the Block switch below called it for every paragraph, list item, table
+// header AND table cell — a 10x4 table cost 40+ document parses, repeated on
+// every render. Lesson content is compile-time constant, so the result is
+// memoized against the block identity. The sanitizer itself stays: every
+// dangerouslySetInnerHTML sink deserves the boundary, whatever feeds it.
+const clean = new WeakMap<LessonBlock, Map<string, string>>()
+
+function sanitizeBlock(block: LessonBlock): Map<string, string> {
+  let cached = clean.get(block)
+  if (cached) return cached
+  cached = new Map<string, string>()
+  const put = (raw: string) => {
+    if (!cached!.has(raw)) cached!.set(raw, sanitizeHtml(raw))
+  }
+  switch (block.t) {
+    case 'p': case 'note': put(block.html); break
+    case 'ul': block.items.forEach(put); break
+    case 'table':
+      block.head.forEach(put)
+      for (const row of block.rows) row.forEach(put)
+      break
+    case 'practice':
+      put(block.q)
+      if (block.hint) put(block.hint)
+      if (block.after) put(block.after)
+      break
+  }
+  clean.set(block, cached)
+  return cached
+}
+
+/** Sanitized HTML for one authored string within a block. */
+function html(block: LessonBlock, raw: string): { __html: string } {
+  const cached = sanitizeBlock(block)
+  return { __html: cached.get(raw) ?? sanitizeHtml(raw) }
+}
+
 function Block({ block }: { block: LessonBlock }) {
   switch (block.t) {
     case 'h':
       return <h2>{block.text}</h2>
     case 'p':
       // content is static (authored in lessons.ts), not user input
-      return <p dangerouslySetInnerHTML={{ __html: sanitizeHtml(block.html) }} />
+      return <p dangerouslySetInnerHTML={html(block, block.html)} />
     case 'ul':
       return (
         <ul>
           {block.items.map((it, i) => (
             // items contain inline <code>/<b> markup
-            <li key={i} dangerouslySetInnerHTML={{ __html: sanitizeHtml(it) }} />
+            <li key={i} dangerouslySetInnerHTML={html(block, it)} />
           ))}
         </ul>
       )
@@ -87,7 +127,7 @@ function Block({ block }: { block: LessonBlock }) {
           <thead>
             <tr>
               {block.head.map((h, i) => (
-                <th key={i} dangerouslySetInnerHTML={{ __html: sanitizeHtml(h) }} />
+                <th key={i} dangerouslySetInnerHTML={html(block, h)} />
               ))}
             </tr>
           </thead>
@@ -95,7 +135,7 @@ function Block({ block }: { block: LessonBlock }) {
             {block.rows.map((row, i) => (
               <tr key={i}>
                 {row.map((c, j) => (
-                  <td key={j} dangerouslySetInnerHTML={{ __html: sanitizeHtml(c) }} />
+                  <td key={j} dangerouslySetInnerHTML={html(block, c)} />
                 ))}
               </tr>
             ))}
@@ -107,17 +147,17 @@ function Block({ block }: { block: LessonBlock }) {
         <div className="practice">
           <p className="practice-q">
             <span className="practice-tag">practice</span>
-            <span dangerouslySetInnerHTML={{ __html: sanitizeHtml(block.q) }} />
+            <span dangerouslySetInnerHTML={html(block, block.q)} />
           </p>
           {block.hint && (
             <p className="practice-hint">
-              <b>Hint:</b> <span dangerouslySetInnerHTML={{ __html: sanitizeHtml(block.hint) }} />
+              <b>Hint:</b> <span dangerouslySetInnerHTML={html(block, block.hint)} />
             </p>
           )}
           <details>
             <summary>show solution</summary>
             <pre>{block.solution}</pre>
-            {block.after && <p className="practice-after" dangerouslySetInnerHTML={{ __html: sanitizeHtml(block.after) }} />}
+            {block.after && <p className="practice-after" dangerouslySetInnerHTML={html(block, block.after)} />}
           </details>
         </div>
       )
@@ -130,7 +170,7 @@ function Block({ block }: { block: LessonBlock }) {
             padding: '10px 14px',
             borderRadius: '0 4px 4px 0',
           }}
-          dangerouslySetInnerHTML={{ __html: sanitizeHtml(block.html) }}
+          dangerouslySetInnerHTML={html(block, block.html)}
         />
       )
     case 'code': {

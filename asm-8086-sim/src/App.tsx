@@ -1,27 +1,33 @@
 import { Suspense, useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
+import { readStored, writeStored } from './lib/safeStorage'
 
 export type AppTheme = 'green' | 'amber' | 'cyan' | 'slate'
+
+// Also the validation set for the stored value: a hand-edited or stale
+// localStorage entry used to be cast straight to AppTheme and applied.
+const THEMES: readonly AppTheme[] = ['green', 'amber', 'cyan', 'slate']
 
 const THEME_KEY = 'asm-8086-sim:theme'
 const CRT_KEY = 'asm-8086-sim:crt'
 
 export default function App() {
+  // These initializers run before any error boundary exists, so they must not
+  // be able to throw — see lib/safeStorage.
   const [theme, setTheme] = useState<AppTheme>(() => {
-    return (localStorage.getItem(THEME_KEY) as AppTheme) || 'green'
+    const stored = readStored(THEME_KEY)
+    return THEMES.includes(stored as AppTheme) ? (stored as AppTheme) : 'green'
   })
-  const [crt, setCrt] = useState<boolean>(() => {
-    return localStorage.getItem(CRT_KEY) !== 'off'
-  })
+  const [crt, setCrt] = useState<boolean>(() => readStored(CRT_KEY) !== 'off')
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
-    localStorage.setItem(THEME_KEY, theme)
+    writeStored(THEME_KEY, theme)
   }, [theme])
 
   useEffect(() => {
     document.documentElement.setAttribute('data-crt', crt ? 'on' : 'off')
-    localStorage.setItem(CRT_KEY, crt ? 'on' : 'off')
+    writeStored(CRT_KEY, crt ? 'on' : 'off')
   }, [crt])
 
   return (

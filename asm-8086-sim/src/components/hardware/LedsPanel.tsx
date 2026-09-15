@@ -9,7 +9,7 @@ export function LedsPanel({ state }: { state: LedsState | undefined }) {
 
   return (
     <>
-      <svg viewBox="0 0 280 60" preserveAspectRatio="xMidYMid meet" aria-label="8 LEDs">
+      <svg role="img" viewBox="0 0 280 60" preserveAspectRatio="xMidYMid meet" aria-label="8 LEDs">
         {bits.map((on, i) => (
           <g key={i} transform={`translate(${236 - i * 32}, 30)`}>
             <circle

@@ -189,3 +189,65 @@ describe('hardware lessons', () => {
     })
   }
 })
+
+// ERR-26: AGENTS.md claimed "the 52 example sources" long after there were 63.
+// Prose counts drift silently; this one fails loudly. If you added an example,
+// update the number here — that is the point.
+describe('content inventory', () => {
+  it('every EXAMPLES entry has exactly one .asm source and vice versa', async () => {
+    const { readdirSync } = await import('node:fs')
+    const files = readdirSync(new URL('../src/data/asm', import.meta.url))
+      .filter((f) => /\.asm$/i.test(f))
+      .map((f) => f.replace(/\.asm$/i, ''))
+
+    // INDEC/OUTDEC are the INCLUDE library, not pickable examples.
+    const library = ['INDEC', 'OUTDEC']
+    const sources = files.filter((f) => !library.includes(f.toUpperCase())).sort()
+    const ids = EXAMPLES.map((e) => e.id).sort()
+
+    expect(sources).toEqual(ids)
+    for (const lib of library) {
+      expect(files.map((f) => f.toUpperCase())).toContain(lib)
+    }
+  })
+
+  it('the counts the docs quote are still true', () => {
+    expect(EXAMPLES).toHaveLength(64)
+    expect(LESSONS).toHaveLength(23)
+  })
+})
+
+// The lab runsheet (lesson 23) is a crib sheet people paste from under time
+// pressure, so every snippet on it has to assemble as printed. The generic
+// code-block check above only proves a block is non-empty.
+describe('lab runsheet snippets are runnable', () => {
+  const lab = LESSONS.find((l) => l.id === 'led-7seg-lab')
+
+  it('the lesson exists and carries the lab material', () => {
+    expect(lab).toBeDefined()
+    expect(lab!.blocks.some((b) => b.t === 'practice')).toBe(true)
+  })
+
+  const snippets = (lab?.blocks ?? []).flatMap((b) =>
+    b.t === 'code' ? [[b.title, b.code] as const] : [],
+  )
+
+  it.each(snippets)('%s', (_title, code) => {
+    const r = assemble(code, { mainFile: 'lab.asm' })
+    expect(r.errors.map((e) => `${e.line}: ${e.message}`).join(' | ')).toBe('')
+    expect(r.program).not.toBeNull()
+  })
+
+  it('every LED and seven-segment example is linked from the runsheet', async () => {
+    const { EXAMPLES: all } = await import('../src/data/examples')
+    const linked = new Set(
+      (lab?.blocks ?? []).flatMap((b) => (b.t === 'code' && b.exampleId ? [b.exampleId] : [])),
+    )
+    const wanted = all
+      .filter((e) => /^(led-|kit-led|kit-7seg|seven-segment)/.test(e.id))
+      .map((e) => e.id)
+    for (const id of wanted) {
+      expect(linked.has(id), `runsheet does not link "${id}"`).toBe(true)
+    }
+  })
+})

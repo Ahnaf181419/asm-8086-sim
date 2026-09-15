@@ -7,8 +7,10 @@ import Console from '../components/Console'
 import { SPEEDS } from '../hooks/useMachine'
 import { useHardwareMachine } from '../hooks/useHardwareMachine'
 import { useDebouncedBuild } from '../hooks/useDebouncedBuild'
+import { useRunShortcuts } from '../hooks/useRunShortcuts'
 import { EXAMPLES, exampleById, loadExampleSource } from '../data/examples'
 import { lazyImport } from '../hooks/useLazyImport'
+import { readStored, writeStored } from '../lib/safeStorage'
 import { LedsPanel } from '../components/hardware/LedsPanel'
 import { SevenSegmentPanel } from '../components/hardware/SevenSegmentPanel'
 import { AsciiLcdPanel } from '../components/hardware/AsciiLcdPanel'
@@ -24,7 +26,7 @@ const LS_KEY = 'asm-8086-sim:source'
 
 export default function SimulatorPage() {
   const nav = useNavigate()
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const initialExample = (() => {
     const id = searchParams.get('example')
@@ -38,6 +40,7 @@ export default function SimulatorPage() {
     return 'data'
   })
   const [autoAssemble, setAutoAssemble] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   // shared bus: hardware examples (IN/OUT) drive the /hardware devices.
   // Same hook the Hardware Lab uses — one bridge, one subscription contract.
@@ -55,7 +58,7 @@ export default function SimulatorPage() {
         id = initialExample.id
         src = await loadExampleSource(id)
       } else {
-        const stored = localStorage.getItem(LS_KEY)
+        const stored = readStored(LS_KEY)
         if (stored) {
           src = stored
         } else {
@@ -69,7 +72,9 @@ export default function SimulatorPage() {
         sim.build(src)
       }
     }
-    void boot()
+    boot().catch(() => {
+      if (!cancelled) setLoadError('could not load the starting example — check your connection and reload')
+    })
     return () => {
       cancelled = true
     }
@@ -77,7 +82,7 @@ export default function SimulatorPage() {
   }, [])
 
   const persist = useCallback((src: string) => {
-    localStorage.setItem(LS_KEY, src)
+    writeStored(LS_KEY, src)
   }, [])
 
   // debounced keystroke pipeline: full reassemble + 64KB image + sync
@@ -107,37 +112,8 @@ export default function SimulatorPage() {
     }
   }, [sim, debounced])
 
-  // keyboard shortcuts. These fired unconditionally before, so F10 stepped the
-  // machine while the caret was in the console input or the editor.
-  useEffect(() => {
-    const isTyping = () => {
-      const el = document.activeElement
-      if (!el) return false
-      if (el.closest('.cm-editor')) return true
-      const tag = el.tagName
-      return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (el as HTMLElement).isContentEditable
-    }
-    const onKey = (e: KeyboardEvent) => {
-      // Ctrl+Shift+R resets the machine (PLAN §5); allow it even while typing
-      if (e.key.toUpperCase() === 'R' && e.ctrlKey && e.shiftKey) {
-        e.preventDefault()
-        debounced.flush()
-        sim.reset()
-        return
-      }
-      if (isTyping()) return
-      if (e.key === 'F5') {
-        e.preventDefault()
-        toggleRun()
-      } else if (e.key === 'F10') {
-        e.preventDefault()
-        debounced.flush()
-        sim.step()
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [sim, toggleRun, debounced])
+  // F5 run/pause · F10 step · F4 reset — shared with the Hardware Lab.
+  useRunShortcuts({ toggleRun, step: sim.step, reset: sim.reset, flush: debounced.flush })
 
   // The line to highlight, in main-file source-line terms. The editor converts
   // it to a document offset and clamps it — a stale snapshot can name a line
@@ -150,13 +126,21 @@ export default function SimulatorPage() {
   const loadExample = (id: string) => {
     const ex = exampleById(id)
     if (!ex) return
-    void loadExampleSource(id).then((src) => {
-      if (src === undefined) return
-      setSource(src)
-      setSelectedId(id)
-      persist(src)
-      sim.build(src)
-    })
+    loadExampleSource(id)
+      .then((src) => {
+        if (src === undefined) return
+        setSource(src)
+        setSelectedId(id)
+        persist(src)
+        sim.build(src)
+        // Keep the address bar naming what is actually open, so the URL can
+        // be copied and shared. Replace rather than push: loading examples
+        // should not stack up in the back button.
+        setSearchParams({ example: id }, { replace: true })
+      })
+      .catch(() => {
+        setLoadError(`could not load example '${id}' — check your connection and try again`)
+      })
     if (ex.category === 'Hardware') {
       setMemFocus('hardware')
     }
@@ -170,6 +154,7 @@ export default function SimulatorPage() {
 
   return (
     <div className="sim-layout">
+      <h1 className="sr-only">8086 simulator — editor, console and machine state</h1>
       <div className="sim-left">
         <div className="toolbar">
           <button className="primary" onClick={() => sim.build(source)} title="assemble (validate) the program">
@@ -201,8 +186,8 @@ export default function SimulatorPage() {
               sim.reset()
             }}
             disabled={!sim.state.program}
-            title="Ctrl+Shift+R — reset the machine"
-            aria-label="reset the machine (Ctrl+Shift+R)"
+            title="F4 — reset the machine"
+            aria-label="reset the machine (F4)"
           >
             ⟲ reset
           </button>
@@ -270,7 +255,9 @@ export default function SimulatorPage() {
             </span>
           )}
           <span className="spacer" />
-          {sim.state.errors.length > 0 ? (
+          {loadError ? (
+            <span className="err-list" role="alert">✗ {loadError}</span>
+          ) : sim.state.errors.length > 0 ? (
             <span className="err-list" role="alert">
               {sim.state.errors.map((e, i) => (
                 <div key={i}>
@@ -281,7 +268,7 @@ export default function SimulatorPage() {
               ))}
             </span>
           ) : (
-            <span className="hint">F5 run/pause · F10 step · INDEC.ASM / OUTDEC.ASM auto-include</span>
+            <span className="hint">F5 run/pause · F10 step · F4 reset · INDEC.ASM / OUTDEC.ASM auto-include</span>
           )}
         </div>
       </div>
@@ -321,109 +308,41 @@ export default function SimulatorPage() {
           }
         >
           {memFocus === 'hardware' ? (
-            <div
-              className="sim-hw-preview"
-              style={{
-                padding: '8px',
-                overflowY: 'auto',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '10px',
-                height: '100%',
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  borderBottom: '1px solid var(--border)',
-                  paddingBottom: '6px',
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: '11px',
-                    color: 'var(--text-faint)',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.08em',
-                  }}
-                >
+            <div className="sim-hw-preview">
+              <div className="sim-hw-head">
+                <span className="sim-hw-bus">
                   {snapshot.lastCycle ? (
-                    <span
-                      style={{
-                        color: snapshot.lastCycle.type === 'OUT' ? 'var(--accent)' : 'var(--info)',
-                        fontFamily: 'var(--mono)',
-                      }}
-                    >
-                      BUS {snapshot.lastCycle.type} {snapshot.lastCycle.port.toString(16).toUpperCase().padStart(4, '0')}H ➔ 0x{snapshot.lastCycle.value.toString(16).toUpperCase().padStart(2, '0')}
+                    <span className={`sim-hw-cycle ${snapshot.lastCycle.type.toLowerCase()}`}>
+                      BUS {snapshot.lastCycle.type}{' '}
+                      {snapshot.lastCycle.port.toString(16).toUpperCase().padStart(4, '0')}H ➔ 0x
+                      {snapshot.lastCycle.value.toString(16).toUpperCase().padStart(2, '0')}
                     </span>
                   ) : (
                     'Live Peripheral Bus'
                   )}
                 </span>
-                <button
-                  className="primary"
-                  style={{ fontSize: '11px', padding: '2px 8px' }}
-                  onClick={() => nav('/hardware')}
-                >
+                <button className="primary sim-hw-open" onClick={() => nav('/hardware')}>
                   🎛️ Full Workbench ↗
                 </button>
               </div>
 
-              <div
-                style={{
-                  background: 'var(--bg)',
-                  border: '1px solid var(--border)',
-                  borderRadius: '4px',
-                  padding: '6px',
-                }}
-              >
-                <div style={{ fontSize: '10px', color: 'var(--accent)', marginBottom: '2px', fontWeight: 600 }}>
-                  LEDs (Port 2070H)
-                </div>
+              <div className="sim-hw-card">
+                <div className="sim-hw-card-label">LEDs (Port 2070H)</div>
                 <LedsPanel state={snapshot.devices.leds} />
               </div>
 
-              <div
-                style={{
-                  background: 'var(--bg)',
-                  border: '1px solid var(--border)',
-                  borderRadius: '4px',
-                  padding: '6px',
-                }}
-              >
-                <div style={{ fontSize: '10px', color: 'var(--accent)', marginBottom: '2px', fontWeight: 600 }}>
-                  7-Segment Display (Port 2030H)
-                </div>
+              <div className="sim-hw-card">
+                <div className="sim-hw-card-label">7-Segment Display (Port 2030H)</div>
                 <SevenSegmentPanel state={snapshot.devices['seven-segment']} />
               </div>
 
-              <div
-                style={{
-                  background: 'var(--bg)',
-                  border: '1px solid var(--border)',
-                  borderRadius: '4px',
-                  padding: '6px',
-                }}
-              >
-                <div style={{ fontSize: '10px', color: 'var(--accent)', marginBottom: '2px', fontWeight: 600 }}>
-                  ASCII LCD 3×16 (Port 2040H)
-                </div>
+              <div className="sim-hw-card">
+                <div className="sim-hw-card-label">ASCII LCD 3×16 (Port 2040H)</div>
                 <AsciiLcdPanel state={snapshot.devices['ascii-lcd']} />
               </div>
 
-              <div
-                style={{
-                  background: 'var(--bg)',
-                  border: '1px solid var(--border)',
-                  borderRadius: '4px',
-                  padding: '6px',
-                }}
-              >
-                <div style={{ fontSize: '10px', color: 'var(--accent)', marginBottom: '2px', fontWeight: 600 }}>
-                  Slide Switches (Port 2084H) — Click to Toggle
-                </div>
+              <div className="sim-hw-card">
+                <div className="sim-hw-card-label">Slide Switches (Port 2084H) — Click to Toggle</div>
                 <SwitchesPanel state={snapshot.devices.switches} onToggleBit={toggleSwitch} />
               </div>
             </div>

@@ -14,16 +14,30 @@ function build(src: string, bus?: HardwareBus) {
 }
 
 describe('FIX 1: bus reads notify listeners and invalidate the snapshot cache', () => {
-  it('an IN cycle fires notify and refreshes lastCycle', () => {
+  // The original defect: dispatchRead left the cached snapshot in place, so an
+  // IN cycle was invisible to the UI. Cache invalidation is still immediate.
+  // Delivery of the notification moved to flush() in the 2026-09-14 batch
+  // (ERR-21) so a 3000-cycle frame notifies once instead of 3000 times — the
+  // guarantee this test exists to protect is unchanged: a read must reach the
+  // subscriber before the next frame renders.
+  it('an IN cycle refreshes lastCycle without waiting for a flush', () => {
+    const bus = new HardwareBus()
+    bus.attach(new SwitchesDevice())
+    const m = build('    MOV DX, 2084H\n    IN AL, DX\n    HLT', bus)
+    m.run(100)
+    expect(m.status).toBe('halted')
+    expect(bus.snapshot().lastCycle?.type).toBe('IN')
+  })
+
+  it('an IN cycle fires notify on the frame flush', () => {
     const bus = new HardwareBus()
     bus.attach(new SwitchesDevice())
     let notifications = 0
     bus.subscribe(() => notifications++)
     const m = build('    MOV DX, 2084H\n    IN AL, DX\n    HLT', bus)
     m.run(100)
-    expect(m.status).toBe('halted')
+    bus.flush()
     expect(notifications).toBeGreaterThan(0)
-    expect(bus.snapshot().lastCycle?.type).toBe('IN')
   })
 })
 
