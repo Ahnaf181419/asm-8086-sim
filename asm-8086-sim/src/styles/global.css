@@ -481,6 +481,10 @@ input[type='checkbox'] { accent-color: var(--accent-dim); }
 .mem-ascii { color: var(--text-dim); font-size: 11px; }
 .mem-sym { color: var(--info); font-size: 11px; }
 .mem-current { outline: 1px solid var(--accent-dim); background: rgba(51, 255, 102, 0.08); }
+/* Stands in for the all-zero tail of the address space. Without it a short
+   program is followed by ~25 rows of "00 .. ........", which reads as "nothing
+   happened" and eats half the screen. Dim and unaligned so it reads as a divider. */
+.mem-elided td { color: var(--text-dim); font-size: 11px; font-style: italic; padding: 2px 0; }
 .mem-focus { display: flex; gap: 4px; }
 .mem-focus button { font-size: 11px; }
 
