@@ -193,3 +193,23 @@ test.describe('every theme meets AA on secondary text', () => {
     })
   }
 })
+
+test.describe('lesson measure', () => {
+  // Monospace at a 900px column ran ~100 characters per line. The face is a
+  // deliberate keep, so the measure is what is capped.
+  test('body paragraphs stay under 85 characters per line on desktop and tables do not clip', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'desktop', 'desktop-only layout rule')
+    await page.goto('/lessons/machine-basics')
+    await page.waitForLoadState('networkidle')
+    const m = await page.evaluate(() => {
+      const p = document.querySelector('.lessons-content p') as HTMLElement
+      const c = document.createElement('canvas').getContext('2d')!
+      const cs = getComputedStyle(p)
+      c.font = `${cs.fontSize} ${cs.fontFamily}`
+      const adv = c.measureText('0'.repeat(100)).width / 100
+      return { cpl: p.getBoundingClientRect().width / adv, w: document.documentElement.scrollWidth, vw: window.innerWidth }
+    })
+    expect(m.cpl).toBeLessThanOrEqual(85)
+    expect(m.w).toBeLessThanOrEqual(m.vw)
+  })
+})

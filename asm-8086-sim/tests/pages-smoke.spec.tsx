@@ -152,6 +152,15 @@ describe('LessonsNav disclosure', () => {
     expect(document.querySelectorAll('.lessons-nav a').length).toBe(LESSONS.length)
   })
 
+  it('groups the links under section headings, in first-appearance order', { timeout: SMOKE_TIMEOUT }, async () => {
+    const LESSONS = await renderLesson()
+    const headings = [...document.querySelectorAll('.lessons-nav-heading')].map((h) => h.textContent)
+    expect(headings).toEqual([...new Set(LESSONS.map((l) => l.section))])
+    // Lesson order is preserved across the groups.
+    const hrefs = [...document.querySelectorAll('.lessons-nav a')].map((a) => a.getAttribute('href'))
+    expect(hrefs).toEqual(LESSONS.map((l) => `/lessons/${l.id}`))
+  })
+
   // This used to assert `open === false` unconditionally, which is what let the
   // desktop sidebar ship invisible: the component relied on `display: contents`
   // to render a CLOSED <details>, and Chrome 131+ hides closed content through
