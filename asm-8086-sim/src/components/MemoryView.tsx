@@ -104,8 +104,22 @@ export default function MemoryView({
   const step = perRow * 4
   const maxBase = Math.max(0, TOP_OF_MEM - perRow * (rows - 1))
 
+  // A default data view only earns rows that carry information: the written
+  // image plus a little slack, extended to cover any dirty write past it. Once
+  // the user navigates (baseOverride set) the full window is shown so all 64KB
+  // stays browsable. Stack focus anchors near SP, where every row matters.
+  const elide = baseOverride === null && focus === 'data'
+  let shownRows = rows
+  if (elide) {
+    const dataRows = Math.ceil((program?.dataImage.length ?? 0) / perRow)
+    let want = Math.max(MIN_ROWS, dataRows + 2)
+    if (dirtyFrom !== -1 && dirtyTo > dirtyFrom) want = Math.max(want, Math.ceil(dirtyTo / perRow))
+    shownRows = Math.min(rows, want)
+  }
+  const elidedFrom = base + shownRows * perRow
+
   const body = []
-  for (let i = 0; i < rows; i++) {
+  for (let i = 0; i < shownRows; i++) {
     const addr = base + i * perRow
     if (addr > TOP_OF_MEM) break // never wrap past the top of memory
     const cells: React.ReactNode[] = []
@@ -128,6 +142,16 @@ export default function MemoryView({
         <td className="mem-bytes">{cells}</td>
         <td className="mem-ascii">{ascii}</td>
         <td className="mem-sym">{sym ?? ''}</td>
+      </tr>,
+    )
+  }
+
+  if (shownRows < rows && elidedFrom <= TOP_OF_MEM) {
+    body.push(
+      <tr key="elided" className="mem-elided">
+        <td colSpan={4}>
+          ⋯ {hex4(elidedFrom)}–{hex4(TOP_OF_MEM + 7)} unwritten
+        </td>
       </tr>,
     )
   }
