@@ -12,11 +12,16 @@ export type LessonBlock =
   // collapsed so the reader can attempt it first.
   | { t: 'practice'; q: string; hint?: string; solution: string; after?: string }
 
+export type LessonSection = 'Fundamentals' | 'Exam prep' | 'Hardware' | 'Practice' | 'Lab & assignments'
+
 export interface Lesson {
   id: string
   num: number
   title: string
   source: string
+  // Which group the lesson belongs to in the nav. Required and a closed union so a
+  // missing or misspelt section is a compile error, not a silent orphan group.
+  section: LessonSection
   blocks: LessonBlock[]
 }
 
@@ -27,6 +32,7 @@ export const LESSONS: Lesson[] = [
     num: 1,
     title: 'Machine Basics: Memory, CPU & Buses',
     source: 'Lecture 1 — Basic Concepts (42 slides)',
+    section: 'Fundamentals',
     blocks: [
       { t: 'p', html: 'A <b>microcomputer system</b> is built from three kinds of components: <b>memory</b>, the <b>CPU</b> (a single-chip microprocessor), and <b>I/O ports</b> on expansion boards. The CPU executes instructions by fetching them from memory, decoding them, and executing them — one at a time, at machine speed.' },
       { t: 'h', text: 'Memory' },
@@ -51,6 +57,7 @@ export const LESSONS: Lesson[] = [
     num: 2,
     title: 'Assembly Syntax & Program Structure',
     source: 'Lecture 2 — Introduction to IBM PC Assembly (33 slides)',
+    section: 'Fundamentals',
     blocks: [
       { t: 'p', html: 'An assembly statement has four fields: <code>name operation operand ; comment</code>. Names become memory addresses. The operation is a mnemonic (<code>MOV</code>, <code>ADD</code>) or a <b>pseudo-op</b> directive (<code>PROC</code>, <code>.DATA</code>) that only tells the assembler what to do.' },
       { t: 'table', head: ['Field', 'Meaning', 'Example'], rows: [
@@ -89,6 +96,7 @@ END MAIN` },
     num: 3,
     title: 'Registers, Segments & Addressing Modes',
     source: 'Lecture 1 — The 8086 Register Set (slides 33-41)',
+    section: 'Fundamentals',
     blocks: [
       { t: 'p', html: 'The 8086 has fourteen 16-bit registers. Unlike memory, registers live inside the CPU, so instructions that use them are the fastest and produce the shortest machine code. Most registers are <b>general purpose</b>, but each has jobs it is expected to do — and a few instructions insist on a particular one.' },
       { t: 'h', text: 'The four data registers' },
@@ -157,6 +165,7 @@ END MAIN` },
     num: 4,
     title: 'Variables, Data Formats & MOV',
     source: 'Lecture 2 — Program Data / Basic Instructions',
+    section: 'Fundamentals',
     blocks: [
       { t: 'h', text: 'Data formats' },
       { t: 'table', head: ['Format', 'Example', 'Value'], rows: [
@@ -214,6 +223,7 @@ INT 21H` },
     num: 5,
     title: 'Console I/O with INT 21H',
     source: 'Lectures 1-2 — Input and Output',
+    section: 'Fundamentals',
     blocks: [
       { t: 'p', html: 'The 8086 has no dedicated I/O instructions in this course — we ask DOS for services using the <b>software interrupt</b> <code>INT 21H</code>. The function number goes in <code>AH</code>.' },
       { t: 'table', head: ['AH', 'Service', 'Input', 'Output / Effect'], rows: [
@@ -252,6 +262,7 @@ ADD BL, 20H    ; convert to lowercase` },
     num: 6,
     title: 'Arithmetic: ADD, SUB, INC, DEC & NEG',
     source: 'Lecture 2 — Basic Instructions · Lecture 3 — Arithmetic',
+    section: 'Fundamentals',
     blocks: [
       { t: 'p', html: 'Five instructions cover almost all the arithmetic in this course. <code>ADD</code> and <code>SUB</code> take two operands and follow the same legality rules as <code>MOV</code>; <code>INC</code>, <code>DEC</code> and <code>NEG</code> take one. Every one of them sets the flags — which is what makes the conditional jumps in the next lessons work.' },
       { t: 'table', head: ['Instruction', 'Operands', 'Effect'], rows: [
@@ -310,6 +321,7 @@ NEG AX           ; AX = 0FF88H  — signed:-120 in the register panel` },
     num: 7,
     title: 'The FLAGS Register',
     source: 'Lecture 3 — The Processor Status and the FLAGS Register',
+    section: 'Fundamentals',
     blocks: [
       { t: 'p', html: 'The 8086 processor state is nine individual bits called <b>flags</b>, collected in the FLAGS register. Every decision (conditional jump) is based on these bits. <b>Status flags</b> reflect the result of a computation; <b>control flags</b> change processor behavior.' },
       { t: 'table', head: ['Flag', 'Bit', 'Meaning'], rows: [
@@ -349,6 +361,7 @@ ADD AX, 1     ; OF=1 — signed overflow` },
     num: 8,
     title: 'CMP, Jumps & Conditional Logic',
     source: 'Lecture 3 — Flow Control Instructions',
+    section: 'Fundamentals',
     blocks: [
       { t: 'p', html: 'A <b>label</b> (e.g. <code>END_:</code>) marks an instruction address. Jump instructions move <code>IP</code> to a label. <code>JMP</code> is unconditional; conditional jumps test the flags set by the previous <code>CMP</code> (a subtraction that only updates flags).' },
       { t: 'code', title: 'CMP sets flags without storing', code: `CMP AX, BX   ; computes AX - BX, discards result, sets flags
@@ -398,6 +411,7 @@ MOV BX, NUM2` },
     num: 9,
     title: 'Loops: LOOP & Manual Jumps',
     source: 'Lecture 4 — Loop Instructions (examples)',
+    section: 'Fundamentals',
     blocks: [
       { t: 'p', html: 'Two ways to loop: the <code>LOOP</code> instruction (uses <code>CX</code> as a countdown counter) or a manual <code>CMP</code> + conditional jump. <code>LOOP</code> decrements CX then jumps if CX ≠ 0.' },
       { t: 'code', title: 'LOOP — for(i=5;i>0;i--) print(\'*\')', exampleId: 'loop-stars', code: `MOV CX, 5
@@ -442,6 +456,7 @@ I_LOOP:
     num: 10,
     title: 'Logic, Shifts & Rotates',
     source: 'Lecture — Logic and Bit Manipulation · exam Online 2',
+    section: 'Fundamentals',
     blocks: [
       { t: 'p', html: 'These instructions work on <b>individual bits</b> rather than on the number as a whole. They are how you test one bit, force a bit on or off, or multiply by a power of two — and exam questions lean on them heavily.' },
       { t: 'h', text: 'AND, OR, XOR, NOT, TEST' },
@@ -509,6 +524,7 @@ SKIP:
     num: 11,
     title: 'Procedures & The Stack',
     source: 'Lecture 4 — Procedures (example)',
+    section: 'Fundamentals',
     blocks: [
       { t: 'p', html: 'A procedure is a named block of code: <code>NAME PROC … NAME ENDP</code>. <code>CALL</code> pushes the return address on the stack and jumps; <code>RET</code> pops it and continues after the CALL.' },
       { t: 'code', title: 'Anatomy of a procedure', exampleId: 'procedure', code: `PRINT_STAR PROC
@@ -541,6 +557,7 @@ PRINT_STAR ENDP
     num: 12,
     title: 'MUL, DIV & Multi-digit I/O (INDEC/OUTDEC)',
     source: 'Lecture 6 — Multiplication and Division Instructions (12 slides)',
+    section: 'Fundamentals',
     blocks: [
       { t: 'p', html: 'Signed and unsigned multiplication differ (<code>10000000b × 11111111b</code> = 32640 unsigned but 128 signed), so there are two instructions: <code>MUL</code> (unsigned) and <code>IMUL</code> (signed). The source may be a register or memory — <b>not a constant</b>.' },
       { t: 'table', head: ['Instruction', 'Operation', 'Result'], rows: [
@@ -594,6 +611,7 @@ END MAIN` },
     num: 13,
     title: 'Arrays: Byte & Word',
     source: 'Lecture 8 — Arrays (5 programs)',
+    section: 'Fundamentals',
     blocks: [
       { t: 'p', html: 'An array is nothing more than <b>consecutive bytes or words</b> in the data segment. There is no array type and no bounds checking — you hold a pointer, you step it by the right amount, and you count the elements yourself.' },
       { t: 'note', html: 'One number governs everything below. Call it <b>S</b>: the size of one element in bytes. <b>S = 1</b> for a <code>DB</code> array, <b>S = 2</b> for a <code>DW</code> array. Every pointer step is <code>+S</code>, and the element count is <i>total bytes ÷ S</i>. Almost every array bug is a forgotten S.' },
@@ -887,6 +905,7 @@ END MAIN`,
     num: 14,
     title: 'Exam Prep: Sample Online Questions',
     source: 'Sample Online Questions.pdf + Mid-Semester question bank',
+    section: 'Exam prep',
     blocks: [
       { t: 'p', html: 'The online exams ask you to write complete programs from a spec. Below are the sample questions with strategy notes — build each skeleton in the simulator to practice.' },
       { t: 'h', text: 'Online 1 — arithmetic translation' },
@@ -990,6 +1009,7 @@ SKIP:
     num: 15,
     title: 'I/O Interfacing & the Emulation Kit',
     source: 'Laboratory 1 — Hardware Interfacing Manual',
+    section: 'Hardware',
     blocks: [
       { t: 'p', html: 'Every CPU <b>talks to the outside world</b> through three kinds of wiring: <b>address lines</b> (where), <b>data lines</b> (what), and <b>control lines</b> (read/write, interrupt, ready, …). Memory sits on the same bus. To talk to a peripheral instead of memory, the CPU activates one extra wire — <b>IOR or IOW</b> — to tell the rest of the system "this is an I/O transfer, ignore the memory chips".' },
       { t: 'p', html: 'An <b>I/O port</b> is just a number that selects which peripheral the CPU wants to address. The 8086 has a separate 16-bit <b>I/O address space</b> distinct from memory: <code>OUT</code> writes a byte/word to a port and <code>IN</code> reads one back. The two instructions use the <b>accumulator</b> (<code>AL</code> for 8-bit, <code>AX</code> for 16-bit) as the data register.' },
@@ -1061,6 +1081,7 @@ END MAIN`,
     num: 16,
     title: 'LEDs and Switches: Bit-by-bit I/O',
     source: 'Laboratory 1 — Hardware Interfacing Manual',
+    section: 'Hardware',
     blocks: [
       { t: 'p', html: 'The LED bank (<code>2070H</code>, 8 lamps) and the slide-switch bank (<code>2084H</code>, 8 switches) are the simplest devices on the kit: one byte each, no protocol, no timing. <code>OUT</code> a byte and the matching lamps light; <code>IN</code> a byte and each bit tells you whether a slide switch is up or down.' },
       { t: 'h', text: 'Lights on, lights off' },
@@ -1370,6 +1391,7 @@ END MAIN`,
     num: 17,
     title: 'Seven-Segment Displays',
     source: 'Laboratory 1 — Hardware Interfacing Manual',
+    section: 'Hardware',
     blocks: [
       { t: 'p', html: 'A <b>seven-segment digit</b> draws a number with seven line segments — labeled <code>a</code> through <code>g</code>, plus an optional decimal point. The kit ships 8 of them in a row at ports <code>2030H</code> (digit 0) through <code>2037H</code> (digit 7).' },
       { t: 'h', text: 'Segment encoding' },
@@ -1506,6 +1528,7 @@ END MAIN`,
     num: 18,
     title: 'Dot Matrix Displays',
     source: 'Laboratory 1 — Hardware Interfacing Manual',
+    section: 'Hardware',
     blocks: [
       { t: 'p', html: 'A <b>dot matrix</b> is a small grid of LEDs you can light individually. The Emulation Kit has <b>8 displays in a row</b>, each one a <b>5-column × 7-row</b> grid of amber LEDs — enough to draw any capital letter, digit, or short symbol. The whole thing is one IO block at <code>2000H..2027H</code> (40 ports = 8 displays × 5 columns).' },
       { t: 'h', text: 'Byte layout' },
@@ -1608,6 +1631,7 @@ END MAIN`,
     num: 19,
     title: 'ASCII LCD: 3 × 16 Character Display',
     source: 'Laboratory 1 — Hardware Interfacing Manual',
+    section: 'Hardware',
     blocks: [
       { t: 'p', html: 'The Emulation Kit has a backlit <b>3 × 16 character LCD</b> at ports <code>2040H..206FH</code>. Each port is one ASCII cell — write a character byte and that cell shows it. The 48 ports are latched registers: reading one back returns the last byte written, which you can use to verify what is on the screen.' },
       { t: 'h', text: 'The memory layout' },
@@ -1713,6 +1737,7 @@ END MAIN`,
     num: 20,
     title: 'Keyboard & Sensors: Push Buttons, Thermometer, Pressure',
     source: 'Laboratory 1 — Hardware Interfacing Manual',
+    section: 'Hardware',
     blocks: [
       { t: 'p', html: 'The last three devices on the kit are <b>push-buttons</b> (<code>2080H</code>), the <b>keyboard</b> (<code>2082H-2083H</code>) and the two analog <b>sensors</b>: <b>thermometer</b> (<code>2086H</code>) and <b>pressure</b> (<code>2088H</code>). Each one returns a byte, but each one has a different quirk — buttons are 16-bit polled, keyboard is buffered, sensors are scaled.' },
       { t: 'h', text: 'Push-button bank (2080H)' },
@@ -1879,6 +1904,7 @@ END MAIN`,
     num: 21,
     title: 'Classic Practice: Temperature Conversions',
     source: 'Problem set — classic practice programs',
+    section: 'Practice',
     blocks: [
       { t: 'p', html: 'Four temperature conversions that show up on every problem sheet. Each one is pure <b>multiply / divide arithmetic</b> (lesson 6) with one twist: the formulas contain fractions, but 8086 integer division <b>truncates</b> — so the order of operations decides your precision. Every problem below ships in two twins: a <b>console version</b> that prints the result with <code>OUTDEC</code>, and a <b>hardware version</b> that shows it on the kit\'s ASCII LCD.' },
       { t: 'h', text: 'The four formulas' },
@@ -2158,6 +2184,7 @@ END MAIN`, after: '283 K is 10°C = 50°F — a clean check that your formula ha
     num: 22,
     title: 'Classic Practice: Factorials, Averages & Word Problems',
     source: 'Problem set — classic practice programs',
+    section: 'Practice',
     blocks: [
       { t: 'p', html: 'Six more classics: four factorial expressions, the average of an array (lesson 8 skills), and one geometry word problem. They share one workhorse — a <b>FACT procedure</b> — and one display trick for the hardware twins: extracting decimal digits with <code>DIV 10</code> onto the <b>stack</b> so they pop out most-significant-first, straight into <code>SEG_TABLE</code> for the seven-segment block.' },
       { t: 'h', text: 'The FACT procedure' },
@@ -2423,6 +2450,7 @@ END MAIN`, after: '30 · 15 = 450 = 1C2H. Note how SI parks the first quotient �
     num: 23,
     title: 'Lab Plan: LED Patterns and Seven-Segment',
     source: 'Laboratory session runsheet — draws on lessons 16 and 17',
+    section: 'Lab & assignments',
     blocks: [
       { t: 'p', html: 'This is the <b>runsheet for the hardware lab</b>: write and demonstrate LED patterns and a seven-segment display. Lesson 16 teaches the LED bank and lesson 17 teaches segment encoding — this page is the working order. Both halves are graded by <b>what the program has to keep track of</b>, easiest first: fixed frames, then one moving lamp, then a lamp that needs a direction, then accumulating lamps, then arithmetic and tables. Work straight down and each step adds exactly one idea to the last.' },
       { t: 'p', html: 'Every listing here is runnable as printed — they are checked by the test suite, so nothing on this page is pseudo-code. Open the <b>Hardware</b> tab beside it and load each one from the example picker.' },
@@ -3128,6 +3156,7 @@ END MAIN`,
     num: 24,
     title: 'Assignment: Dot-Matrix ID × Name Scroll',
     source: 'Course assignment — dot-matrix display lab',
+    section: 'Lab & assignments',
     blocks: [
       { t: 'h', text: 'The problem' },
       { t: 'p', html: 'Display a sequence formed by <b>interleaving the last two digits of your student ID with the last two letters of your name</b> — digit, letter, digit, letter — one character per dot-matrix display. After the sequence has been shown, scroll it <b>right → left</b> until the whole sequence reaches the leftmost displays, then <b>reverse</b> and scroll left → right. Repeat forever with suitable delays. For a name ending in <i>…af</i> and an ID ending in <i>…15</i> the sequence is <code>1A5F</code> (the worked example in the handout, <i>Ahmed Abdullah</i> / <i>…1027</i>, gives <code>2A7H</code> — same rule).' },
@@ -3249,6 +3278,7 @@ END MAIN` },
     num: 25,
     title: 'Assignment: Dot-Matrix Rotating Column & Blinking Digit',
     source: 'Course assignment — dot-matrix rotate/blink lab',
+    section: 'Lab & assignments',
     blocks: [
       { t: 'h', text: 'The problems' },
       { t: 'p', html: '<b>Emulation kit version.</b> Take an input <code>N</code> (1–5). Light the <b>N rows of the last column of the first dot matrix</b>, then continuously rotate it <b>right → left</b>. In the <b>second dot matrix</b>, print <code>N</code> and blink it <b>N times</b>. Introduce proper delays where needed.' },

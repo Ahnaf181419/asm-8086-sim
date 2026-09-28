@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NavLink, useParams } from 'react-router-dom'
-import { LESSONS } from '../data/lessons'
+import { LESSONS, type Lesson, type LessonSection } from '../data/lessons'
 
 // The width above which the nav is a sidebar rather than a dropdown. Must stay
 // the complement of the `@media (max-width: 1100px)` block in global.css that
@@ -12,6 +12,15 @@ function isWide(): boolean {
   // list is the safe failure, an invisible one is not.
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return true
   return window.matchMedia(WIDE).matches
+}
+
+// Group order is first appearance in LESSONS, so adding a lesson never needs this
+// list edited; lesson order within a group is preserved.
+const GROUPS: { section: LessonSection; lessons: Lesson[] }[] = []
+for (const l of LESSONS) {
+  let g = GROUPS.find((x) => x.section === l.section)
+  if (!g) GROUPS.push((g = { section: l.section, lessons: [] }))
+  g.lessons.push(l)
 }
 
 export default function LessonsNav() {
@@ -58,10 +67,17 @@ export default function LessonsNav() {
         <span className="lessons-nav-count">{LESSONS.length} lessons</span>
       </summary>
       <nav className="lessons-nav">
-        {LESSONS.map((l) => (
-          <NavLink key={l.id} to={`/lessons/${l.id}`} className={({ isActive }) => (isActive ? 'active' : '')}>
-            {String(l.num).padStart(2, '0')} · {l.title}
-          </NavLink>
+        {GROUPS.map((g) => (
+          <div key={g.section} role="group" aria-label={g.section}>
+            <div className="lessons-nav-heading" aria-hidden="true">
+              {g.section}
+            </div>
+            {g.lessons.map((l) => (
+              <NavLink key={l.id} to={`/lessons/${l.id}`} className={({ isActive }) => (isActive ? 'active' : '')}>
+                {String(l.num).padStart(2, '0')} · {l.title}
+              </NavLink>
+            ))}
+          </div>
         ))}
       </nav>
     </details>

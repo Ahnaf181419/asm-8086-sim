@@ -251,3 +251,18 @@ describe('lab runsheet snippets are runnable', () => {
     }
   })
 })
+
+// The nav groups lessons by an explicit `section`. The type already forces every
+// lesson to declare one; this pins the runtime values so a typo cannot render an
+// orphan group, and an emptied section cannot linger in the list.
+describe('lesson sections', () => {
+  const KNOWN = ['Fundamentals', 'Exam prep', 'Hardware', 'Practice', 'Lab & assignments']
+
+  it('every lesson declares a known section', () => {
+    for (const l of LESSONS) expect(KNOWN, `${l.id}: ${l.section}`).toContain(l.section)
+  })
+
+  it('every known section has at least one lesson', () => {
+    for (const s of KNOWN) expect(LESSONS.some((l) => l.section === s), s).toBe(true)
+  })
+})

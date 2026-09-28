@@ -537,6 +537,16 @@ input[type='checkbox'] { accent-color: var(--accent-dim); }
   border-left: 2px solid transparent;
 }
 .lessons-nav a.active { color: var(--accent); border-left-color: var(--accent); background: rgba(51, 255, 102, 0.05); }
+/* Section headings: the 25 lessons fall into five groups and a flat column made
+   "the hardware ones" a read-all-titles job. Smaller and dimmer than the links
+   (and not links themselves) so they orient without competing with them. */
+.lessons-nav-heading {
+  padding: 12px 16px 4px;
+  color: var(--text-faint);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
 /* The nav is wrapped in a <details> so narrow screens can collapse it (two
    dozen lessons wrapped into a 375px column is several screens of links above
    every lesson, and plan 004's 44px touch targets made it worse). On the
@@ -549,7 +559,17 @@ input[type='checkbox'] { accent-color: var(--accent-dim); }
 .lessons-nav-summary {
   display: none;
 }
-.lessons-content { overflow-y: auto; padding: 24px 40px 80px; line-height: 1.65; max-width: 900px; margin-inline: auto; width: 100%; }
+/* Measure. At 900px (820px of text) body copy ran ~100 characters per line
+   (measured on /lessons/machine-basics: the longest paragraph, 305 chars, wraps
+   to 3.07 lines; capacity 820px / 7px advance = 117 cpl in the sandbox's fallback
+   mono, 111 cpl with IBM Plex Mono's 0.6em advance at the 12.25px paragraph size).
+   The usual ceiling is 65-80, and monospace is the worst case for a long line:
+   every glyph is the same width, so there are no word-shapes to track. 640px less
+   the 80px of padding leaves 560px = 80 cpl in the 7px fallback and 76 cpl in
+   Plex (7.35px), i.e. near 75. The face stays monospace on purpose: it is the CRT
+   identity and it is right for code and tables; only the measure changes. Wide
+   tables already sit in .scroll-x and now scroll sooner, which is correct. */
+.lessons-content { overflow-y: auto; padding: 24px 40px 80px; line-height: 1.65; max-width: 640px; margin-inline: auto; width: 100%; }
 .lessons-content h1 { color: var(--accent); font-size: 22px; text-shadow: 0 0 12px rgba(51, 255, 102, 0.35); margin: 0 0 4px; }
 .lessons-content h2 { color: var(--accent); font-size: 16px; margin-top: 32px; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
 .lessons-content h3 { color: var(--text); font-size: 14px; margin-top: 22px; }
