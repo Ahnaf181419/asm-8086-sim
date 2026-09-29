@@ -192,10 +192,13 @@ export default function ReferencePage() {
       </div>
       <section className="ref-font">
         <h2>DOT-MATRIX 5×7 FONT — 0–9, A–Z</h2>
-        <p className="ref-font-hint">
-          one byte per column · five per glyph · bytes in binary — read top row first (bit 0 = top row, bit 6 =
-          bottom) · columns go left → right to ports<code> 2000H…2027H</code> (see lesson 24)
-        </p>
+        <ul className="ref-font-hint">
+          <li>One byte per column, five bytes per glyph. Bytes are in binary.</li>
+          <li>Read each byte top row first: bit 0 is the top row, bit 6 the bottom.</li>
+          <li>
+            Columns go left → right to ports<code> 2000H…2027H</code> (see lesson 24).
+          </li>
+        </ul>
         <table className="ref-table ref-font-table">
           <thead>
             <tr>

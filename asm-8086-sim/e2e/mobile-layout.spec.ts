@@ -213,3 +213,21 @@ test.describe('lesson measure', () => {
     expect(m.w).toBeLessThanOrEqual(m.vw)
   })
 })
+
+test.describe('simulator chrome leaves room for code on a phone', () => {
+  test('the first line of the program starts in the top half of the screen', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'phone', 'phone-only layout rule')
+    await page.goto('/')
+    await page.waitForLoadState('networkidle')
+    await page.waitForSelector('.cm-line')
+    const top = await page.evaluate(() => {
+      const r = document.querySelector('.cm-line')!.getBoundingClientRect()
+      return r.top + window.scrollY
+    })
+    // Measured in-page at 375x667: BEFORE = 382px (57% of the screen), AFTER =
+    // 305px (46%). The topbar went from three rows to two and the toolbar from
+    // three rows to two. 320 leaves headroom for font rounding without letting
+    // the old layout back in.
+    expect(top, `first code line starts ${Math.round(top)}px down a 667px screen`).toBeLessThan(320)
+  })
+})
