@@ -5,6 +5,12 @@ import LessonsNav from '../components/LessonsNav'
 import AddressCalculator from '../components/AddressCalculator'
 import { sanitizeHtml } from '../lib/sanitizeHtml'
 
+// A lesson whose runnable examples are kit programs practices best in the
+// Hardware Lab — its pager and per-block buttons should send you there.
+function lessonHasHardwareExample(blocks: LessonBlock[]): boolean {
+  return blocks.some((b) => b.t === 'code' && b.exampleId && exampleById(b.exampleId)?.category === 'Hardware')
+}
+
 export default function LessonView() {
   const { id } = useParams()
   const lesson = id ? lessonById(id) : undefined
@@ -53,6 +59,10 @@ export default function LessonView() {
           {next ? (
             <Link className="btn" to={`/lessons/${next.id}`} rel="next">
               {String(next.num).padStart(2, '0')} · {next.title} →
+            </Link>
+          ) : lessonHasHardwareExample(lesson.blocks) ? (
+            <Link className="btn" to="/hardware">
+              ▶ open the hardware lab to practice
             </Link>
           ) : (
             <Link className="btn" to="/">
@@ -175,13 +185,14 @@ function Block({ block }: { block: LessonBlock }) {
       )
     case 'code': {
       const ex = block.exampleId ? exampleById(block.exampleId) : undefined
+      const hw = ex?.category === 'Hardware'
       return (
         <div className="code-block">
           <div className="code-title">
             <span>{block.title}</span>
             {ex && (
-              <Link className="btn open-sim-btn" to={`/?example=${ex.id}`}>
-                ▶ open in simulator
+              <Link className="btn open-sim-btn" to={hw ? `/hardware?example=${ex.id}` : `/?example=${ex.id}`}>
+                {hw ? '▶ open in hardware lab' : '▶ open in simulator'}
               </Link>
             )}
           </div>

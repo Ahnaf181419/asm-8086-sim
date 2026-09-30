@@ -1,13 +1,20 @@
+import { useSearchParams } from 'react-router-dom'
 import TerminalPanel from '../components/TerminalPanel'
 import { HardwareLab } from '../components/hardware/HardwareLab'
 import { IO_PORT_MAP } from '../data/reference'
 
 export default function HardwareLabPage() {
+  // deep links from lesson pages: /hardware?example=<id>. The key forces a
+  // remount when a lesson links to a different example while we're already
+  // on the lab, so the deep link always wins over the current editor state.
+  const [params] = useSearchParams()
+  const deep = params.get('example')
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 10, minHeight: 0 }}>
       <h1 className="sr-only">Hardware Lab — MDA-8086 Emulation Kit with nine peripherals</h1>
       <TerminalPanel title="HARDWARE LAB — Emulation Kit (9 peripherals)" style={{ flex: '1 1 auto', minHeight: 0 }}>
-        <HardwareLab />
+        <HardwareLab key={deep ?? 'home'} initialExampleId={deep ?? undefined} />
       </TerminalPanel>
 
       <details className="hw-port-map-panel" style={{ flex: '0 0 auto' }}>

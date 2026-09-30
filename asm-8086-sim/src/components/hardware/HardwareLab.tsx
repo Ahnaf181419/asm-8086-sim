@@ -242,7 +242,7 @@ function StudioPanel({
   )
 }
 
-export function HardwareLab() {
+export function HardwareLab({ initialExampleId }: { initialExampleId?: string }) {
   const {
     snapshot,
     bus,
@@ -260,10 +260,18 @@ export function HardwareLab() {
   const [studioOpen, setStudioOpen] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
 
-  // initial compile on mount — a saved buffer wins, otherwise the first
-  // example arrives as a lazy chunk
+  // initial compile on mount — a deep-linked example wins, then a saved
+  // buffer, otherwise the first example arrives as a lazy chunk
   useEffect(() => {
     let cancelled = false
+    const deep =
+      initialExampleId && HW_EXAMPLES.some((e) => e.id === initialExampleId) ? initialExampleId : undefined
+    if (deep) {
+      loadExample(deep)
+      return () => {
+        cancelled = true
+      }
+    }
     const stored = readStored(LS_KEY)
     if (stored) {
       setSource(stored)

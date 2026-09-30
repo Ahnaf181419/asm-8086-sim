@@ -9,9 +9,13 @@
 // 4s waitFor budgets, which the 5s default testTimeout could never satisfy —
 // the explicit timeouts below are what makes those budgets reachable.
 const SMOKE_TIMEOUT = 20_000
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { describe, expect, it, beforeAll } from 'vitest'
+import { afterEach, describe, expect, it, beforeAll } from 'vitest'
+
+// jsdom keeps the document between tests — without this, later renders
+// stack on the earlier ones and querySelector finds the wrong mount
+afterEach(cleanup)
 
 // CodeMirror 6 requires ResizeObserver, which jsdom lacks
 beforeAll(() => {
@@ -107,5 +111,67 @@ describe('LessonView smoke', () => {
     // sanitizeHtml keeps <code>/<b> and strips everything else
     expect(document.querySelectorAll('code').length).toBeGreaterThan(20)
     expect(document.querySelector('script')).toBeNull()
+  })
+})
+
+describe('lesson → simulator routing follows the example category', () => {
+  it('hardware examples link to the hardware lab, console examples to the simulator', { timeout: SMOKE_TIMEOUT }, async () => {
+    const { default: LessonView } = await import('../src/pages/LessonView')
+    // lesson 24: the dot-matrix assignment — its only example is Hardware
+    render(
+      <MemoryRouter initialEntries={['/lessons/dot-matrix-id-scroll']}>
+        <Routes>
+          <Route path="/lessons/:id" element={<LessonView />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    const hwBtn = screen.getByRole('link', { name: /open in hardware lab/i })
+    expect(hwBtn.getAttribute('href')).toBe('/hardware?example=dot-matrix-id-scroll')
+    // lesson 24 is the last lesson — its bottom pager must point at the lab too
+    const pager = screen.getByRole('link', { name: /open the hardware lab to practice/i })
+    expect(pager.getAttribute('href')).toBe('/hardware')
+    cleanup()
+  })
+
+  it('console lessons keep the classic simulator button', { timeout: SMOKE_TIMEOUT }, async () => {
+    const { default: LessonView } = await import('../src/pages/LessonView')
+    render(
+      <MemoryRouter initialEntries={['/lessons/io-int21']}>
+        <Routes>
+          <Route path="/lessons/:id" element={<LessonView />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    const simBtns = screen.getAllByRole('link', { name: /open in simulator/i })
+    expect(simBtns.map((l) => l.getAttribute('href'))).toContain('/?example=char-io')
+    expect(screen.queryByRole('link', { name: /hardware lab/i })).toBeNull()
+    cleanup()
+  })
+})
+
+describe('hardware lab deep link', () => {
+  it('?example= boots the lab with that program selected and loaded', { timeout: SMOKE_TIMEOUT }, async () => {
+    const { default: HardwareLabPage } = await import('../src/pages/HardwareLabPage')
+    render(
+      <MemoryRouter initialEntries={['/hardware?example=led-blink-all']}>
+        <Routes>
+          <Route path="/hardware" element={<HardwareLabPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    // the picker reflects the deep link and the editor receives the source
+    await waitFor(
+      () => {
+        const sel = document.querySelector('select[aria-label="load hardware example"]') as HTMLSelectElement
+        expect(sel?.value).toBe('led-blink-all')
+      },
+      { timeout: 4000 },
+    )
+    await waitFor(
+      () => {
+        expect(document.querySelector('.cm-content')?.textContent).toContain('XOR AL, 11111111B')
+      },
+      { timeout: 4000 },
+    )
   })
 })
