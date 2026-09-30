@@ -16,6 +16,14 @@ Lab simulating the MDA-8086 Emulation Kit trainer board.
     npm run test:watch          # vitest in watch mode
     npm run test:coverage       # v8 coverage report
     npm run typecheck           # tsc -b (all three tsconfigs)
+    npm run test:e2e            # Playwright layout checks at 375px and 1440px
+    npm run test:e2e:report     # open the last HTML report
+
+The e2e checks are layout assertions (horizontal overflow, touch-target size,
+content-first lessons route) that jsdom cannot make, because it computes no
+layout. They run against the production build via `npm run preview`. First use
+needs a browser: `npx playwright install chromium`. The phone checks are
+currently expected to fail until the mobile layout work lands.
 
 ## Build
 

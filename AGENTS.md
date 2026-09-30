@@ -10,6 +10,7 @@ All paths relative to the repo root. The app lives in `asm-8086-sim/`.
 | Tests (once) | `npm test` |
 | Tests (watch) | `npm run test:watch` |
 | Tests + coverage | `npm run test:coverage` |
+| E2E layout tests | `npm run test:e2e` |
 | Lint | `npm run lint` (oxlint) |
 | Typecheck (all 3 tsconfigs) | `npm run typecheck` |
 | Production build | `npm run build` |
