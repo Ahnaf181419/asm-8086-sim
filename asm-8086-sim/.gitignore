@@ -28,3 +28,9 @@ extracted
 
 # defensive: if a future e2e test runs from this dir, ignore its cache
 .playwright-mcp/
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/.playwright/
