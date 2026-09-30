@@ -40,6 +40,7 @@ export default function RegisterPanel({
 }) {
   const [editingReg, setEditingReg] = useState<string | null>(null)
   const [editVal, setEditVal] = useState('')
+  const [openFlag, setOpenFlag] = useState<string | null>(null)
 
   if (!snap) {
     return <div style={{ color: 'var(--text-faint)' }}>assemble a program to see registers…</div>
@@ -102,7 +103,7 @@ export default function RegisterPanel({
                   type="button"
                   className={`reg-hex${onSetReg ? ' reg-hex-edit' : ''}`}
                   title={onSetReg ? `Edit ${name} — hex, or a leading - for decimal` : undefined}
-                  aria-label={onSetReg ? `${name} = ${hex4(v)}H, edit` : undefined}
+                  aria-label={onSetReg ? `${name} = ${hex4(v)}H, edit — type hex, or a leading - for decimal` : undefined}
                   disabled={!onSetReg}
                   onClick={() => startEdit(name, v)}
                 >
@@ -134,17 +135,25 @@ export default function RegisterPanel({
         {FLAGS.map(([key, label]) => {
           const on = key in snap.flags ? snap.flags[key] : false
           return (
-            <span
+            <button
               key={key}
-              className={`flag ${on ? 'on' : ''} ${changes.flags.has(key) ? 'changed' : ''}`}
+              type="button"
+              className={`flag ${on ? 'on' : ''} ${changes.flags.has(key) ? 'changed' : ''}${openFlag === key ? ' open' : ''}`}
               title={FLAG_TOOLTIPS[key]}
-              style={{ cursor: 'help' }}
+              aria-expanded={openFlag === key}
+              aria-label={`${label} flag, currently ${on ? 1 : 0}. ${FLAG_TOOLTIPS[key]}`}
+              onClick={() => setOpenFlag((f) => (f === key ? null : key))}
             >
               {label}={on ? 1 : 0}
-            </span>
+            </button>
           )
         })}
       </div>
+      {openFlag && (
+        <p className="flag-explain" role="status">
+          {FLAG_TOOLTIPS[openFlag]}
+        </p>
+      )}
     </div>
   )
 }

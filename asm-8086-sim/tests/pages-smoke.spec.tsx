@@ -253,3 +253,52 @@ describe('App shell', () => {
     }
   })
 })
+
+describe('flag explanations are reachable without hover', () => {
+  async function renderWithRegisters() {
+    localStorage.setItem('asm-8086-sim:source', '    MOV AX, 5\n    ADD AX, 3\n    HLT\n')
+    const { default: SimulatorPage } = await import('../src/pages/SimulatorPage')
+    render(
+      <MemoryRouter>
+        <SimulatorPage />
+      </MemoryRouter>,
+    )
+    const runBtn = await waitFor(() => screen.getByRole('button', { name: /run program/i }), { timeout: 4000 })
+    await act(async () => {
+      runBtn.click()
+    })
+    return waitFor(() => screen.getByRole('button', { name: /^ZF flag/ }), { timeout: 4000 })
+  }
+
+  it('flags are buttons, not spans', { timeout: SMOKE_TIMEOUT }, async () => {
+    const zf = await renderWithRegisters()
+    expect(zf.tagName).toBe('BUTTON')
+  })
+
+  it('activating a flag reveals its explanation, and again hides it', { timeout: SMOKE_TIMEOUT }, async () => {
+    const zf = await renderWithRegisters()
+    expect(document.querySelector('.flag-explain')).toBeNull()
+    await act(async () => {
+      zf.click()
+    })
+    expect(document.querySelector('.flag-explain')?.textContent).toMatch(/Zero/)
+    await act(async () => {
+      zf.click()
+    })
+    expect(document.querySelector('.flag-explain')).toBeNull()
+  })
+
+  it('the explanation is in the accessible name too', { timeout: SMOKE_TIMEOUT }, async () => {
+    const zf = await renderWithRegisters()
+    expect(zf.getAttribute('aria-label')).toContain('Zero')
+  })
+
+  it('aria-expanded tracks state', { timeout: SMOKE_TIMEOUT }, async () => {
+    const zf = await renderWithRegisters()
+    expect(zf.getAttribute('aria-expanded')).toBe('false')
+    await act(async () => {
+      zf.click()
+    })
+    expect(zf.getAttribute('aria-expanded')).toBe('true')
+  })
+})

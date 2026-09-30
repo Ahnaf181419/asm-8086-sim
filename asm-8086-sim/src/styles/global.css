@@ -172,7 +172,6 @@ body.no-crt::after {
 }
 
 a { color: var(--accent); text-decoration: none; }
-a:hover { text-shadow: 0 0 8px rgba(51, 255, 102, 0.6); }
 
 /* ── layout shell ─────────────────────────────── */
 .app-shell {
@@ -217,7 +216,6 @@ a:hover { text-shadow: 0 0 8px rgba(51, 255, 102, 0.6); }
   border-radius: 3px;
   font-size: 13px;
 }
-.topbar nav a:hover { color: var(--text); border-color: var(--border); }
 .topbar nav a.active {
   color: var(--accent);
   border-color: var(--border-bright);
@@ -353,15 +351,8 @@ button, .btn {
   transition: all 0.1s;
   white-space: nowrap;
 }
-button:hover, .btn:hover {
-  border-color: var(--accent-dim);
-  color: var(--accent);
-  box-shadow: 0 0 8px rgba(51, 255, 102, 0.2);
-}
 button:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
 button.primary { color: #05130a; background: var(--accent-dim); border-color: var(--accent); font-weight: 600; }
-button.primary:hover { background: var(--accent); color: #05130a; }
-button.danger:hover { border-color: var(--err); color: var(--err); box-shadow: 0 0 8px rgba(255, 85, 85, 0.25); }
 
 /* 16px is not a style choice. iOS Safari zooms the viewport when a form
    control under 16px receives focus, and does not zoom back out — tapping
@@ -431,7 +422,6 @@ input[type='range'] { accent-color: var(--accent-dim); width: 110px; }
 }
 .reg-hex:disabled { cursor: default; opacity: 1; }
 .reg-hex-edit { cursor: pointer; border-bottom: 1px dashed var(--border-bright); }
-.reg-hex-edit:hover { color: var(--accent); }
 .reg-signed { color: var(--text-faint); font-size: 11px; margin-left: auto; }
 .reg-byte { color: var(--info); font-size: 11px; }
 
@@ -445,6 +435,30 @@ input[type='range'] { accent-color: var(--accent-dim); width: 110px; }
 }
 .flag.on { color: var(--warn); border-color: var(--warn); text-shadow: 0 0 6px rgba(255, 204, 68, 0.5); }
 .flag.on.changed { background: rgba(255, 204, 68, 0.15); }
+/* The flag strip was <span title=…>, and a title never fires on touch — so
+   the only explanation of OF/DF/SF/ZF/AF/PF/CF in the whole app was
+   mouse-only. These are buttons now: tapping one reveals the text below the
+   strip, and the same text is inlined into aria-label for screen readers.
+   Border is left to .flag/.flag.on so the lit-flag colour still wins. */
+.flags-row button.flag {
+  font-family: inherit;
+  font-size: inherit;
+  background: none;
+  cursor: pointer;
+}
+.flags-row button.flag.open {
+  border-color: var(--border-bright);
+}
+.flag-explain {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-left: 2px solid var(--accent-dim);
+  background: var(--panel2);
+  border-radius: 0 3px 3px 0;
+  color: var(--text-dim);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
 
 /* ── memory view ─────────────────────────────── */
 /* the dump sizes itself to the panel: .mem-scroll is the measured box */
@@ -512,7 +526,6 @@ input[type='range'] { accent-color: var(--accent-dim); width: 110px; }
   font-size: 12.5px;
   border-left: 2px solid transparent;
 }
-.lessons-nav a:hover { color: var(--text); background: var(--panel2); }
 .lessons-nav a.active { color: var(--accent); border-left-color: var(--accent); background: rgba(51, 255, 102, 0.05); }
 /* The nav is wrapped in a <details> so narrow screens can collapse it (two
    dozen lessons wrapped into a 375px column is several screens of links above
@@ -623,7 +636,6 @@ input[type='range'] { accent-color: var(--accent-dim); width: 110px; }
   width: fit-content;
   padding: 2px 0;
 }
-.practice summary:hover { text-shadow: 0 0 8px rgba(51, 255, 102, 0.5); }
 .practice details[open] summary { margin-bottom: 8px; }
 .practice pre {
   margin: 0;
@@ -681,7 +693,6 @@ input[type='range'] { accent-color: var(--accent-dim); width: 110px; }
 .ref-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
 .ref-table th, .ref-table td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; vertical-align: top; }
 .ref-table th { background: var(--panel2); color: var(--accent); position: sticky; top: 0; }
-.ref-table tr:hover td { background: var(--panel2); }
 .ref-table code { color: var(--warn); }
 .ref-table:not(.ref-font-table) { table-layout: fixed; }
 .ref-table:not(.ref-font-table) th:nth-child(1), .ref-table:not(.ref-font-table) td:nth-child(1) { width: 10ch; }
@@ -707,7 +718,6 @@ input[type='range'] { accent-color: var(--accent-dim); width: 110px; }
 ::-webkit-scrollbar { width: 9px; height: 9px; }
 ::-webkit-scrollbar-track { background: var(--panel); }
 ::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: var(--accent-dim); }
 
 /* Narrow: stack the columns and let the PAGE scroll. The previous rule set
    `overflow-y: auto` on .sim-layout while its parent .page stayed
@@ -881,6 +891,32 @@ input[type='range'] { accent-color: var(--accent-dim); width: 110px; }
 
   .lessons-content { padding: 14px 14px 56px; }
   .ref-layout { padding: 14px 12px; }
+}
+
+/* ── hover effects ─────────────────────────────────────────────────────
+   Gated on a hover-capable pointer. On a touchscreen the browser synthesises
+   a hover state on tap and leaves it there until the user taps elsewhere, so
+   the Run button stayed lit after every run — reading as "still active" on a
+   toolbar where that means something. :focus-visible is deliberately NOT in
+   here: keyboard focus must show on every device. */
+@media (hover: hover) {
+  a:hover { text-shadow: 0 0 8px rgba(51, 255, 102, 0.6); }
+  .topbar nav a:hover { color: var(--text); border-color: var(--border); }
+  button:hover, .btn:hover {
+    border-color: var(--accent-dim);
+    color: var(--accent);
+    box-shadow: 0 0 8px rgba(51, 255, 102, 0.2);
+  }
+  /* button:disabled sits earlier in the file than this block; it used to win the
+     tie against button:hover on box-shadow, so restate it here to keep that. */
+  button:disabled:hover { box-shadow: none; }
+  button.primary:hover { background: var(--accent); color: #05130a; }
+  button.danger:hover { border-color: var(--err); color: var(--err); box-shadow: 0 0 8px rgba(255, 85, 85, 0.25); }
+  .reg-hex-edit:hover { color: var(--accent); }
+  .lessons-nav a:hover { color: var(--text); background: var(--panel2); }
+  .practice summary:hover { text-shadow: 0 0 8px rgba(51, 255, 102, 0.5); }
+  .ref-table tr:hover td { background: var(--panel2); }
+  ::-webkit-scrollbar-thumb:hover { background: var(--accent-dim); }
 }
 
 /* route errorElement page */
