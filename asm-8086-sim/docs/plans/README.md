@@ -295,6 +295,48 @@ that the blind spot is gone.
 done in 004 step 1b) and 004 → 007 (hardware control touch sizing, done in
 007's `pointer: coarse` block).
 
+## Regression found in production use — 2026-10-01
+
+**The desktop lessons sidebar shipped invisible.** Reported by the maintainer,
+not by any test.
+
+Plan 005 wrapped the nav in a `<details>` and used `display: contents` on the
+wrapper to make a **closed** disclosure still lay out its children on desktop.
+That is browser-dependent. Chrome 131+ hides closed content through the
+`::details-content` pseudo-element regardless of the wrapper's `display`, so
+the sidebar disappeared entirely — 25 lesson links, gone, with no way to reach
+them but the prev/next pager.
+
+**Why three layers of testing missed it:**
+
+- The **unit test** asserted `document.querySelectorAll('.lessons-nav a').length
+  === LESSONS.length`. A closed `<details>` keeps its children in the DOM, so
+  counting nodes passes while nothing is on screen.
+- The **other unit test** asserted `open === false` — it pinned the very
+  behaviour that caused the bug.
+- The **layout suite** never looked at the sidebar at all; it only measured the
+  lesson heading's offset, which was fine either way.
+- My own first diagnostic probe measured `getBoundingClientRect()`, which still
+  returns a box under `content-visibility: hidden`. It reported the links as
+  visible. Playwright's `toBeVisible()` — which checks actual visibility —
+  reported `hidden` on the same engine. **The probe was the wrong instrument.**
+
+**Fix.** `open` is now explicit state in `LessonsNav`, seeded from
+`matchMedia('(min-width: 1101px)')` and kept in step with a `change` listener,
+so the same thing happens in every engine: sidebar on desktop, disclosure on a
+phone. Where `matchMedia` is unavailable it defaults to **open** — a visible
+list is the safe failure, an invisible one is not.
+
+**New assertions**, both proven to fail against the old component:
+`the lesson list is visible without interaction on desktop` and
+`the list starts collapsed on a phone and opens when tapped`. They assert
+visibility, not DOM presence. The two unit tests were rewritten to the real
+contract rather than deleted.
+
+**Lesson for this index:** "is it in the DOM" is not "can the user see it".
+Any future test of a disclosure, drawer or collapsed panel belongs in the
+Playwright suite with `toBeVisible()`.
+
 ## Findings considered and rejected
 
 - **Changing the viewport meta tag to suppress iOS zoom.** Adding

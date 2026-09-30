@@ -117,3 +117,30 @@ test.describe('hardware lab disclosures do not widen the page', () => {
     ).toBeLessThanOrEqual(overflow.clientWidth + 1)
   })
 })
+
+test.describe('lessons nav is a sidebar on desktop and a disclosure on a phone', () => {
+  // This is the assertion that was missing. The unit test counted `.lessons-nav a`
+  // nodes, and a CLOSED <details> keeps its children in the DOM — so the desktop
+  // sidebar could vanish with every test still green. Visibility is the contract,
+  // not DOM presence.
+  test('the lesson list is visible without interaction on desktop', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'desktop', 'desktop-only layout rule')
+    await page.goto('/lessons')
+    await page.waitForLoadState('networkidle')
+    await expect(page.locator('.lessons-nav a').first()).toBeVisible()
+    await expect(page.locator('.lessons-nav a').nth(5)).toBeVisible()
+    // The summary is chrome for the collapsed form and must not show here.
+    await expect(page.locator('.lessons-nav-summary')).toBeHidden()
+  })
+
+  test('the list starts collapsed on a phone and opens when tapped', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'phone', 'phone-only layout rule')
+    await page.goto('/lessons')
+    await page.waitForLoadState('networkidle')
+    const summary = page.locator('.lessons-nav-summary')
+    await expect(summary).toBeVisible()
+    await expect(page.locator('.lessons-nav a').first()).toBeHidden()
+    await summary.click()
+    await expect(page.locator('.lessons-nav a').first()).toBeVisible()
+  })
+})

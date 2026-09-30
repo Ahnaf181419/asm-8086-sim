@@ -111,11 +111,15 @@ describe('LessonView smoke', () => {
     expect(screen.getAllByText('2070H').length).toBeGreaterThan(0)
     expect(document.querySelectorAll('table').length).toBeGreaterThan(1)
 
-    // worked solutions are present but collapsed behind <details>
-    // (4 = 3 practice solutions + the lessons-nav disclosure)
-    const solutions = document.querySelectorAll('details')
-    expect(solutions.length).toBe(4)
+    // worked solutions are present but collapsed behind <details>.
+    // Scoped to .practice: a blanket querySelectorAll('details') also catches
+    // the lessons-nav disclosure, whose open state follows the viewport rather
+    // than always starting closed, so the sweep no longer applies to it.
+    const solutions = document.querySelectorAll('.practice details')
+    expect(solutions.length).toBe(3)
     for (const d of solutions) expect((d as HTMLDetailsElement).open).toBe(false)
+    // The nav disclosure is the fourth <details> on the page.
+    expect(document.querySelectorAll('details').length).toBe(4)
 
     // sanitizeHtml keeps <code>/<b> and strips everything else
     expect(document.querySelectorAll('code').length).toBeGreaterThan(20)
@@ -148,9 +152,25 @@ describe('LessonsNav disclosure', () => {
     expect(document.querySelectorAll('.lessons-nav a').length).toBe(LESSONS.length)
   })
 
-  it('is closed by default', { timeout: SMOKE_TIMEOUT }, async () => {
+  // This used to assert `open === false` unconditionally, which is what let the
+  // desktop sidebar ship invisible: the component relied on `display: contents`
+  // to render a CLOSED <details>, and Chrome 131+ hides closed content through
+  // ::details-content regardless. `open` is viewport-driven now, and jsdom has
+  // no viewport — so the contract here is the safe default, not "closed".
+  it('defaults to open where there is no viewport to measure, so the list is never invisible', { timeout: SMOKE_TIMEOUT }, async () => {
     await renderLesson()
     const d = document.querySelector('details.lessons-nav-wrap') as HTMLDetailsElement
+    expect(d.open).toBe(true)
+  })
+
+  it('toggling the summary updates the disclosure state', { timeout: SMOKE_TIMEOUT }, async () => {
+    await renderLesson()
+    const d = document.querySelector('details.lessons-nav-wrap') as HTMLDetailsElement
+    const summary = d.querySelector('summary') as HTMLElement
+    expect(d.open).toBe(true)
+    await act(async () => {
+      summary.click()
+    })
     expect(d.open).toBe(false)
   })
 })
