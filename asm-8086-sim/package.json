@@ -16,7 +16,10 @@
     "preview:pages": "PAGES_BASE=/asm-8086-sim/ vite preview",
     "typecheck": "tsc -b",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:report": "playwright show-report"
   },
   "dependencies": {
     "@codemirror/language": "^6.12.4",
@@ -29,6 +32,7 @@
     "react-router-dom": "^7.18.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@testing-library/react": "^16.3.3",
     "@types/node": "^24.13.4",
     "@types/react": "^19.3.0",

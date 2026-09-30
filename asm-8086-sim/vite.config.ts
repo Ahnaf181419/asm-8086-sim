@@ -1,5 +1,5 @@
 import react from '@vitejs/plugin-react'
-import { defineConfig, type Plugin } from 'vitest/config'
+import { configDefaults, defineConfig, type Plugin } from 'vitest/config'
 
 // https://vite.dev/config/
 // PAGES_BASE is set by the build:pages / preview:pages scripts so the GitHub
@@ -40,6 +40,12 @@ export default defineConfig({
   base,
   plugins: [react(), cspMeta()],
   test: {
+    // vitest's default glob matches e2e/*.spec.ts, where Playwright's
+    // test.describe() throws because it is not running under the Playwright
+    // runner. The two runners share a file-naming convention and must not
+    // share a search path. Spreading configDefaults.exclude keeps
+    // node_modules/dist/etc. excluded rather than replacing the defaults.
+    exclude: [...configDefaults.exclude, 'e2e/**'],
     coverage: {
       include: ['src'],
       exclude: ['src/data/**', 'src/main.tsx', 'src/vite-env.d.ts'],

@@ -172,13 +172,18 @@ body.no-crt::after {
 }
 
 a { color: var(--accent); text-decoration: none; }
-a:hover { text-shadow: 0 0 8px rgba(51, 255, 102, 0.6); }
 
 /* ── layout shell ─────────────────────────────── */
 .app-shell {
   display: flex;
   flex-direction: column;
+  /* 100vh on a phone is the viewport with the browser chrome HIDDEN, so the
+     shell runs underneath the URL bar and .page's overflow:hidden makes the
+     bottom of the app (status bar, error list) unreachable. dvh tracks the
+     chrome as it shows and hides. vh first as the fallback for browsers
+     without dvh — they get the old behaviour rather than no height at all. */
   height: 100vh;
+  height: 100dvh;
 }
 
 .topbar {
@@ -211,7 +216,6 @@ a:hover { text-shadow: 0 0 8px rgba(51, 255, 102, 0.6); }
   border-radius: 3px;
   font-size: 13px;
 }
-.topbar nav a:hover { color: var(--text); border-color: var(--border); }
 .topbar nav a.active {
   color: var(--accent);
   border-color: var(--border-bright);
@@ -221,6 +225,27 @@ a:hover { text-shadow: 0 0 8px rgba(51, 255, 102, 0.6); }
 
 .topbar .spacer { flex: 1; }
 .topbar .meta { color: var(--text-faint); font-size: 11px; }
+
+/* The theme picker and CRT toggle carried inline style objects, which beat
+   every stylesheet rule INCLUDING media queries — so they could not be given
+   a touch-sized hit area in CSS at all. Same values, now overridable. */
+.topbar-controls { display: flex; align-items: center; gap: 8px; }
+.topbar-control {
+  font-size: 11px;
+  padding: 2px 6px;
+}
+button.topbar-control.on {
+  color: var(--accent);
+  border-color: var(--border-bright);
+}
+button.topbar-control:not(.on) {
+  color: var(--text-dim);
+}
+select.topbar-control {
+  background: var(--panel2);
+  color: var(--text);
+  border: 1px solid var(--border-bright);
+}
 
 .page { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
 
@@ -326,24 +351,31 @@ button, .btn {
   transition: all 0.1s;
   white-space: nowrap;
 }
-button:hover, .btn:hover {
-  border-color: var(--accent-dim);
-  color: var(--accent);
-  box-shadow: 0 0 8px rgba(51, 255, 102, 0.2);
-}
 button:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
 button.primary { color: #05130a; background: var(--accent-dim); border-color: var(--accent); font-weight: 600; }
-button.primary:hover { background: var(--accent); color: #05130a; }
-button.danger:hover { border-color: var(--err); color: var(--err); box-shadow: 0 0 8px rgba(255, 85, 85, 0.25); }
 
+/* 16px is not a style choice. iOS Safari zooms the viewport when a form
+   control under 16px receives focus, and does not zoom back out — tapping
+   the console input left the page zoomed and horizontally scrolled, with
+   every later tap off-target. Suppressing it via user-scalable=no in the
+   viewport meta would break pinch-zoom for everyone (WCAG 1.4.4), so the
+   font size is the fix. Padding is trimmed so the control's painted height
+   is close to what it was at 12px. */
 select, input[type='text'] {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 16px;
   color: var(--text);
   background: var(--bg);
   border: 1px solid var(--border-bright);
   border-radius: 3px;
-  padding: 4px 8px;
+  padding: 3px 8px;
+}
+
+/* On a precise pointer (mouse/trackpad) there is no zoom-on-focus behaviour
+   to defend against, so the dense 12px chrome the toolbars were designed
+   around is restored. Touch keeps 16px. */
+@media (pointer: fine) {
+  select, input[type='text'] { font-size: 12px; padding: 4px 8px; }
 }
 
 label.inline { display: flex; align-items: center; gap: 6px; color: var(--text-dim); font-size: 12px; cursor: pointer; }
@@ -390,7 +422,6 @@ input[type='range'] { accent-color: var(--accent-dim); width: 110px; }
 }
 .reg-hex:disabled { cursor: default; opacity: 1; }
 .reg-hex-edit { cursor: pointer; border-bottom: 1px dashed var(--border-bright); }
-.reg-hex-edit:hover { color: var(--accent); }
 .reg-signed { color: var(--text-faint); font-size: 11px; margin-left: auto; }
 .reg-byte { color: var(--info); font-size: 11px; }
 
@@ -404,6 +435,30 @@ input[type='range'] { accent-color: var(--accent-dim); width: 110px; }
 }
 .flag.on { color: var(--warn); border-color: var(--warn); text-shadow: 0 0 6px rgba(255, 204, 68, 0.5); }
 .flag.on.changed { background: rgba(255, 204, 68, 0.15); }
+/* The flag strip was <span title=…>, and a title never fires on touch — so
+   the only explanation of OF/DF/SF/ZF/AF/PF/CF in the whole app was
+   mouse-only. These are buttons now: tapping one reveals the text below the
+   strip, and the same text is inlined into aria-label for screen readers.
+   Border is left to .flag/.flag.on so the lit-flag colour still wins. */
+.flags-row button.flag {
+  font-family: inherit;
+  font-size: inherit;
+  background: none;
+  cursor: pointer;
+}
+.flags-row button.flag.open {
+  border-color: var(--border-bright);
+}
+.flag-explain {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-left: 2px solid var(--accent-dim);
+  background: var(--panel2);
+  border-radius: 0 3px 3px 0;
+  color: var(--text-dim);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
 
 /* ── memory view ─────────────────────────────── */
 /* the dump sizes itself to the panel: .mem-scroll is the measured box */
@@ -471,8 +526,19 @@ input[type='range'] { accent-color: var(--accent-dim); width: 110px; }
   font-size: 12.5px;
   border-left: 2px solid transparent;
 }
-.lessons-nav a:hover { color: var(--text); background: var(--panel2); }
 .lessons-nav a.active { color: var(--accent); border-left-color: var(--accent); background: rgba(51, 255, 102, 0.05); }
+/* The nav is wrapped in a <details> so narrow screens can collapse it (two
+   dozen lessons wrapped into a 375px column is several screens of links above
+   every lesson, and plan 004's 44px touch targets made it worse). On the
+   desktop sidebar there is nothing to collapse, so the disclosure is forced
+   open and its summary hidden — the sidebar renders exactly as it did before
+   the wrapper existed. */
+.lessons-nav-wrap {
+  display: contents;
+}
+.lessons-nav-summary {
+  display: none;
+}
 .lessons-content { overflow-y: auto; padding: 24px 40px 80px; line-height: 1.65; max-width: 900px; margin-inline: auto; width: 100%; }
 .lessons-content h1 { color: var(--accent); font-size: 22px; text-shadow: 0 0 12px rgba(51, 255, 102, 0.35); margin: 0 0 4px; }
 .lessons-content h2 { color: var(--accent); font-size: 16px; margin-top: 32px; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
@@ -483,6 +549,27 @@ input[type='range'] { accent-color: var(--accent-dim); width: 110px; }
 .lessons-content table { border-collapse: collapse; margin: 12px 0; font-size: 12.5px; }
 .lessons-content th, .lessons-content td { border: 1px solid var(--border); padding: 5px 12px; text-align: left; }
 .lessons-content th { background: var(--panel2); color: var(--accent); }
+/* A table inside .scroll-x must be allowed to exceed the container, or the
+   browser compresses the columns to fit and nothing scrolls. min-content is
+   the narrowest width at which no cell wraps mid-word. */
+.lessons-content .scroll-x > table { min-width: min-content; }
+/* Wide content scrolls inside its own box so the PAGE never scrolls sideways.
+   Code blocks already did this (.code-block pre, overflow-x:auto); tables did
+   not, and the lesson tables are wide — lesson 23's seven-segment reference is
+   eight columns. Without this the document scrolls horizontally and the prose
+   pans off-screen with it.
+   -webkit-overflow-scrolling keeps momentum scrolling on iOS. */
+.scroll-x {
+  overflow-x: auto;
+  /* NOT auto: overflow-x:auto alone makes the box a scroll container on BOTH
+     axes, which re-anchors .ref-table's sticky header to this wrapper instead
+     of the page and stops it sticking. `visible` is illegal alongside a
+     non-visible overflow-x (the browser computes it to auto), so `clip` is
+     the value that keeps the vertical axis out of the way. */
+  overflow-y: clip;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+}
 .lessons-content code {
   background: var(--panel2);
   border: 1px solid var(--border);
@@ -549,7 +636,6 @@ input[type='range'] { accent-color: var(--accent-dim); width: 110px; }
   width: fit-content;
   padding: 2px 0;
 }
-.practice summary:hover { text-shadow: 0 0 8px rgba(51, 255, 102, 0.5); }
 .practice details[open] summary { margin-bottom: 8px; }
 .practice pre {
   margin: 0;
@@ -607,7 +693,6 @@ input[type='range'] { accent-color: var(--accent-dim); width: 110px; }
 .ref-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
 .ref-table th, .ref-table td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; vertical-align: top; }
 .ref-table th { background: var(--panel2); color: var(--accent); position: sticky; top: 0; }
-.ref-table tr:hover td { background: var(--panel2); }
 .ref-table code { color: var(--warn); }
 .ref-table:not(.ref-font-table) { table-layout: fixed; }
 .ref-table:not(.ref-font-table) th:nth-child(1), .ref-table:not(.ref-font-table) td:nth-child(1) { width: 10ch; }
@@ -633,7 +718,6 @@ input[type='range'] { accent-color: var(--accent-dim); width: 110px; }
 ::-webkit-scrollbar { width: 9px; height: 9px; }
 ::-webkit-scrollbar-track { background: var(--panel); }
 ::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: var(--accent-dim); }
 
 /* Narrow: stack the columns and let the PAGE scroll. The previous rule set
    `overflow-y: auto` on .sim-layout while its parent .page stayed
@@ -662,7 +746,46 @@ input[type='range'] { accent-color: var(--accent-dim); width: 110px; }
   .regs-panel { flex: 0 0 auto; }
   .mem-panel { flex: 0 0 clamp(220px, 42vh, 460px); }
   .lessons-layout { grid-template-columns: 1fr; height: auto; overflow: visible; }
-  .lessons-nav { display: flex; flex-wrap: wrap; border-right: none; border-bottom: 1px solid var(--border); }
+  /* Below the sidebar breakpoint the nav becomes a disclosure: a one-line
+     summary naming the current lesson, tappable to reveal the full list. The
+     previous rule wrapped every link into a strip above the content, which on
+     a phone pushed the lesson heading 1227px down the page. */
+  .lessons-nav-wrap {
+    display: block;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+    position: sticky;
+    top: 0;
+    z-index: 5;
+  }
+  .lessons-nav-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 44px;
+    padding: 8px 14px;
+    cursor: pointer;
+    color: var(--accent);
+    font-size: 12.5px;
+    list-style: none;
+  }
+  /* Safari renders the default triangle via this pseudo-element. */
+  .lessons-nav-summary::-webkit-details-marker { display: none; }
+  .lessons-nav-summary::after {
+    content: '▾';
+    color: var(--text-dim);
+    transition: transform 0.15s;
+  }
+  .lessons-nav-wrap[open] .lessons-nav-summary::after { transform: rotate(180deg); }
+  .lessons-nav-current { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lessons-nav-count { color: var(--text-faint); font-size: 11px; flex-shrink: 0; }
+  .lessons-nav {
+    border-right: none;
+    max-height: 60vh;
+    overflow-y: auto;
+    border-top: 1px solid var(--border);
+  }
   .lessons-content { overflow: visible; }
 }
 
@@ -673,6 +796,127 @@ input[type='range'] { accent-color: var(--accent-dim); width: 110px; }
   .ref-search { width: 100%; }
   .lessons-content { padding: 16px 18px 60px; }
   .regs-grid { grid-template-columns: 1fr; }
+}
+
+/* The address-calculator and register-editor text inputs carried inline
+   font sizes, which beat the 16px iOS-zoom guard on the base input rule, so
+   they still zoomed on focus. fontSize is deliberately absent here. */
+.addr-input {
+  width: 60px;
+  font-family: var(--mono);
+  text-align: center;
+}
+.addr-seg { color: var(--accent); }
+.addr-off { color: var(--warn); }
+.reg-edit-input {
+  width: 60px;
+  padding: 0 4px;
+  font-family: var(--mono);
+  color: var(--accent);
+  background: var(--bg);
+  border: 1px solid var(--accent);
+}
+
+/* ── touch sizing ──────────────────────────────────────────────────────
+   Controls here are sized for a mouse: the base button paints ~26px tall and
+   .ref-cats buttons ~22px, against the 44px WCAG 2.2 target-size guidance.
+   On the simulator route the user taps run/step/reset repeatedly, so this is
+   the difference between usable and not.
+   Keyed on pointer coarseness rather than width: a 1024px tablet needs the
+   large targets and a 380px desktop window does not. */
+@media (pointer: coarse) {
+  button, .btn, select {
+    min-height: 44px;
+    min-width: 44px;
+    padding-block: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Nav links are <a>, not <button>, so the rule above misses them — measured
+     at 98x27, 82x27, 90x27 and 98x27. Targeted rather than a bare `a` selector,
+     which would also inflate any inline link in lesson prose. */
+  .topbar nav a,
+  .lessons-nav a {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+
+  /* Icon-ish and chip-ish controls need width too, not just height. */
+  .ref-cats button,
+  .mem-focus button,
+  .topbar-control {
+    min-height: 44px;
+    min-width: 44px;
+    font-size: 13px;
+  }
+
+  /* The register editor's 60px was sized for 11px text; four hex digits at
+     16px need more. */
+  .reg-edit-input, .addr-input { min-width: 80px; min-height: 44px; }
+
+  /* A range thumb is its own hit area and ignores the padding above. */
+  input[type='range'] { height: 44px; }
+
+  /* Checkboxes in `label.inline` (auto-assemble) are the smallest target in
+     the toolbar. */
+  label.inline input[type='checkbox'] { width: 20px; height: 20px; }
+  label.inline { min-height: 44px; }
+}
+
+/* ── phones ────────────────────────────────────────────────────────────
+   The narrowest existing breakpoint was 640px; mainstream phones are
+   360–430px. Everything below is what the 640px block does not cover. */
+@media (max-width: 480px) {
+  .toolbar { gap: 6px; padding: 6px; }
+  .toolbar > select { flex: 1 1 100%; }
+  .toolbar > label.inline { flex: 1 1 100%; }
+
+  .statusbar, .sim-statusbar {
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    font-size: 11px;
+  }
+  .statusbar .spacer { display: none; }
+
+  .topbar { padding: 6px 10px; }
+  .topbar nav { flex: 1 1 100%; margin-left: 0; justify-content: space-between; flex-wrap: wrap; }
+  /* four links at 12px side padding sum to ~380px, wider than a 375px phone. */
+  .topbar nav a { padding: 4px 8px; }
+
+  .lesson-pager { flex-direction: column; align-items: stretch; gap: 8px; }
+  .lesson-pager .btn { max-width: none; }
+
+  .lessons-content { padding: 14px 14px 56px; }
+  .ref-layout { padding: 14px 12px; }
+}
+
+/* ── hover effects ─────────────────────────────────────────────────────
+   Gated on a hover-capable pointer. On a touchscreen the browser synthesises
+   a hover state on tap and leaves it there until the user taps elsewhere, so
+   the Run button stayed lit after every run — reading as "still active" on a
+   toolbar where that means something. :focus-visible is deliberately NOT in
+   here: keyboard focus must show on every device. */
+@media (hover: hover) {
+  a:hover { text-shadow: 0 0 8px rgba(51, 255, 102, 0.6); }
+  .topbar nav a:hover { color: var(--text); border-color: var(--border); }
+  button:hover, .btn:hover {
+    border-color: var(--accent-dim);
+    color: var(--accent);
+    box-shadow: 0 0 8px rgba(51, 255, 102, 0.2);
+  }
+  /* button:disabled sits earlier in the file than this block; it used to win the
+     tie against button:hover on box-shadow, so restate it here to keep that. */
+  button:disabled:hover { box-shadow: none; }
+  button.primary:hover { background: var(--accent); color: #05130a; }
+  button.danger:hover { border-color: var(--err); color: var(--err); box-shadow: 0 0 8px rgba(255, 85, 85, 0.25); }
+  .reg-hex-edit:hover { color: var(--accent); }
+  .lessons-nav a:hover { color: var(--text); background: var(--panel2); }
+  .practice summary:hover { text-shadow: 0 0 8px rgba(51, 255, 102, 0.5); }
+  .ref-table tr:hover td { background: var(--panel2); }
+  ::-webkit-scrollbar-thumb:hover { background: var(--accent-dim); }
 }
 
 /* route errorElement page */

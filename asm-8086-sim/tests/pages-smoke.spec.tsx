@@ -76,6 +76,14 @@ describe('HardwareLab smoke', () => {
       { timeout: 4000 },
     )
   })
+
+  it('exposes the view toggle controls at every width', { timeout: SMOKE_TIMEOUT }, async () => {
+    const { HardwareLab } = await import('../src/components/hardware/HardwareLab')
+    const { container } = render(<HardwareLab />)
+    for (const v of ['board', 'split', 'code', 'studio']) {
+      expect(container.querySelector(`button[data-view="${v}"]`), v).toBeTruthy()
+    }
+  })
 })
 
 describe('LessonView smoke', () => {
@@ -104,13 +112,74 @@ describe('LessonView smoke', () => {
     expect(document.querySelectorAll('table').length).toBeGreaterThan(1)
 
     // worked solutions are present but collapsed behind <details>
+    // (4 = 3 practice solutions + the lessons-nav disclosure)
     const solutions = document.querySelectorAll('details')
-    expect(solutions.length).toBe(3)
+    expect(solutions.length).toBe(4)
     for (const d of solutions) expect((d as HTMLDetailsElement).open).toBe(false)
 
     // sanitizeHtml keeps <code>/<b> and strips everything else
     expect(document.querySelectorAll('code').length).toBeGreaterThan(20)
     expect(document.querySelector('script')).toBeNull()
+  })
+})
+
+describe('LessonsNav disclosure', () => {
+  async function renderLesson() {
+    const { default: LessonView } = await import('../src/pages/LessonView')
+    const { LESSONS } = await import('../src/data/lessons')
+    render(
+      <MemoryRouter initialEntries={['/lessons/led-7seg-lab']}>
+        <Routes>
+          <Route path="/lessons/:id" element={<LessonView />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    return LESSONS
+  }
+
+  it('the summary names the current lesson', { timeout: SMOKE_TIMEOUT }, async () => {
+    await renderLesson()
+    const summary = document.querySelector('.lessons-nav-summary')
+    expect(summary?.textContent).toContain('Lab Plan: LED Patterns and Seven-Segment')
+  })
+
+  it('every lesson is still linked', { timeout: SMOKE_TIMEOUT }, async () => {
+    const LESSONS = await renderLesson()
+    expect(document.querySelectorAll('.lessons-nav a').length).toBe(LESSONS.length)
+  })
+
+  it('is closed by default', { timeout: SMOKE_TIMEOUT }, async () => {
+    await renderLesson()
+    const d = document.querySelector('details.lessons-nav-wrap') as HTMLDetailsElement
+    expect(d.open).toBe(false)
+  })
+})
+
+describe('wide tables are contained', () => {
+  it('every lesson table sits inside a .scroll-x container', { timeout: SMOKE_TIMEOUT }, async () => {
+    const { default: LessonView } = await import('../src/pages/LessonView')
+    render(
+      <MemoryRouter initialEntries={['/lessons/led-7seg-lab']}>
+        <Routes>
+          <Route path="/lessons/:id" element={<LessonView />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    const tables = document.querySelectorAll('table')
+    expect(tables.length).toBeGreaterThan(1)
+    for (const t of tables) expect(t.closest('.scroll-x')).not.toBeNull()
+  })
+
+  it('every reference table sits inside .scroll-x (or the .ref-font container)', { timeout: SMOKE_TIMEOUT }, async () => {
+    const { default: ReferencePage } = await import('../src/pages/ReferencePage')
+    render(
+      <MemoryRouter>
+        <ReferencePage />
+      </MemoryRouter>,
+    )
+    const tables = document.querySelectorAll('table.ref-table')
+    expect(tables.length).toBeGreaterThan(1)
+    for (const t of tables) expect(t.closest('.scroll-x') || t.closest('.ref-font')).toBeTruthy()
   })
 })
 
@@ -174,5 +243,71 @@ describe('hardware lab deep link', () => {
       },
       { timeout: 4000 },
     )
+  })
+})
+
+describe('App shell', () => {
+  it('topbar controls use classes, not inline styles that defeat touch sizing', { timeout: SMOKE_TIMEOUT }, async () => {
+    const { default: App } = await import('../src/App')
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>,
+    )
+    const theme = screen.getByRole('combobox', { name: 'Display theme' })
+    const crt = screen.getByRole('button', { name: 'Toggle CRT raster scanline overlay' })
+    for (const el of [theme, crt]) {
+      expect(el.style.fontSize).toBe('')
+      expect(el.classList.contains('topbar-control')).toBe(true)
+    }
+  })
+})
+
+describe('flag explanations are reachable without hover', () => {
+  async function renderWithRegisters() {
+    localStorage.setItem('asm-8086-sim:source', '    MOV AX, 5\n    ADD AX, 3\n    HLT\n')
+    const { default: SimulatorPage } = await import('../src/pages/SimulatorPage')
+    render(
+      <MemoryRouter>
+        <SimulatorPage />
+      </MemoryRouter>,
+    )
+    const runBtn = await waitFor(() => screen.getByRole('button', { name: /run program/i }), { timeout: 4000 })
+    await act(async () => {
+      runBtn.click()
+    })
+    return waitFor(() => screen.getByRole('button', { name: /^ZF flag/ }), { timeout: 4000 })
+  }
+
+  it('flags are buttons, not spans', { timeout: SMOKE_TIMEOUT }, async () => {
+    const zf = await renderWithRegisters()
+    expect(zf.tagName).toBe('BUTTON')
+  })
+
+  it('activating a flag reveals its explanation, and again hides it', { timeout: SMOKE_TIMEOUT }, async () => {
+    const zf = await renderWithRegisters()
+    expect(document.querySelector('.flag-explain')).toBeNull()
+    await act(async () => {
+      zf.click()
+    })
+    expect(document.querySelector('.flag-explain')?.textContent).toMatch(/Zero/)
+    await act(async () => {
+      zf.click()
+    })
+    expect(document.querySelector('.flag-explain')).toBeNull()
+  })
+
+  it('the explanation is in the accessible name too', { timeout: SMOKE_TIMEOUT }, async () => {
+    const zf = await renderWithRegisters()
+    expect(zf.getAttribute('aria-label')).toContain('Zero')
+  })
+
+  it('aria-expanded tracks state', { timeout: SMOKE_TIMEOUT }, async () => {
+    const zf = await renderWithRegisters()
+    expect(zf.getAttribute('aria-expanded')).toBe('false')
+    await act(async () => {
+      zf.click()
+    })
+    expect(zf.getAttribute('aria-expanded')).toBe('true')
   })
 })

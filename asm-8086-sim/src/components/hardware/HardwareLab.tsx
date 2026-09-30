@@ -256,7 +256,14 @@ export function HardwareLab({ initialExampleId }: { initialExampleId?: string })
 
   const [source, setSource] = useState<string>('')
   const [exampleId, setExampleId] = useState(HW_EXAMPLES[0]?.id ?? '')
-  const [viewMode, setViewMode] = useState<'split' | 'board' | 'code'>('split')
+  // 'split' needs ~740px (a 420px editor pane plus a usable board) and there
+  // is no phone that wide. Starting in 'code' on a narrow screen means the
+  // route opens on something usable instead of an editor pushed off-screen.
+  const [viewMode, setViewMode] = useState<'split' | 'board' | 'code'>(() =>
+    typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 860px)').matches
+      ? 'code'
+      : 'split',
+  )
   const [studioOpen, setStudioOpen] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
 
@@ -448,6 +455,7 @@ export function HardwareLab({ initialExampleId }: { initialExampleId?: string })
         <div className="hw-view-toggle" style={{ marginLeft: 'auto' }}>
           <button
             type="button"
+            data-view="board"
             className={viewMode === 'board' ? 'sel' : ''}
             onClick={() => setViewMode('board')}
             title="Display peripheral board only"
@@ -456,6 +464,7 @@ export function HardwareLab({ initialExampleId }: { initialExampleId?: string })
           </button>
           <button
             type="button"
+            data-view="split"
             className={viewMode === 'split' ? 'sel' : ''}
             onClick={() => setViewMode('split')}
             title="Side-by-side code editor and peripheral board"
@@ -464,6 +473,7 @@ export function HardwareLab({ initialExampleId }: { initialExampleId?: string })
           </button>
           <button
             type="button"
+            data-view="code"
             className={viewMode === 'code' ? 'sel' : ''}
             onClick={() => setViewMode('code')}
             title="Code editor only"
@@ -472,6 +482,7 @@ export function HardwareLab({ initialExampleId }: { initialExampleId?: string })
           </button>
           <button
             type="button"
+            data-view="studio"
             className={studioOpen ? 'sel' : ''}
             onClick={() => setStudioOpen((p) => !p)}
             title="Toggle Hardware Studio panel"
