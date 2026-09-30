@@ -514,6 +514,18 @@ input[type='range'] { accent-color: var(--accent-dim); width: 110px; }
 }
 .lessons-nav a:hover { color: var(--text); background: var(--panel2); }
 .lessons-nav a.active { color: var(--accent); border-left-color: var(--accent); background: rgba(51, 255, 102, 0.05); }
+/* The nav is wrapped in a <details> so narrow screens can collapse it (two
+   dozen lessons wrapped into a 375px column is several screens of links above
+   every lesson, and plan 004's 44px touch targets made it worse). On the
+   desktop sidebar there is nothing to collapse, so the disclosure is forced
+   open and its summary hidden — the sidebar renders exactly as it did before
+   the wrapper existed. */
+.lessons-nav-wrap {
+  display: contents;
+}
+.lessons-nav-summary {
+  display: none;
+}
 .lessons-content { overflow-y: auto; padding: 24px 40px 80px; line-height: 1.65; max-width: 900px; margin-inline: auto; width: 100%; }
 .lessons-content h1 { color: var(--accent); font-size: 22px; text-shadow: 0 0 12px rgba(51, 255, 102, 0.35); margin: 0 0 4px; }
 .lessons-content h2 { color: var(--accent); font-size: 16px; margin-top: 32px; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
@@ -724,7 +736,46 @@ input[type='range'] { accent-color: var(--accent-dim); width: 110px; }
   .regs-panel { flex: 0 0 auto; }
   .mem-panel { flex: 0 0 clamp(220px, 42vh, 460px); }
   .lessons-layout { grid-template-columns: 1fr; height: auto; overflow: visible; }
-  .lessons-nav { display: flex; flex-wrap: wrap; border-right: none; border-bottom: 1px solid var(--border); }
+  /* Below the sidebar breakpoint the nav becomes a disclosure: a one-line
+     summary naming the current lesson, tappable to reveal the full list. The
+     previous rule wrapped every link into a strip above the content, which on
+     a phone pushed the lesson heading 1227px down the page. */
+  .lessons-nav-wrap {
+    display: block;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+    position: sticky;
+    top: 0;
+    z-index: 5;
+  }
+  .lessons-nav-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 44px;
+    padding: 8px 14px;
+    cursor: pointer;
+    color: var(--accent);
+    font-size: 12.5px;
+    list-style: none;
+  }
+  /* Safari renders the default triangle via this pseudo-element. */
+  .lessons-nav-summary::-webkit-details-marker { display: none; }
+  .lessons-nav-summary::after {
+    content: '▾';
+    color: var(--text-dim);
+    transition: transform 0.15s;
+  }
+  .lessons-nav-wrap[open] .lessons-nav-summary::after { transform: rotate(180deg); }
+  .lessons-nav-current { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lessons-nav-count { color: var(--text-faint); font-size: 11px; flex-shrink: 0; }
+  .lessons-nav {
+    border-right: none;
+    max-height: 60vh;
+    overflow-y: auto;
+    border-top: 1px solid var(--border);
+  }
   .lessons-content { overflow: visible; }
 }
 

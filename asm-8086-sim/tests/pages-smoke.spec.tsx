@@ -104,13 +104,46 @@ describe('LessonView smoke', () => {
     expect(document.querySelectorAll('table').length).toBeGreaterThan(1)
 
     // worked solutions are present but collapsed behind <details>
+    // (4 = 3 practice solutions + the lessons-nav disclosure)
     const solutions = document.querySelectorAll('details')
-    expect(solutions.length).toBe(3)
+    expect(solutions.length).toBe(4)
     for (const d of solutions) expect((d as HTMLDetailsElement).open).toBe(false)
 
     // sanitizeHtml keeps <code>/<b> and strips everything else
     expect(document.querySelectorAll('code').length).toBeGreaterThan(20)
     expect(document.querySelector('script')).toBeNull()
+  })
+})
+
+describe('LessonsNav disclosure', () => {
+  async function renderLesson() {
+    const { default: LessonView } = await import('../src/pages/LessonView')
+    const { LESSONS } = await import('../src/data/lessons')
+    render(
+      <MemoryRouter initialEntries={['/lessons/led-7seg-lab']}>
+        <Routes>
+          <Route path="/lessons/:id" element={<LessonView />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    return LESSONS
+  }
+
+  it('the summary names the current lesson', { timeout: SMOKE_TIMEOUT }, async () => {
+    await renderLesson()
+    const summary = document.querySelector('.lessons-nav-summary')
+    expect(summary?.textContent).toContain('Lab Plan: LED Patterns and Seven-Segment')
+  })
+
+  it('every lesson is still linked', { timeout: SMOKE_TIMEOUT }, async () => {
+    const LESSONS = await renderLesson()
+    expect(document.querySelectorAll('.lessons-nav a').length).toBe(LESSONS.length)
+  })
+
+  it('is closed by default', { timeout: SMOKE_TIMEOUT }, async () => {
+    await renderLesson()
+    const d = document.querySelector('details.lessons-nav-wrap') as HTMLDetailsElement
+    expect(d.open).toBe(false)
   })
 })
 
