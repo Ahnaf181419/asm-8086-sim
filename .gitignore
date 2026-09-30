@@ -19,3 +19,6 @@ Resources/
 
 # test coverage output
 coverage/
+
+# Claude Code worktrees and session scratch
+.claude/
