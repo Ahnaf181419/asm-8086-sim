@@ -133,24 +133,26 @@ function Block({ block }: { block: LessonBlock }) {
       )
     case 'table':
       return (
-        <table>
-          <thead>
-            <tr>
-              {block.head.map((h, i) => (
-                <th key={i} dangerouslySetInnerHTML={html(block, h)} />
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {block.rows.map((row, i) => (
-              <tr key={i}>
-                {row.map((c, j) => (
-                  <td key={j} dangerouslySetInnerHTML={html(block, c)} />
+        <div className="scroll-x">
+          <table>
+            <thead>
+              <tr>
+                {block.head.map((h, i) => (
+                  <th key={i} dangerouslySetInnerHTML={html(block, h)} />
                 ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {block.rows.map((row, i) => (
+                <tr key={i}>
+                  {row.map((c, j) => (
+                    <td key={j} dangerouslySetInnerHTML={html(block, c)} />
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )
     case 'practice':
       return (

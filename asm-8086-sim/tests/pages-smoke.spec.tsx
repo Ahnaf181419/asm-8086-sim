@@ -114,6 +114,34 @@ describe('LessonView smoke', () => {
   })
 })
 
+describe('wide tables are contained', () => {
+  it('every lesson table sits inside a .scroll-x container', { timeout: SMOKE_TIMEOUT }, async () => {
+    const { default: LessonView } = await import('../src/pages/LessonView')
+    render(
+      <MemoryRouter initialEntries={['/lessons/led-7seg-lab']}>
+        <Routes>
+          <Route path="/lessons/:id" element={<LessonView />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    const tables = document.querySelectorAll('table')
+    expect(tables.length).toBeGreaterThan(1)
+    for (const t of tables) expect(t.closest('.scroll-x')).not.toBeNull()
+  })
+
+  it('every reference table sits inside .scroll-x (or the .ref-font container)', { timeout: SMOKE_TIMEOUT }, async () => {
+    const { default: ReferencePage } = await import('../src/pages/ReferencePage')
+    render(
+      <MemoryRouter>
+        <ReferencePage />
+      </MemoryRouter>,
+    )
+    const tables = document.querySelectorAll('table.ref-table')
+    expect(tables.length).toBeGreaterThan(1)
+    for (const t of tables) expect(t.closest('.scroll-x') || t.closest('.ref-font')).toBeTruthy()
+  })
+})
+
 describe('lesson → simulator routing follows the example category', () => {
   it('hardware examples link to the hardware lab, console examples to the simulator', { timeout: SMOKE_TIMEOUT }, async () => {
     const { default: LessonView } = await import('../src/pages/LessonView')
