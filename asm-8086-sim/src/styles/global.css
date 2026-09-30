@@ -577,24 +577,43 @@ input[type='range'] { accent-color: var(--accent-dim); width: 110px; }
 
 /* ── reference ───────────────────────────────── */
 .ref-layout { padding: 20px 30px; overflow-y: auto; height: 100%; }
-.ref-layout h1 { color: var(--accent); font-size: 20px; text-shadow: 0 0 12px rgba(51, 255, 102, 0.35); }
+.ref-layout h1 { color: var(--accent); font-size: 20px; text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 35%, transparent); }
 /* Section headings below the page title. These were <h1> demoted with an
    inline font-size, which left four h1 elements on one page. */
-.ref-layout h2 { color: var(--accent); font-size: 16px; margin-top: 36px; text-shadow: 0 0 12px rgba(51, 255, 102, 0.35); }
+.ref-layout h2 { color: var(--accent); font-size: 16px; margin-top: 36px; text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 35%, transparent); }
 .ref-search { width: 320px; margin: 12px 0; }
 .ref-cats { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
 .ref-cats button { font-size: 11px; padding: 3px 10px; }
-.ref-cats button.sel { color: var(--accent); border-color: var(--accent-dim); background: rgba(51, 255, 102, 0.08); }
+.ref-cats button.sel { color: var(--accent); border-color: var(--accent-dim); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+/* ── dot-matrix 5×7 font table (Reference tab) ── */
+.ref-font { margin-bottom: 26px; overflow-x: auto; }
+.ref-font .ref-font-hint { color: var(--text-faint); font-size: 11.5px; margin: 4px 0 10px; }
+.ref-font .ref-font-hint code { color: var(--text-dim); }
+.ref-font-table th { position: sticky; top: 0; background: var(--panel2); z-index: 1; }
+.ref-font-table td { vertical-align: middle; padding: 3px 8px; white-space: nowrap; }
+.ref-font-table .ref-font-ch { color: var(--text); font-size: 14px; font-weight: 600; }
+.ref-font-glyph { width: 30px; height: 42px; display: block; }
+.ref-font-glyph rect.off { fill: color-mix(in srgb, var(--text-ghost) 22%, transparent); }
+.ref-font-glyph rect.on { fill: var(--accent); }
+.ref-font-table .ref-font-bin code { color: var(--text-dim); font-size: 10.5px; letter-spacing: -0.01em; white-space: nowrap; }
+/* the spine between the two sides of the table */
+.ref-font-table .ref-font-mid { border-left: 2px solid var(--border-bright); width: 10px; min-width: 10px; padding: 0; }
+/* narrow screens: single-sided — hide the right half and the spine */
+@media (max-width: 1100px) {
+  .ref-font-table .ref-font-r, .ref-font-table .ref-font-mid { display: none; }
+}
+.ref-instr-h { margin-top: 8px !important; }
+
 .ref-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
 .ref-table th, .ref-table td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; vertical-align: top; }
 .ref-table th { background: var(--panel2); color: var(--accent); position: sticky; top: 0; }
 .ref-table tr:hover td { background: var(--panel2); }
 .ref-table code { color: var(--warn); }
-.ref-table { table-layout: fixed; }
-.ref-table th:nth-child(1), .ref-table td:nth-child(1) { width: 10ch; }
-.ref-table th:nth-child(2), .ref-table td:nth-child(2) { width: 24ch; }
-.ref-table th:nth-child(4), .ref-table td:nth-child(4) { width: 17ch; }
-.ref-table th:nth-child(5), .ref-table td:nth-child(5) { width: 22ch; }
+.ref-table:not(.ref-font-table) { table-layout: fixed; }
+.ref-table:not(.ref-font-table) th:nth-child(1), .ref-table:not(.ref-font-table) td:nth-child(1) { width: 10ch; }
+.ref-table:not(.ref-font-table) th:nth-child(2), .ref-table:not(.ref-font-table) td:nth-child(2) { width: 24ch; }
+.ref-table:not(.ref-font-table) th:nth-child(4), .ref-table:not(.ref-font-table) td:nth-child(4) { width: 17ch; }
+.ref-table:not(.ref-font-table) th:nth-child(5), .ref-table:not(.ref-font-table) td:nth-child(5) { width: 22ch; }
 .mnem { color: var(--accent); font-weight: 600; }
 .flagcell { font-size: 11px; color: var(--text-dim); }
 .flagcell b { color: var(--warn); }

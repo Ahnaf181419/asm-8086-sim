@@ -1,7 +1,41 @@
 import { useMemo, useState } from 'react'
-import { INT21_SERVICES, IO_PORT_MAP, REFERENCE, REGISTERS_REF } from '../data/reference'
+import { DOT_FONT, INT21_SERVICES, IO_PORT_MAP, REFERENCE, REGISTERS_REF } from '../data/reference'
 
 const CATS = ['All', 'Data movement', 'Arithmetic', 'Logic & shifts', 'Control flow', 'Procedures & stack', 'I/O'] as const
+
+// the font table prints double-sided: two entry halves per row, like a
+// dictionary's two columns — 36 glyphs become 18 rows
+const FONT_LEFT = DOT_FONT.slice(0, Math.ceil(DOT_FONT.length / 2))
+const FONT_RIGHT = DOT_FONT.slice(Math.ceil(DOT_FONT.length / 2))
+
+function FontCells({ g, r }: { g: (typeof DOT_FONT)[number]; r?: boolean }) {
+  const bins = g.cols.map((b) => b.toString(2).padStart(8, '0') + 'B')
+  return (
+    <>
+      <td className={`ref-font-ch${r ? ' ref-font-r' : ''}`}>{g.ch}</td>
+      <td className={r ? 'ref-font-r' : undefined}>
+        <svg viewBox="-0.5 -0.5 6 8" className="ref-font-glyph" role="img" aria-label={`dot-matrix glyph ${g.ch}`}>
+          {g.cols.flatMap((c, x) =>
+            Array.from({ length: 7 }, (_, y) => (
+              <rect
+                key={`${x}-${y}`}
+                x={x}
+                y={y}
+                width={1}
+                height={1}
+                rx={0.3}
+                className={(c >> y) & 1 ? 'on' : 'off'}
+              />
+            )),
+          )}
+        </svg>
+      </td>
+      <td className={`ref-font-bin${r ? ' ref-font-r' : ''}`}>
+        <code>DB {bins.join(', ')}</code>
+      </td>
+    </>
+  )
+}
 
 export default function ReferencePage() {
   const [query, setQuery] = useState('')
@@ -23,6 +57,38 @@ export default function ReferencePage() {
   return (
     <div className="ref-layout">
       <h1>INSTRUCTION REFERENCE — 8086 subset</h1>
+
+      <section className="ref-font">
+        <h2>DOT-MATRIX 5×7 FONT — 0–9, A–Z</h2>
+        <p className="ref-font-hint">
+          one byte per column · five per glyph · bytes in binary — read top row first (bit 0 = top row, bit 6 =
+          bottom) · columns go left → right to ports<code> 2000H…2027H</code> (see lesson 24)
+        </p>
+        <table className="ref-table ref-font-table">
+          <thead>
+            <tr>
+              <th>Char</th>
+              <th>Glyph</th>
+              <th>Column bytes — binary (DB line)</th>
+              <th className="ref-font-mid" aria-hidden="true" />
+              <th className="ref-font-r">Char</th>
+              <th className="ref-font-r">Glyph</th>
+              <th className="ref-font-r">Column bytes — binary (DB line)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {FONT_LEFT.map((g, i) => (
+              <tr key={g.ch}>
+                <FontCells g={g} />
+                <td className="ref-font-mid" aria-hidden="true" />
+                {FONT_RIGHT[i] ? <FontCells g={FONT_RIGHT[i]} r /> : null}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+
+      <h2 className="ref-instr-h">INSTRUCTIONS</h2>
       <input
         className="ref-search"
         type="text"
