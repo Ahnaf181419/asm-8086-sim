@@ -269,7 +269,10 @@
   .hw-grid {
     grid-template-columns: 1fr;
     grid-template-rows: none;
-    grid-auto-rows: minmax(150px, auto);
+    /* was minmax(150px, auto) for nine panels — 1350px of scroll before the
+       user reaches the keyboard. The SVGs scale by viewBox, so a lower floor
+       costs legibility, not correctness. */
+    grid-auto-rows: minmax(110px, auto);
     grid-template-areas:
       'dot'
       'seg'
@@ -281,6 +284,40 @@
       'pb'
       'kb';
   }
+}
+
+@media (max-width: 860px) {
+  /* Split needs a 420px editor pane plus a usable board. Offering a control
+     that cannot produce a working layout is worse than not offering it; Board
+     and Code remain, and the view toggle acts as a tab bar between them. */
+  .hw-view-toggle button[data-view='split'] { display: none; }
+
+  /* One pane at a time. The editor's 420px basis and 320px floor are what
+     pushed the board off-screen; here whichever pane is shown takes the full
+     width. */
+  .hw-split-layout { flex-direction: column; }
+  .hw-editor-pane,
+  .hw-editor-pane.full {
+    flex: 1 1 auto;
+    max-width: 100%;
+    min-width: 0;
+    border-right: none;
+  }
+}
+
+@media (pointer: coarse) {
+  /* The route's own control classes are outside the global button rules, so
+     the touch sizing added for the simulator toolbar does not reach them. */
+  .hw-btn,
+  .hw-toolbar .hw-select,
+  .hw-toolbar .hw-speed select,
+  .hw-view-toggle button {
+    min-height: 44px;
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+  }
+  .hw-view-toggle button { min-width: 44px; justify-content: center; }
 }
 
 /* ── integrated code workbench & split layout ────────────────────────────── */
@@ -705,6 +742,15 @@
     max-width: 88vw;
     box-shadow: -6px 0 24px rgba(0, 0, 0, 0.85);
     z-index: 30;
+  }
+}
+
+@media (max-width: 560px) {
+  /* On a phone 88vw of overlay is effectively a full-screen sheet; make it one
+     deliberately. */
+  .hw-studio-drawer.open {
+    width: 100%;
+    max-width: 100%;
   }
 }
 

@@ -269,6 +269,10 @@ Each lesson has a **complete worked example** pinned in `tests/lessons.spec.ts` 
 
 All eight are pinned by `tests/hardware.spec.ts:210-218` (the `hardware examples` describe block), which asserts each one assembles cleanly.
 
+### 6.3 Narrow screens: the tab model
+
+Below 860px the split view is withdrawn: the `Split` toggle is hidden by CSS and `.hw-split-layout` stacks into a column, so the view toggle (`Board` / `Code`) acts as a tab bar showing one pane at a time. The reason is the editor pane's 420px flex basis (320px floor) — on a phone it alone exceeds the viewport and pushes the board off-screen. `viewMode` still has only its three values; it simply initialises to `'code'` when `(max-width: 860px)` matches. Below 700px the board grid is a single column with a 110px row floor, and on coarse pointers the route's own controls are raised to 44px touch targets.
+
 ---
 
 ## 7. Testing

@@ -76,6 +76,14 @@ describe('HardwareLab smoke', () => {
       { timeout: 4000 },
     )
   })
+
+  it('exposes the view toggle controls at every width', { timeout: SMOKE_TIMEOUT }, async () => {
+    const { HardwareLab } = await import('../src/components/hardware/HardwareLab')
+    const { container } = render(<HardwareLab />)
+    for (const v of ['board', 'split', 'code', 'studio']) {
+      expect(container.querySelector(`button[data-view="${v}"]`), v).toBeTruthy()
+    }
+  })
 })
 
 describe('LessonView smoke', () => {

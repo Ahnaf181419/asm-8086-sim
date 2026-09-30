@@ -65,3 +65,26 @@ test.describe('lessons route is content-first on a phone', () => {
     ).toBeLessThan(667)
   })
 })
+
+test.describe('hardware lab view model', () => {
+  test('opens on a single usable pane on a phone', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'phone', 'phone-only layout rule')
+    await page.goto('/hardware')
+    await page.waitForLoadState('networkidle')
+    const m = await page.evaluate(() => {
+      const split = document.querySelector('.hw-split-layout')!
+      const pane = document.querySelector('.hw-editor-pane')!.getBoundingClientRect()
+      return { sw: split.scrollWidth, cw: split.clientWidth, paneW: pane.width, vw: window.innerWidth }
+    })
+    expect(m.sw, 'split layout scrolls horizontally').toBeLessThanOrEqual(m.cw + 1)
+    expect(m.paneW, 'editor pane wider than viewport').toBeLessThanOrEqual(m.vw)
+  })
+
+  test('the Split control is withdrawn on a phone and offered on desktop', async ({ page }, testInfo) => {
+    await page.goto('/hardware')
+    await page.waitForLoadState('networkidle')
+    const split = page.locator('[data-view="split"]')
+    if (testInfo.project.name === 'phone') await expect(split).toBeHidden()
+    else await expect(split).toBeVisible()
+  })
+})
