@@ -73,13 +73,7 @@ export default function AddressCalculator() {
             maxLength={4}
             value={segment}
             onChange={(e) => setSegment(e.target.value.toUpperCase().replace(/[^0-9A-F]/g, ''))}
-            style={{
-              width: '60px',
-              fontFamily: 'var(--mono)',
-              fontSize: '12px',
-              textAlign: 'center',
-              color: 'var(--accent)',
-            }}
+            className="addr-input addr-seg"
           />
           H
         </label>
@@ -91,13 +85,7 @@ export default function AddressCalculator() {
             maxLength={4}
             value={offset}
             onChange={(e) => setOffset(e.target.value.toUpperCase().replace(/[^0-9A-F]/g, ''))}
-            style={{
-              width: '60px',
-              fontFamily: 'var(--mono)',
-              fontSize: '12px',
-              textAlign: 'center',
-              color: 'var(--warn)',
-            }}
+            className="addr-input addr-off"
           />
           H
         </label>

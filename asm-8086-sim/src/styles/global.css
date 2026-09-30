@@ -228,6 +228,27 @@ a:hover { text-shadow: 0 0 8px rgba(51, 255, 102, 0.6); }
 .topbar .spacer { flex: 1; }
 .topbar .meta { color: var(--text-faint); font-size: 11px; }
 
+/* The theme picker and CRT toggle carried inline style objects, which beat
+   every stylesheet rule INCLUDING media queries — so they could not be given
+   a touch-sized hit area in CSS at all. Same values, now overridable. */
+.topbar-controls { display: flex; align-items: center; gap: 8px; }
+.topbar-control {
+  font-size: 11px;
+  padding: 2px 6px;
+}
+button.topbar-control.on {
+  color: var(--accent);
+  border-color: var(--border-bright);
+}
+button.topbar-control:not(.on) {
+  color: var(--text-dim);
+}
+select.topbar-control {
+  background: var(--panel2);
+  color: var(--text);
+  border: 1px solid var(--border-bright);
+}
+
 .page { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
 
 /* ── terminal panel chrome ───────────────────── */
@@ -714,6 +735,101 @@ input[type='range'] { accent-color: var(--accent-dim); width: 110px; }
   .ref-search { width: 100%; }
   .lessons-content { padding: 16px 18px 60px; }
   .regs-grid { grid-template-columns: 1fr; }
+}
+
+/* The address-calculator and register-editor text inputs carried inline
+   font sizes, which beat the 16px iOS-zoom guard on the base input rule, so
+   they still zoomed on focus. fontSize is deliberately absent here. */
+.addr-input {
+  width: 60px;
+  font-family: var(--mono);
+  text-align: center;
+}
+.addr-seg { color: var(--accent); }
+.addr-off { color: var(--warn); }
+.reg-edit-input {
+  width: 60px;
+  padding: 0 4px;
+  font-family: var(--mono);
+  color: var(--accent);
+  background: var(--bg);
+  border: 1px solid var(--accent);
+}
+
+/* ── touch sizing ──────────────────────────────────────────────────────
+   Controls here are sized for a mouse: the base button paints ~26px tall and
+   .ref-cats buttons ~22px, against the 44px WCAG 2.2 target-size guidance.
+   On the simulator route the user taps run/step/reset repeatedly, so this is
+   the difference between usable and not.
+   Keyed on pointer coarseness rather than width: a 1024px tablet needs the
+   large targets and a 380px desktop window does not. */
+@media (pointer: coarse) {
+  button, .btn, select {
+    min-height: 44px;
+    min-width: 44px;
+    padding-block: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Nav links are <a>, not <button>, so the rule above misses them — measured
+     at 98x27, 82x27, 90x27 and 98x27. Targeted rather than a bare `a` selector,
+     which would also inflate any inline link in lesson prose. */
+  .topbar nav a,
+  .lessons-nav a {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+
+  /* Icon-ish and chip-ish controls need width too, not just height. */
+  .ref-cats button,
+  .mem-focus button,
+  .topbar-control {
+    min-height: 44px;
+    min-width: 44px;
+    font-size: 13px;
+  }
+
+  /* The register editor's 60px was sized for 11px text; four hex digits at
+     16px need more. */
+  .reg-edit-input, .addr-input { min-width: 80px; min-height: 44px; }
+
+  /* A range thumb is its own hit area and ignores the padding above. */
+  input[type='range'] { height: 44px; }
+
+  /* Checkboxes in `label.inline` (auto-assemble) are the smallest target in
+     the toolbar. */
+  label.inline input[type='checkbox'] { width: 20px; height: 20px; }
+  label.inline { min-height: 44px; }
+}
+
+/* ── phones ────────────────────────────────────────────────────────────
+   The narrowest existing breakpoint was 640px; mainstream phones are
+   360–430px. Everything below is what the 640px block does not cover. */
+@media (max-width: 480px) {
+  .toolbar { gap: 6px; padding: 6px; }
+  .toolbar > select { flex: 1 1 100%; }
+  .toolbar > label.inline { flex: 1 1 100%; }
+
+  .statusbar, .sim-statusbar {
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    font-size: 11px;
+  }
+  .statusbar .spacer { display: none; }
+
+  .topbar { padding: 6px 10px; }
+  .topbar nav { flex: 1 1 100%; margin-left: 0; justify-content: space-between; flex-wrap: wrap; }
+  /* four links at 12px side padding sum to ~380px, wider than a 375px phone. */
+  .topbar nav a { padding: 4px 8px; }
+
+  .lesson-pager { flex-direction: column; align-items: stretch; gap: 8px; }
+  .lesson-pager .btn { max-width: none; }
+
+  .lessons-content { padding: 14px 14px 56px; }
+  .ref-layout { padding: 14px 12px; }
 }
 
 /* route errorElement page */

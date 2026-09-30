@@ -203,3 +203,20 @@ describe('hardware lab deep link', () => {
     )
   })
 })
+
+describe('App shell', () => {
+  it('topbar controls use classes, not inline styles that defeat touch sizing', { timeout: SMOKE_TIMEOUT }, async () => {
+    const { default: App } = await import('../src/App')
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>,
+    )
+    const theme = screen.getByRole('combobox', { name: 'Display theme' })
+    const crt = screen.getByRole('button', { name: 'Toggle CRT raster scanline overlay' })
+    for (const el of [theme, crt]) {
+      expect(el.style.fontSize).toBe('')
+      expect(el.classList.contains('topbar-control')).toBe(true)
+    }
+  })
+})

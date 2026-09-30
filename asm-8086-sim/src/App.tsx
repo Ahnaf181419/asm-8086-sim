@@ -43,19 +43,13 @@ export default function App() {
           <NavLink to="/reference">reference</NavLink>
         </nav>
         <div className="spacer" />
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="topbar-controls">
           <select
             value={theme}
             onChange={(e) => setTheme(e.target.value as AppTheme)}
             aria-label="Display theme"
             title="Switch color profile"
-            style={{
-              fontSize: '11px',
-              padding: '2px 6px',
-              background: 'var(--panel2)',
-              color: 'var(--text)',
-              border: '1px solid var(--border-bright)',
-            }}
+            className="topbar-control"
           >
             <option value="green">🟢 P1 Green</option>
             <option value="amber">🟠 P3 Amber</option>
@@ -67,12 +61,7 @@ export default function App() {
             title="Toggle CRT raster scanline overlay"
             aria-label="Toggle CRT raster scanline overlay"
             aria-pressed={crt}
-            style={{
-              fontSize: '11px',
-              padding: '2px 8px',
-              color: crt ? 'var(--accent)' : 'var(--text-dim)',
-              borderColor: crt ? 'var(--border-bright)' : 'var(--border)',
-            }}
+            className={`topbar-control${crt ? ' on' : ''}`}
           >
             CRT: {crt ? 'ON' : 'OFF'}
           </button>

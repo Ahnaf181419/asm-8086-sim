@@ -90,15 +90,7 @@ export default function RegisterPanel({
                   type="text"
                   autoFocus
                   value={editVal}
-                  style={{
-                    width: '60px',
-                    fontSize: '11px',
-                    padding: '0 4px',
-                    fontFamily: 'var(--mono)',
-                    color: 'var(--accent)',
-                    background: 'var(--bg)',
-                    border: '1px solid var(--accent)',
-                  }}
+                  className="reg-edit-input"
                   onChange={(e) => setEditVal(e.target.value)}
                   onBlur={() => saveEdit(name)}
                   onKeyDown={(e) => onEditKeyDown(e, name)}
