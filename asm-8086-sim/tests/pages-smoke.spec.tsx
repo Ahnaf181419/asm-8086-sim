@@ -117,17 +117,18 @@ describe('LessonView smoke', () => {
 describe('lesson → simulator routing follows the example category', () => {
   it('hardware examples link to the hardware lab, console examples to the simulator', { timeout: SMOKE_TIMEOUT }, async () => {
     const { default: LessonView } = await import('../src/pages/LessonView')
-    // lesson 24: the dot-matrix assignment — its only example is Hardware
+    // lesson 25: the rotate/blink assignment — last lesson, Hardware examples
     render(
-      <MemoryRouter initialEntries={['/lessons/dot-matrix-id-scroll']}>
+      <MemoryRouter initialEntries={['/lessons/dot-matrix-rotate-blink']}>
         <Routes>
           <Route path="/lessons/:id" element={<LessonView />} />
         </Routes>
       </MemoryRouter>,
     )
-    const hwBtn = screen.getByRole('link', { name: /open in hardware lab/i })
-    expect(hwBtn.getAttribute('href')).toBe('/hardware?example=dot-matrix-id-scroll')
-    // lesson 24 is the last lesson — its bottom pager must point at the lab too
+    const hwBtns = screen.getAllByRole('link', { name: /open in hardware lab/i })
+    expect(hwBtns.map((l) => l.getAttribute('href'))).toContain('/hardware?example=dot-matrix-rotate-blink')
+    expect(hwBtns.map((l) => l.getAttribute('href'))).toContain('/hardware?example=dot-matrix-rotate-bl')
+    // lesson 25 is the last lesson — its bottom pager must point at the lab too
     const pager = screen.getByRole('link', { name: /open the hardware lab to practice/i })
     expect(pager.getAttribute('href')).toBe('/hardware')
     cleanup()

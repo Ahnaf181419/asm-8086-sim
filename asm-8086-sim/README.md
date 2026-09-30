@@ -1,7 +1,7 @@
 # ASM-8086-SIM
 
 Web-based study aid for an 8086 / MASM assembly-language course.
-Browser simulator (INT 21H console I/O), 24 lessons sourced from the
+Browser simulator (INT 21H console I/O), 25 lessons sourced from the
 course materials, a searchable instruction reference, and a Hardware
 Lab simulating the MDA-8086 Emulation Kit trainer board.
 

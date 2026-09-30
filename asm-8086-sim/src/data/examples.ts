@@ -57,6 +57,8 @@ export const EXAMPLES: Example[] = [
   { id: 'led-random', name: 'LEDs: pseudo-random (LFSR)', category: 'Hardware', desc: '8-bit Galois LFSR — pseudo-random lamp patterns on a 255-step cycle', needsInput: false },
   { id: 'led-playlist', name: 'LEDs: pattern playlist (DB table)', category: 'Hardware', desc: 'Table-driven: a DB list holds the show, SI walks it and repeats forever', needsInput: false },
   { id: 'dot-matrix-id-scroll', name: 'Dot Matrix: ID×Name scroll (1A5F)', category: 'Hardware', desc: 'Assignment: 1A5F shows on the right displays then bounces left↔right across the board', needsInput: false },
+  { id: 'dot-matrix-rotate-blink', name: 'Dot Matrix: rotating column + blinking digit (N=5)', category: 'Hardware', desc: 'Assignment: display 2 blinks digit 5 five times, then display 1 spins a 5-row column right→left forever', needsInput: false },
+  { id: 'dot-matrix-rotate-bl', name: 'Dot Matrix: BL column rotating across the board (N=5)', category: 'Hardware', desc: 'Trainer assignment: a 5-row column lights at 2027H and travels right→left across all 40 columns, wrapping', needsInput: false },
 
   { id: 'practice-c2f', name: '37°C → °F', category: 'Practice', desc: 'F = C·9/5 + 32 with byte MUL/DIV; prints 98 (problem set 1)', needsInput: false },
   { id: 'practice-f2c', name: '110°F → °C', category: 'Practice', desc: 'C = (F−32)·5/9; subtract first, then multiply (problem set 2)', needsInput: false },

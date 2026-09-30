@@ -3244,6 +3244,208 @@ END MAIN` },
       { t: 'note', html: '<b>Make it yours.</b> To display a different ID/name pair, replace each 5-byte font group — the <b>Reference</b> tab carries the complete 5×7 font for <b>0–9 and A–Z</b> with every glyph\'s five bytes ready to copy (same convention: bit 0 = top row). Uppercase letters and digits only, or sketch a custom glyph on paper (7 rows, 5 columns, bit 0 = top) and read the bytes off column by column.' },
     ],
   },
+  {
+    id: 'dot-matrix-rotate-blink',
+    num: 25,
+    title: 'Assignment: Dot-Matrix Rotating Column & Blinking Digit',
+    source: 'Course assignment — dot-matrix rotate/blink lab',
+    blocks: [
+      { t: 'h', text: 'The problems' },
+      { t: 'p', html: '<b>Emulation kit version.</b> Take an input <code>N</code> (1–5). Light the <b>N rows of the last column of the first dot matrix</b>, then continuously rotate it <b>right → left</b>. In the <b>second dot matrix</b>, print <code>N</code> and blink it <b>N times</b>. Introduce proper delays where needed.' },
+      { t: 'p', html: '<b>MDA trainer version.</b> Take the value <code>N</code> in the <code>BL</code> register (1–8). Light the N rows of the last column of <b>the</b> dot matrix, then rotate it right → left continuously. Delays again.' },
+      { t: 'p', html: 'Both programs below hardcode <code>N = 5</code> — the input is one <code>MOV BL, 5</code> line you edit to re-run with another value (your grader will). We build the kit version step by step first; the trainer version is then one page and a few edits away.' },
+      { t: 'h', text: 'Step 0 — the column byte: N rows lit' },
+      { t: 'p', html: 'One column of a 5×7 display is <b>one byte</b>: bit 0 = top row, bit 6 = bottom row (lesson 24\'s convention). "N rows lit" therefore means <b>N ones in the low bits</b>: <code>00000001B</code> for N=1, <code>00000011B</code> for N=2 … <code>00011111B</code> for N=5. That number is <b>2<sup>N</sup> − 1</b>, and the program computes it instead of hardcoding a table — start from 1, double N times, subtract one:' },
+      { t: 'code', title: 'Build 2^N − 1 in AL (N comes from BL)', code: `    MOV BL, 5                ; N = 5  (the author edits this line)
+    MOV AL, 1                ; 00000001B
+    MOV CL, BL               ; shift counter = N
+DOUBLE:
+    SHL AL, 1                ; double AL -> 2, 4, 8, 16, 32
+    DEC CL
+    JNZ DOUBLE               ; after N shifts AL = 2^N
+    DEC AL                   ; 2^N - 1 = N ones. N=5 -> 00011111B
+    MOV AH, AL               ; keep the pattern safe in AH` },
+      { t: 'p', html: 'Why <code>DEC AL</code> at the end? Doubling N times lands exactly on 2<sup>N</sup> — a 1 followed by N zeros. Subtracting 1 turns those zeros into the N ones you want. The pattern then lives in <code>AH</code> so the OUT instructions (which must use <code>AL</code>) can\'t destroy it.' },
+      { t: 'table', head: ['N (BL)', 'column byte', 'what is lit'], rows: [['1', '<code>00000001B</code>', 'top row only'], ['2', '<code>00000011B</code>', 'top two rows'], ['3', '<code>00000111B</code>', 'top three rows'], ['4', '<code>00001111B</code>', 'top four rows'], ['5', '<code>00011111B</code>', 'top five rows'], ['8', '<code>11111111B</code>', 'all eight bits — see the trainer note']] },
+      { t: 'h', text: 'Step 1 — display 2: print N, then blink it N times' },
+      { t: 'p', html: 'Display <i>k</i> owns five consecutive ports starting at <code>2000H + 5·k</code>, so display 2 lives at <code>2005H..2009H</code>. The digit\'s five column-bytes come from the 5×7 font in the <b>Reference</b> tab — a binary <code>DB</code> table, exactly like lesson 24\'s <code>SEQ</code>. The blink is a counted loop: write the five bytes, hold, write five zeros, hold — and do that N times.' },
+      { t: 'code', title: 'The blink loop (digit table at DIGIT, ports 2005H..2009H)', code: `    XOR CX, CX
+    MOV CL, BL               ; CL = N - read BL BEFORE BX is repurposed:
+    LEA BX, DIGIT            ; BX -> the five glyph bytes (clobbers BL!)
+BLINK:
+    PUSH CX                  ; keep the blink counter
+    MOV DX, 2005H            ; display 2 base port
+    XOR SI, SI
+SHOW_ON:
+    MOV AL, [BX+SI]          ; glyph byte SI
+    OUT DX, AL               ; light it
+    INC DX
+    INC SI
+    CMP SI, 5
+    JB SHOW_ON               ; digit fully lit
+    MOV DI, 0FFFFH           ; hold it lit
+HOLD_ON:
+    DEC DI
+    JNZ HOLD_ON
+    ; ... same five OUTs with AL = 0 to blank it, another hold ...
+    POP CX
+    DEC CX
+    JNZ BLINK                ; blink exactly N times` },
+      { t: 'p', html: 'Two details worth internalizing. <b>The delay uses <code>DI</code>, not <code>LOOP</code></b> — <code>LOOP</code> spends <code>CX</code>, and CX is busy being the blink counter; a 16-bit <code>DEC DI / JNZ</code> pair burns the same ~65k iterations without touching anything else. <b>The counter is still saved with <code>PUSH CX</code></b> out of habit: it makes the loop body safe even if you later add a helper that uses CX.' },
+      { t: 'note', html: '<b>Register trap — and it bit this exact program.</b> <code>N</code> starts in <code>BL</code>, but <code>LEA BX, DIGIT</code> overwrites the whole of BX — and since DIGIT is the <i>first</i> item in the data segment it loads BX with 0000H, silently erasing N. With CL seeded from a zeroed BL the blink loop counted 0FFFFH times and never ended. The fix is ordering: <code>MOV CL, BL</code> <b>before</b> <code>LEA BX, DIGIT</code>. Same family as lesson 24\'s BH-is-BP\'s-top-half trap: the 8086\'s eight "registers" are really overlapping storage — always ask what else a write clobbers.' },
+      { t: 'h', text: 'Step 2 — display 1: rotate the lit column right → left' },
+      { t: 'p', html: 'The rotation lives entirely on display 1\'s five ports, <code>2000H..2004H</code>. Start at the <b>last</b> column <code>2004H</code>: light it, hold, blank it, step left with <code>DEC DX</code>. When <code>DX</code> falls below <code>2000H</code> the column has left the display — wrap back to <code>2004H</code>. Forever.' },
+      { t: 'code', title: 'The rotate loop', code: `    MOV DX, 2004H            ; LAST column of display 1
+SPIN:
+    MOV AL, AH               ; the N-row pattern
+    OUT DX, AL               ; light this column
+    MOV DI, 0FFFFH           ; hold
+HOLD_SPIN:
+    DEC DI
+    JNZ HOLD_SPIN
+    XOR AL, AL
+    OUT DX, AL               ; blank it
+    DEC DX                   ; step right -> left
+    CMP DX, 2000H
+    JB WRAP                  ; fell below display 1 - wrap
+    JMP SPIN
+WRAP:
+    MOV DX, 2004H            ; back to the last column
+    JMP SPIN` },
+      { t: 'p', html: 'The wrap test is <b>unsigned</b> on purpose: after <code>DEC DX</code> at the left edge DX holds <code>1FFFH</code>, and <code>JB</code> (below, unsigned) catches it. Only one column is ever lit at a time — light, hold, blank, move — so the eye sees a single bar walking. No <code>HLT</code> exists anywhere: "continuously" means the program runs until you pause the simulator.' },
+      { t: 'h', text: 'The complete kit solution' },
+      { t: 'p', html: 'Load it from the example picker in the <b>Hardware</b> tab (or the button below), set a fast speed, and watch: digit <b>5</b> blinks five times on display 2, then the five-row bar spins right → left on display 1 — forever.' },
+      { t: 'code', title: 'Kit solution — blink N times, then rotate forever (N=5)', exampleId: 'dot-matrix-rotate-blink', code: `; Assignment - dot-matrix system on the emulation kit (lesson 25)
+;   display 2 (ports 2005H..2009H): digit N, blinking N times
+;   then display 1 (ports 2000H..2004H): N rows lit in the LAST column,
+;   rotating right -> left inside display 1, forever
+; N is hardcoded - change the MOV BL line (valid 1..5)
+.MODEL SMALL
+.STACK 100H
+.DATA
+  DIGIT DB 00100111B,01000101B,01000101B,01000101B,00111001B   ; '5'
+
+.CODE
+MAIN PROC
+    MOV AX, @DATA            ; point DS at the data segment
+    MOV DS, AX               ; so DIGIT is addressable
+
+    MOV BL, 5                ; N = 5  (the author edits this line)
+
+; ---- build the column byte: N ones = 2^N - 1 -------------------------
+    MOV AL, 1                ; start from 1 = 00000001B
+    MOV CL, BL               ; shift counter = N
+DOUBLE:
+    SHL AL, 1                ; double AL  -> 2, 4, 8, 16, 32
+    DEC CL
+    JNZ DOUBLE               ; after N shifts AL = 2^N
+    DEC AL                   ; 2^N - 1 = N ones. N=5 -> 00011111B
+    MOV AH, AL               ; keep the pattern in AH
+
+; ---- phase 1: digit N on display 2, blinking N times -----------------
+    XOR CX, CX
+    MOV CL, BL               ; CL = N - read BL BEFORE BX is repurposed:
+    LEA BX, DIGIT            ; BX -> the five glyph bytes (clobbers BL!)
+BLINK:
+    PUSH CX                  ; the hold loops use no CX, keep the counter safe
+    MOV DX, 2005H            ; display 2 base port
+    XOR SI, SI
+SHOW_ON:
+    MOV AL, [BX+SI]          ; glyph byte SI
+    OUT DX, AL
+    INC DX
+    INC SI
+    CMP SI, 5
+    JB SHOW_ON               ; all five columns written - digit lit
+    MOV DI, 0FFFFH           ; hold it lit
+HOLD_ON:
+    DEC DI
+    JNZ HOLD_ON
+    MOV DX, 2005H            ; blank display 2
+    XOR SI, SI
+    XOR AL, AL
+SHOW_OFF:
+    OUT DX, AL               ; write 0 to each column
+    INC DX
+    INC SI
+    CMP SI, 5
+    JB SHOW_OFF
+    MOV DI, 0FFFFH           ; hold it dark - one full blink done
+HOLD_OFF:
+    DEC DI
+    JNZ HOLD_OFF
+    POP CX
+    DEC CX
+    JNZ BLINK                ; blink N times
+
+; ---- phase 2: rotate the N-row column right -> left on display 1 -----
+    MOV DX, 2004H            ; LAST column of display 1
+SPIN:
+    MOV AL, AH               ; the N-row pattern
+    OUT DX, AL               ; light this column
+    MOV DI, 0FFFFH           ; hold
+HOLD_SPIN:
+    DEC DI
+    JNZ HOLD_SPIN
+    XOR AL, AL
+    OUT DX, AL               ; blank it
+    DEC DX                   ; step one column right -> left
+    CMP DX, 2000H
+    JB WRAP                  ; fell below display 1 - wrap
+    JMP SPIN
+WRAP:
+    MOV DX, 2004H            ; back to the last column
+    JMP SPIN
+MAIN ENDP
+END MAIN
+` },
+      { t: 'table', head: ['Register', 'Role'], rows: [['<code>BL</code>', 'the input N (1..5) — the one line you edit'], ['<code>AH</code>', 'the column pattern 2<sup>N</sup> − 1, built once'], ['<code>CX</code>', 'blink counter (CL seeded from BL before BX is repurposed)'], ['<code>BX</code>', 'pointer to the five glyph bytes (DIGIT)'], ['<code>SI</code>', 'glyph byte 0..4 while writing a display'], ['<code>DX</code>', 'the port being written — DEC DX walks right → left'], ['<code>DI</code>', 'delay counter for the hold loops']] },
+      { t: 'h', text: 'The trainer-kit variant — N in BL, one whole matrix' },
+      { t: 'p', html: 'The trainer question treats the eight 5×7 units as <b>one 40-column matrix</b> (ports <code>2000H..2027H</code>), takes N in <code>BL</code> with range 1..8, and asks for nothing but the rotation. Three consequences:' },
+      { t: 'ul', items: ['the bar starts at the LAST column of the whole matrix, <code>2027H</code>, and travels right → left across all 40 columns before wrapping', 'there is no digit table, so no .DATA segment at all — the program is bare trainer-style code, the listing style the MDA kit expects', 'N may be 8: the pattern is 11111111B, but the 5×7 matrix has only seven rows — see the note below'] },
+      { t: 'code', title: 'Trainer solution — 40-column rotate, N in BL (N=5)', exampleId: 'dot-matrix-rotate-bl', code: `; Assignment - dot-matrix system on the MDA trainer kit (lesson 25)
+;   the whole board is ONE 40-column matrix (ports 2000H..2027H):
+;   light N rows in the LAST column (2027H), then rotate the lit column
+;   right -> left across the whole matrix, wrapping forever
+; N lives in BL - change the MOV BL line (valid 1..8; N=8 sets 11111111B
+; but the 5x7 matrix shows only the low 7 rows)
+
+    MOV BL, 5                ; N = 5  (the author edits this line)
+
+; ---- build the column byte: N ones = 2^N - 1 -------------------------
+    MOV AL, 1                ; start from 1 = 00000001B
+    MOV CL, BL               ; shift counter = N
+DOUBLE:
+    SHL AL, 1                ; double AL  -> 2, 4, 8, 16, 32
+    DEC CL
+    JNZ DOUBLE               ; after N shifts AL = 2^N
+    DEC AL                   ; 2^N - 1 = N ones. N=5 -> 00011111B
+    MOV AH, AL               ; keep the pattern in AH
+
+; ---- rotate: start at the last column, travel right -> left ----------
+    MOV DX, 2027H            ; LAST column of the whole matrix
+SPIN:
+    MOV AL, AH
+    OUT DX, AL               ; light this column
+    MOV DI, 0FFFFH           ; hold
+HOLD:
+    DEC DI
+    JNZ HOLD
+    XOR AL, AL
+    OUT DX, AL               ; blank it
+    DEC DX                   ; step one column right -> left
+    CMP DX, 2000H
+    JB WRAP                  ; fell off the left edge - wrap
+    JMP SPIN
+WRAP:
+    MOV DX, 2027H            ; back to the last column
+    JMP SPIN
+` },
+      { t: 'note', html: '<b>N = 8 lights seven rows, not eight.</b> Each column byte is stored through the 5×7 mask — the kit keeps the <b>low 7 bits</b> only, so writing <code>11111111B</code> shows the same full-height bar as N = 7. Bit 7 would be an eighth row the physical matrix does not have. The emulator pins this: every dot-matrix write lands as <code>value AND 01111111B</code>.' },
+      { t: 'note', html: '<b>Why blink first, rotate second.</b> One 8086 executes one instruction stream — "rotate continuously" and "blink the digit" cannot literally run at the same instant. Sequencing the two phases (blink N times, then rotate forever) keeps both requirements true over time and the code flat. The interleaved variant — one loop that steps the bar and toggles the digit on a slower cadence — is a fine exercise; try it after this one.' },
+      { t: 'note', html: '<b>Make it yours.</b> Change <code>MOV BL, 5</code> (1..5 for the kit version, 1..8 for the trainer) and reload — the byte math rebuilds the bar for you. The two <code>MOV DI, 0FFFFH</code> holds set the tempo; smaller values spin and blink faster.' },
+    ],
+  },
 ]
 
 export function lessonById(id: string): Lesson | undefined {
