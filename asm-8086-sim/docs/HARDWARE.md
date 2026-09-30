@@ -239,7 +239,7 @@ The same port numbering lets existing Emulation Kit MASM programs (e.g. the dot-
 
 ## 6. Lessons and examples
 
-The Hardware Lab ships six lessons (L15–L20) plus the classic-practice pair L21–L22, and twenty-three hardware examples of its own (eight kit programs, the bare-code set, and an 11-pattern LED cookbook in lesson 16) — the Simulator tab also wires the shared bus now, so hardware examples preview their peripherals there too. All are wired into the existing lesson browser and example dropdown; the same code that loads `hello.asm` from the Simulator tab loads `dot-matrix-abc.asm` from the Hardware tab.
+The Hardware Lab ships six lessons (L15–L20) plus the classic-practice pair L21–L22, the lab runsheet L23 and the assignment lesson L24, and twenty-four hardware examples of its own (eight kit programs, the bare-code set, an 11-pattern LED cookbook in lesson 16, and the dot-matrix ID×Name scroll in lesson 24) — the Simulator tab also wires the shared bus now, so hardware examples preview their peripherals there too. All are wired into the existing lesson browser and example dropdown; the same code that loads `hello.asm` from the Simulator tab loads `dot-matrix-abc.asm` from the Hardware tab.
 
 ### 6.1 Lessons
 
@@ -294,7 +294,7 @@ The hardware suite is split into four describe blocks (`HardwareBus`, `Devices`,
 - all 9 device state transitions (`toggleBit`, `pressKey`/`readAndClear`, `setCelsius`/`setPercent`, LCD row-major addressing, dot-matrix 7-bit row packing);
 - assembler accept/reject paths (`OUT 03000H, AL` rejected, `IN AL, BX` rejected, `OUT DX, AL` accepted);
 - end-to-end `Machine` execution with a real `HardwareBus` attached — both `OUT DX, AL` to the LED and `IN AL, DX` from the switches, asserting `AX` is correctly populated;
-- the twenty-three hardware examples assembling with zero errors.
+- the twenty-four hardware examples assembling with zero errors.
 
 The suite catches drift in three directions: assembler rejects a malformed operand, the CPU errors on `IN` with no bus attached, and the bus throws on an unmapped port.
 

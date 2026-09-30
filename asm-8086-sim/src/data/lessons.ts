@@ -3123,6 +3123,127 @@ END MAIN`,
       { t: 'note', html: '<b>Where the full sources live.</b> Every program named here is in the example picker under <b>Hardware</b>, and lesson 16 (LEDs and switches) and lesson 17 (seven-segment displays) carry the complete listings with line-by-line commentary. This page is the order to work through them in.' },
     ],
   },
+  {
+    id: 'dot-matrix-id-scroll',
+    num: 24,
+    title: 'Assignment: Dot-Matrix ID × Name Scroll',
+    source: 'Course assignment — dot-matrix display lab',
+    blocks: [
+      { t: 'h', text: 'The problem' },
+      { t: 'p', html: 'Display a sequence formed by <b>interleaving the last two digits of your student ID with the last two letters of your name</b> — digit, letter, digit, letter — one character per dot-matrix display. After the sequence has been shown, scroll it <b>right → left</b> until the whole sequence reaches the leftmost displays, then <b>reverse</b> and scroll left → right. Repeat forever with suitable delays. For a name ending in <i>…af</i> and an ID ending in <i>…15</i> the sequence is <code>1A5F</code> (the worked example in the handout, <i>Ahmed Abdullah</i> / <i>…1027</i>, gives <code>2A7H</code> — same rule).' },
+      { t: 'h', text: 'Step 1 — the font table' },
+      { t: 'p', html: 'Each of the 8 displays is a <b>5 × 7</b> matrix driven by <b>five bytes</b>, one per column, written to consecutive ports starting at <code>2000H</code> (40 ports for the whole board). In each byte, <b>bit 0 is the top row</b> and bit 6 the bottom. Four characters = 20 bytes:' },
+      { t: 'code', title: 'SEQ — the 1A5F font table (5 column-bytes per character)', code: `SEQ DB 00000000B,01000010B,01111111B,01000000B,00000000B          ; '1'
+     DB 01111110B,00001001B,00001001B,00001001B,01111110B          ; 'A'
+     DB 00100111B,01000101B,01000101B,01000101B,00111001B          ; '5'
+     DB 01111111B,00001001B,00001001B,00001001B,00000001B          ; 'F'` },
+      { t: 'p', html: 'Example — <code>01111111B,00001001B,00001001B,00001001B,00000001B</code> is the <b>F</b>: the first column <code>01111111B</code> lights every row of the leftmost column (the stem), <code>00001001B</code> lights the top and middle rows (the arms), and the last two columns only the top row. Read each byte <b>top row first</b> — bit 0 is the top row, bit 6 the bottom.' },
+      { t: 'h', text: 'Step 2 — the shifting window' },
+      { t: 'p', html: 'The board is 40 columns; the sequence owns 20 of them. Keep a <b>shift</b> value <code>BP</code> and draw every column with one rule: column <code>i</code> shows <code>SEQ[i − BP]</code> when <code>0 ≤ i − BP &lt; 20</code>, otherwise it is blank (<code>00000000B</code>). <code>BP = 20</code> parks the sequence on the <b>right</b> four displays (that is the "shown" phase), <code>BP = 0</code> parks it on the <b>left</b>. One <code>OUT</code> per column walks the whole board:' },
+      { t: 'code', title: 'Draw one frame: 40 columns through the window', code: `    MOV DX, 2000H        ; board base port
+    XOR SI, SI            ; SI = column 0..39
+NEXT_COL:
+    XOR AL, AL            ; blank unless the window covers it
+    MOV DI, SI
+    SUB DI, BP            ; DI = index into SEQ
+    CMP DI, 0
+    JB  BLANK             ; left of the window
+    CMP DI, 20
+    JAE BLANK             ; right of the window
+    MOV AL, [BX+DI]
+BLANK:
+    OUT DX, AL
+    INC DX
+    INC SI
+    CMP SI, 40
+    JB  NEXT_COL` },
+      { t: 'h', text: 'Step 3 — bounce between the ends' },
+      { t: 'p', html: 'A direction byte in <code>AH</code> (<code>0FFH</code> = −1, moving left; <code>01H</code> = +1, moving right) flips whenever the shift reaches an end. After each frame, hold with the standard delay, then step:' },
+      { t: 'code', title: 'Advance the shift and reverse at the ends', code: `    MOV CX, 0FFFFH       ; hold this frame
+D1: LOOP D1
+
+    CMP AH, 0FFH
+    JNE GOING_RIGHT
+    DEC BP                ; moving left
+    CMP BP, 0
+    JNE FRAME
+    MOV AH, 01H           ; leftmost reached — reverse
+    JMP FRAME
+GOING_RIGHT:
+    INC BP                ; moving right
+    CMP BP, 20
+    JNE FRAME
+    MOV AH, 0FFH          ; rightmost reached — reverse
+    JMP FRAME` },
+      { t: 'note', html: '<b>Register trap.</b> The shift lives in <code>BP</code> and the direction must <b>not</b> live in <code>BH</code> — <code>BH</code> is the top half of <code>BP</code>, so <code>MOV BH, 0FFH</code> would silently turn a shift of 20 into 0FF14H. That is why the direction lives in <code>AH</code> (and the font base pointer in <code>BX</code> is read-only after setup).' },
+      { t: 'h', text: 'The complete solution' },
+      { t: 'p', html: 'Load it from the example picker in the <b>Hardware</b> tab, set the speed slider high, and watch <code>1A5F</code> slide to the left end and bounce back — forever.' },
+      { t: 'code', title: 'Assignment solution — shows 1A5F, then bounces left ↔ right', exampleId: 'dot-matrix-id-scroll', code: `.MODEL SMALL
+.STACK 100H
+.DATA
+  SEQ DB 00000000B,01000010B,01111111B,01000000B,00000000B          ; '1'
+      DB 01111110B,00001001B,00001001B,00001001B,01111110B          ; 'A'
+      DB 00100111B,01000101B,01000101B,01000101B,00111001B          ; '5'
+      DB 01111111B,00001001B,00001001B,00001001B,00000001B          ; 'F'
+  SEQLEN EQU 20
+  BOARD  EQU 40
+.CODE
+MAIN PROC
+    MOV AX, @DATA
+    MOV DS, AX
+    LEA BX, SEQ            ; BX -> font table
+    MOV BP, 20             ; shift: sequence parked on the right
+    MOV AH, 0FFH           ; direction -1 -> scrolling right-to-left
+
+FRAME:
+    MOV DX, 2000H          ; dot-matrix base port
+    XOR SI, SI             ; SI = board column 0..39
+NEXT_COL:
+    XOR AL, AL             ; blank unless the window covers this column
+    MOV DI, SI
+    SUB DI, BP             ; DI = source index inside SEQ
+    CMP DI, 0
+    JB  BLANK              ; column is left of the window
+    CMP DI, SEQLEN
+    JAE BLANK              ; column is right of the window
+    MOV AL, [BX+DI]
+BLANK:
+    OUT DX, AL
+    INC DX
+    INC SI
+    CMP SI, BOARD
+    JB  NEXT_COL
+
+    MOV CX, 0FFFFH         ; hold this frame
+DELAY:
+    LOOP DELAY
+
+    CMP AH, 0FFH           ; which way are we going?
+    JNE GOING_RIGHT
+    DEC BP                 ; moving left
+    CMP BP, 0
+    JNE FRAME
+    MOV AH, 01H            ; reached the leftmost position - reverse
+    JMP FRAME
+GOING_RIGHT:
+    INC BP                 ; moving right
+    CMP BP, 20
+    JNE FRAME
+    MOV AH, 0FFH           ; reached the rightmost position - reverse
+    JMP FRAME
+MAIN ENDP
+END MAIN` },
+      { t: 'table', head: ['Register', 'Role'], rows: [
+        ['<code>BP</code>', 'shift — 20 = parked right, 0 = parked left, one step per frame'],
+        ['<code>AH</code>', 'direction: <code>0FFH</code> (−1, moving left) or <code>01H</code> (+1, moving right)'],
+        ['<code>SI</code>', 'board column being drawn (0..39)'],
+        ['<code>DI</code>', 'source index <code>SI − BP</code> into the font table'],
+        ['<code>BX</code>', 'font-table base pointer (set once by <code>LEA</code>)'],
+        ['<code>DX</code>', 'port — incremented after every column'],
+      ] },
+      { t: 'note', html: '<b>Make it yours.</b> To display a different ID/name pair, replace each 5-byte font group — the <b>Reference</b> tab carries the complete 5×7 font for <b>0–9 and A–Z</b> with every glyph\'s five bytes ready to copy (same convention: bit 0 = top row). Uppercase letters and digits only, or sketch a custom glyph on paper (7 rows, 5 columns, bit 0 = top) and read the bytes off column by column.' },
+    ],
+  },
 ]
 
 export function lessonById(id: string): Lesson | undefined {

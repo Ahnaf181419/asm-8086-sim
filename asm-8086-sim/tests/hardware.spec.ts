@@ -335,6 +335,7 @@ describe('hardware examples', () => {
     'led-count-down',
     'led-random',
     'led-playlist',
+    'dot-matrix-id-scroll',
   ]) {
     it(`example ${id} assembles`, async () => {
       const ex = exampleById(id)

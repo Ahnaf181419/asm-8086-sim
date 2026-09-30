@@ -1,7 +1,7 @@
 # ASM-8086-SIM
 
 Web-based study aid for an 8086 / MASM assembly-language course.
-Browser simulator (INT 21H console I/O), 23 lessons sourced from the
+Browser simulator (INT 21H console I/O), 24 lessons sourced from the
 course materials, a searchable instruction reference, and a Hardware
 Lab simulating the MDA-8086 Emulation Kit trainer board.
 
@@ -87,9 +87,10 @@ Emulation Kit trainer board in the browser:
 
 `IN` / `OUT` mnemonics dispatch through a central `HardwareBus`
 (4096-port `Uint16Array` mirror of `Constants.h`); 8255 PPI ports
-19H/1BH/1DH/1FH route to the 7-segment display and LEDs. Twenty-three
+19H/1BH/1DH/1FH route to the 7-segment display and LEDs. Twenty-four
 runnable hardware examples — including an 11-pattern LED cookbook
-(blink, chase, fill/drain, converge, count, random, playlist) — the
+(blink, chase, fill/drain, converge, count, random, playlist) and the
+dot-matrix ID×Name scroll assignment (1A5F) — the
 classic-practice console + hardware twins (L21–L22), and eight lessons
 (L15–L20 plus the practice pair) cover the I/O space; existing MASM
 programs written for the original trainer board run unmodified. See

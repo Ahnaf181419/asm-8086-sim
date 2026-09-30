@@ -212,8 +212,8 @@ describe('content inventory', () => {
   })
 
   it('the counts the docs quote are still true', () => {
-    expect(EXAMPLES).toHaveLength(64)
-    expect(LESSONS).toHaveLength(23)
+    expect(EXAMPLES).toHaveLength(65)
+    expect(LESSONS).toHaveLength(24)
   })
 })
 

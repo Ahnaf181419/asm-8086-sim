@@ -56,6 +56,7 @@ export const EXAMPLES: Example[] = [
   { id: 'led-count-down', name: 'LEDs: binary count down', category: 'Hardware', desc: 'DEC AL from FFh to 00h — the bank shows a binary down-counter', needsInput: false },
   { id: 'led-random', name: 'LEDs: pseudo-random (LFSR)', category: 'Hardware', desc: '8-bit Galois LFSR — pseudo-random lamp patterns on a 255-step cycle', needsInput: false },
   { id: 'led-playlist', name: 'LEDs: pattern playlist (DB table)', category: 'Hardware', desc: 'Table-driven: a DB list holds the show, SI walks it and repeats forever', needsInput: false },
+  { id: 'dot-matrix-id-scroll', name: 'Dot Matrix: ID×Name scroll (1A5F)', category: 'Hardware', desc: 'Assignment: 1A5F shows on the right displays then bounces left↔right across the board', needsInput: false },
 
   { id: 'practice-c2f', name: '37°C → °F', category: 'Practice', desc: 'F = C·9/5 + 32 with byte MUL/DIV; prints 98 (problem set 1)', needsInput: false },
   { id: 'practice-f2c', name: '110°F → °C', category: 'Practice', desc: 'C = (F−32)·5/9; subtract first, then multiply (problem set 2)', needsInput: false },
