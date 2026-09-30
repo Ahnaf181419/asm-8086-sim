@@ -88,3 +88,32 @@ test.describe('hardware lab view model', () => {
     else await expect(split).toBeVisible()
   })
 })
+
+test.describe('hardware lab disclosures do not widen the page', () => {
+  // The overflow describe above measures /hardware in its DEFAULT state, where
+  // the Studio drawer is closed (studioOpen starts false) and the I/O port map
+  // is a collapsed <details>. Neither table is rendered, so neither was ever
+  // measured — which is how an unconstrained .hw-port-table survived the whole
+  // mobile series. Open both, then measure.
+  test('opening the Studio drawer and the port map keeps the page at viewport width', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'phone', 'phone-only layout rule')
+    await page.goto('/hardware')
+    await page.waitForLoadState('networkidle')
+
+    await page.locator('[data-view="studio"]').click()
+    await expect(page.locator('.hw-studio-drawer.open')).toBeVisible()
+
+    const portMap = page.locator('details.hw-port-map-panel')
+    await portMap.locator('summary').click()
+    await expect(page.locator('table.hw-port-table')).toBeVisible()
+
+    const overflow = await page.evaluate(() => {
+      const el = document.documentElement
+      return { scrollWidth: el.scrollWidth, clientWidth: el.clientWidth }
+    })
+    expect(
+      overflow.scrollWidth,
+      `with Studio and the port map open the document is ${overflow.scrollWidth}px wide in a ${overflow.clientWidth}px viewport`,
+    ).toBeLessThanOrEqual(overflow.clientWidth + 1)
+  })
+})

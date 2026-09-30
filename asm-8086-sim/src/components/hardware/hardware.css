@@ -182,10 +182,6 @@
   cursor: pointer;
   user-select: none;
 }
-.hw-btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
 .hw-btn.on {
   background: color-mix(in srgb, var(--accent) 12%, var(--panel));
   border-color: var(--accent);
@@ -467,10 +463,6 @@
   border-color: var(--accent-dim);
   color: var(--flash);
 }
-.hw-btn-boilerplate:hover {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
-}
 
 .hw-studio-tab {
   position: absolute;
@@ -491,12 +483,6 @@
   cursor: pointer;
   box-shadow: -3px 3px 12px rgba(0, 0, 0, 0.6);
   transition: all 0.15s ease;
-}
-.hw-studio-tab:hover {
-  background: color-mix(in srgb, var(--accent) 12%, var(--panel2));
-  border-color: var(--accent);
-  box-shadow: -2px 0 10px color-mix(in srgb, var(--accent) 35%, transparent);
-  transform: translateX(-2px);
 }
 .hw-studio-tab-icon {
   font-size: 10px;
@@ -548,10 +534,6 @@
   padding: 2px 7px;
   cursor: pointer;
   transition: all 0.1s;
-}
-.hw-studio-close:hover {
-  color: var(--accent);
-  border-color: var(--accent);
 }
 
 .hw-studio-body {
@@ -701,6 +683,12 @@
 .hw-studio-log-scroll {
   max-height: 170px;
   overflow-y: auto;
+  /* Explicit, though overflow-y alone already computes overflow-x to auto (the
+     spec resolves `visible` to `auto` when the other axis is not visible).
+     Stated so a future edit cannot lose horizontal scrolling by "tidying" the
+     shorthand. The log renders only once a program has driven the bus, so it
+     is not covered by the layout suite — hence belt and braces. */
+  overflow-x: auto;
   border: 1px solid var(--border);
   border-radius: 3px;
 }
@@ -804,4 +792,32 @@
   font-weight: 600;
   color: var(--accent);
   margin-bottom: 2px;
+}
+
+/* ── hover effects ─────────────────────────────────────────────────────────
+   Gated on a hover-capable pointer, matching global.css. On a touchscreen the
+   browser synthesises a hover state on tap and leaves it there until the user
+   taps elsewhere, so a tapped Run or Studio button stayed lit — reading as
+   "still active" on a toolbar where that means something.
+   These four were missed when global.css was gated: plans 002 and 006 both
+   deferred them to plan 007, and plan 007's scope never picked them up. */
+@media (hover: hover) {
+  .hw-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .hw-btn-boilerplate:hover {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+  }
+  .hw-studio-tab:hover {
+    background: color-mix(in srgb, var(--accent) 12%, var(--panel2));
+    border-color: var(--accent);
+    box-shadow: -2px 0 10px color-mix(in srgb, var(--accent) 35%, transparent);
+    transform: translateX(-2px);
+  }
+  .hw-studio-close:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
 }

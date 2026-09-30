@@ -271,6 +271,30 @@ A bare `button { min-height: 44px; min-width: 44px }` was measured to fix only
   and `:97` (12px), and `src/components/RegisterPanel.tsx:95` (11px). Plan 001
   named only `src/App.tsx`. **Folded into plan 004's scope** — see its step 1.
 
+## Reconcile pass — 2026-10-01
+
+Ran after all seven merged, to verify the DONE criteria still hold on HEAD and
+to check that every "deferred to plan NNN" promise was actually kept. One was
+not.
+
+**Gap found and fixed.** Plans 002 and 006 both deferred `hardware.css`'s
+ungated `:hover` rules to plan 007, and **plan 007's scope never picked them
+up** — I wrote the deferral three times and carried it forward once. Four rules
+(`.hw-btn`, `.hw-btn-boilerplate`, `.hw-studio-tab`, `.hw-studio-close`) were
+still producing sticky hover on touch. Now inside `@media (hover: hover)`,
+matching `global.css`. A scripted check confirms **zero ungated `:hover` in
+either stylesheet.**
+
+**Coverage gap found and closed.** The `/hardware` overflow assertion only ever
+measured the route's DEFAULT state — `studioOpen` starts `false` and the port
+map is a collapsed `<details>`, so neither table was rendered when it ran. A new
+assertion opens both disclosures before measuring. It passes today; its value is
+that the blind spot is gone.
+
+**Deferrals confirmed kept:** 001 → 004 (inline `fontSize` on text inputs,
+done in 004 step 1b) and 004 → 007 (hardware control touch sizing, done in
+007's `pointer: coarse` block).
+
 ## Findings considered and rejected
 
 - **Changing the viewport meta tag to suppress iOS zoom.** Adding
@@ -289,6 +313,15 @@ A bare `button { min-height: 44px; min-width: 44px }` was measured to fix only
 - **`MemoryView`'s responsive byte-per-row logic.** It already measures its
   own container with a `ResizeObserver` and drops from 16 bytes per row to 8
   below 560px. Correct as written; left alone.
+- **Hardware tables overflowing on a phone.** Reported during the reconcile
+  pass as a companion to the hover gap, then **measured and withdrawn**:
+  `.hw-port-table` renders 358px wide inside a 375px viewport with
+  `scrollWidth === clientWidth`, so it fits — `width: 100%` plus auto table
+  layout compresses the columns rather than overflowing. A `.scroll-x` wrapper
+  was written and then reverted, because without a `min-width` on the table it
+  was a no-op carrying a comment that claimed a fix. `.hw-studio-log-table`
+  could not be measured at all: it renders only after a program has driven the
+  bus. Recorded so it is not re-reported.
 - **Screenshot/visual-regression testing.** A larger commitment with snapshot
   churn, and unnecessary to verify the specific rules these plans target.
   Deferred, not rejected outright.
