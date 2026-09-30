@@ -503,6 +503,27 @@ input[type='range'] { accent-color: var(--accent-dim); width: 110px; }
 .lessons-content table { border-collapse: collapse; margin: 12px 0; font-size: 12.5px; }
 .lessons-content th, .lessons-content td { border: 1px solid var(--border); padding: 5px 12px; text-align: left; }
 .lessons-content th { background: var(--panel2); color: var(--accent); }
+/* A table inside .scroll-x must be allowed to exceed the container, or the
+   browser compresses the columns to fit and nothing scrolls. min-content is
+   the narrowest width at which no cell wraps mid-word. */
+.lessons-content .scroll-x > table { min-width: min-content; }
+/* Wide content scrolls inside its own box so the PAGE never scrolls sideways.
+   Code blocks already did this (.code-block pre, overflow-x:auto); tables did
+   not, and the lesson tables are wide — lesson 23's seven-segment reference is
+   eight columns. Without this the document scrolls horizontally and the prose
+   pans off-screen with it.
+   -webkit-overflow-scrolling keeps momentum scrolling on iOS. */
+.scroll-x {
+  overflow-x: auto;
+  /* NOT auto: overflow-x:auto alone makes the box a scroll container on BOTH
+     axes, which re-anchors .ref-table's sticky header to this wrapper instead
+     of the page and stops it sticking. `visible` is illegal alongside a
+     non-visible overflow-x (the browser computes it to auto), so `clip` is
+     the value that keeps the vertical axis out of the way. */
+  overflow-y: clip;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+}
 .lessons-content code {
   background: var(--panel2);
   border: 1px solid var(--border);
