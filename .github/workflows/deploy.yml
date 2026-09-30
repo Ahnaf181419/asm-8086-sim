@@ -97,7 +97,12 @@ jobs:
           retention-days: 7
 
   deploy:
-    needs: build
+    # Both gates, not just build. The e2e job was left out of this list when it
+    # was added, because its layout assertions were deliberately red until the
+    # mobile work landed and blocking deploys on a known-red suite would have
+    # frozen the site. The suite is green now, so a layout regression should
+    # stop a deploy the same way a failing unit test does.
+    needs: [build, e2e]
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment:

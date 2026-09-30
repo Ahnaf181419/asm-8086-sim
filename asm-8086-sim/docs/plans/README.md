@@ -295,16 +295,18 @@ A bare `button { min-height: 44px; min-width: 44px }` was measured to fix only
 
 ## Follow-ups tracked here
 
-- **Gate `deploy` on the e2e job.** Plan 003 deliberately adds the CI job
-  without adding it to `deploy`'s `needs:`, because its tests are red until
-  004/005/007 land. Once the series is green, wire it up so a layout regression
-  blocks the site.
+- ~~**Gate `deploy` on the e2e job.**~~ **DONE 2026-10-01.** `deploy.needs` is
+  now `[build, e2e]`. Plan 003 deliberately left it out while the layout
+  assertions were red; they went green when 007 merged, so a layout regression
+  now stops a deploy the same way a failing unit test does. **Consequence worth
+  knowing: any e2e flake blocks the deploy.** If that becomes a problem the
+  honest fixes are to stabilise the waits or split the suite, not to un-gate it.
 - **`hardware.css` hover rules stay ungated** until 007. Plan 006 gates the
   ones in `global.css`; until 007 lands the two stylesheets differ in this
   respect.
-- **`README.md` says typecheck covers "all three tsconfigs"** — plan 003 adds a
-  fourth (`tsconfig.e2e.json`). Noted by 003's executor and correctly left out
-  of scope; fix it when 003 merges.
+- ~~**`README.md` says typecheck covers "all three tsconfigs"**~~ **DONE
+  2026-10-01.** `tsc -b` builds four projects (app, node, test, e2e); the
+  README now names them.
 - **PWA install + offline** — a mobile-shaped payoff already on the roadmap as
   MOVE-5 in `docs/AUDIT-2026-09-14.md`. Not a defect, so it has no plan here.
 

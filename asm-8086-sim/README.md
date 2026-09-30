@@ -15,7 +15,7 @@ Lab simulating the MDA-8086 Emulation Kit trainer board.
     npm test                    # engine, regression, lessons, hardware, hooks, pages
     npm run test:watch          # vitest in watch mode
     npm run test:coverage       # v8 coverage report
-    npm run typecheck           # tsc -b (all three tsconfigs)
+    npm run typecheck           # tsc -b (app, node, tests, e2e)
     npm run test:e2e            # Playwright layout checks at 375px and 1440px
     npm run test:e2e:report     # open the last HTML report
 
