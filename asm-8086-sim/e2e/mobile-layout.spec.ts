@@ -158,7 +158,7 @@ test.describe('every theme meets AA on secondary text', () => {
       await page.waitForLoadState('networkidle')
       await page.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme)
       await page.waitForTimeout(150)
-      const low = await page.evaluate(() => {
+      const result = await page.evaluate(() => {
         const lum = (c: string) => {
           const m = c.match(/\d+/g)!.map(Number)
           const f = (v: number) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4) }
@@ -183,9 +183,13 @@ test.describe('every theme meets AA on secondary text', () => {
           if (!el) continue
           out.push({ sel, ratio: ratio(getComputedStyle(el).color, bgOf(el)) })
         }
-        return out.filter((r) => r.ratio < 4.5)
+        return { measured: out.length, low: out.filter((r) => r.ratio < 4.5) }
       })
-      expect(low, `below AA: ${JSON.stringify(low)}`).toEqual([])
+      // Guard the guard: if the selectors stop matching, the filter above goes
+      // empty and the test would pass having measured nothing.
+      console.log(`measured ${result.measured}`)
+      expect(result.measured, 'no secondary-text selectors matched').toBeGreaterThanOrEqual(4)
+      expect(result.low, `below AA: ${JSON.stringify(result.low)}`).toEqual([])
     })
   }
 })

@@ -64,7 +64,9 @@ describe('HardwareBus', () => {
   it('16-bit IN composes across device boundaries', () => {
     const bus = new HardwareBus()
     bus.attach(new SwitchesDevice())
-    bus.attach(new ThermometerDevice()) // at 2086H, right after the switches
+    const thermo = new ThermometerDevice()
+    bus.attach(thermo) // at 2086H, right after the switches
+    thermo.setCelsius(-40) // byte 0 — makes the high byte explicit
     bus.dispatchWrite(SWITCHES_ADDRESS, 0x81, 8)
     expect(bus.dispatchRead(SWITCHES_ADDRESS, 16)).toBe(0x0081) // high byte = thermometer (-40C -> 0)
   })
