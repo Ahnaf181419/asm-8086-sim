@@ -18,7 +18,7 @@ export default function HardwareLabPage() {
       </TerminalPanel>
 
       <details className="hw-port-map-panel" style={{ flex: '0 0 auto' }}>
-        <summary>▾ I/O PORT MAP (Constants.h Reference)</summary>
+        <summary>▾ I/O PORT MAP (MDA-8086 EMULATION KIT)</summary>
         <table className="hw-port-table">
           <thead>
             <tr>

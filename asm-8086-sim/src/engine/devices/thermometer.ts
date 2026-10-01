@@ -8,6 +8,7 @@ export class ThermometerDevice implements IoDevice<ThermometerState> {
   readonly portCount = 1
   readonly width = 8
   readonly direction = 'in'
+  // -40 is the deliberate boot value (byte 0): tests/hardware.spec.ts pins the 16-bit IN composition to it.
   private celsius = -40
 
   reset() { this.celsius = -40 }

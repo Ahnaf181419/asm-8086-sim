@@ -58,36 +58,6 @@ export default function ReferencePage() {
     <div className="ref-layout">
       <h1>INSTRUCTION REFERENCE — 8086 subset</h1>
 
-      <section className="ref-font">
-        <h2>DOT-MATRIX 5×7 FONT — 0–9, A–Z</h2>
-        <p className="ref-font-hint">
-          one byte per column · five per glyph · bytes in binary — read top row first (bit 0 = top row, bit 6 =
-          bottom) · columns go left → right to ports<code> 2000H…2027H</code> (see lesson 24)
-        </p>
-        <table className="ref-table ref-font-table">
-          <thead>
-            <tr>
-              <th>Char</th>
-              <th>Glyph</th>
-              <th>Column bytes — binary (DB line)</th>
-              <th className="ref-font-mid" aria-hidden="true" />
-              <th className="ref-font-r">Char</th>
-              <th className="ref-font-r">Glyph</th>
-              <th className="ref-font-r">Column bytes — binary (DB line)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {FONT_LEFT.map((g, i) => (
-              <tr key={g.ch}>
-                <FontCells g={g} />
-                <td className="ref-font-mid" aria-hidden="true" />
-                {FONT_RIGHT[i] ? <FontCells g={FONT_RIGHT[i]} r /> : null}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
-
       <h2 className="ref-instr-h">INSTRUCTIONS</h2>
       <input
         className="ref-search"
@@ -220,6 +190,36 @@ export default function ReferencePage() {
           </tbody>
         </table>
       </div>
+      <section className="ref-font">
+        <h2>DOT-MATRIX 5×7 FONT — 0–9, A–Z</h2>
+        <p className="ref-font-hint">
+          one byte per column · five per glyph · bytes in binary — read top row first (bit 0 = top row, bit 6 =
+          bottom) · columns go left → right to ports<code> 2000H…2027H</code> (see lesson 24)
+        </p>
+        <table className="ref-table ref-font-table">
+          <thead>
+            <tr>
+              <th>Char</th>
+              <th>Glyph</th>
+              <th>Column bytes — binary (DB line)</th>
+              <th className="ref-font-mid" aria-hidden="true" />
+              <th className="ref-font-r">Char</th>
+              <th className="ref-font-r">Glyph</th>
+              <th className="ref-font-r">Column bytes — binary (DB line)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {FONT_LEFT.map((g, i) => (
+              <tr key={g.ch}>
+                <FontCells g={g} />
+                <td className="ref-font-mid" aria-hidden="true" />
+                {FONT_RIGHT[i] ? <FontCells g={FONT_RIGHT[i]} r /> : null}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+
       <div style={{ height: 60 }} />
     </div>
   )

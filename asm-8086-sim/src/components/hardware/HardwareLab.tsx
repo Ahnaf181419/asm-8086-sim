@@ -419,7 +419,7 @@ export function HardwareLab({ initialExampleId }: { initialExampleId?: string })
           }}
           aria-label="reset all hardware"
         >
-          ⟲ RESET HW
+          ⟲ reset hw
         </button>
 
         {isBare && (
@@ -460,7 +460,7 @@ export function HardwareLab({ initialExampleId }: { initialExampleId?: string })
             onClick={() => setViewMode('board')}
             title="Display peripheral board only"
           >
-            🎛️ Board
+            🎛️ board
           </button>
           <button
             type="button"
@@ -469,7 +469,7 @@ export function HardwareLab({ initialExampleId }: { initialExampleId?: string })
             onClick={() => setViewMode('split')}
             title="Side-by-side code editor and peripheral board"
           >
-            ◫ Split
+            ◫ split
           </button>
           <button
             type="button"
@@ -478,7 +478,7 @@ export function HardwareLab({ initialExampleId }: { initialExampleId?: string })
             onClick={() => setViewMode('code')}
             title="Code editor only"
           >
-            💻 Code
+            💻 code
           </button>
           <button
             type="button"
@@ -487,7 +487,7 @@ export function HardwareLab({ initialExampleId }: { initialExampleId?: string })
             onClick={() => setStudioOpen((p) => !p)}
             title="Toggle Hardware Studio panel"
           >
-            🔬 Studio
+            🔬 studio
           </button>
         </div>
       </div>
