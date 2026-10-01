@@ -144,3 +144,52 @@ test.describe('lessons nav is a sidebar on desktop and a disclosure on a phone',
     await expect(page.locator('.lessons-nav a').first()).toBeVisible()
   })
 })
+
+test.describe('every theme meets AA on secondary text', () => {
+  const THEMES = ['green', 'amber', 'cyan', 'slate'] as const
+  // --text-faint carries register sign values, the shortcut hint and the
+  // console empty state — not decoration. The green theme was contrast-tuned
+  // and the other three were not; three of four measured below AA before this
+  // test existed.
+  for (const theme of THEMES) {
+    test(`${theme} secondary text clears 4.5:1`, async ({ page }, testInfo) => {
+      test.skip(testInfo.project.name !== 'desktop', 'palette is viewport-independent')
+      await page.goto('/')
+      await page.waitForLoadState('networkidle')
+      await page.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme)
+      await page.waitForTimeout(150)
+      const result = await page.evaluate(() => {
+        const lum = (c: string) => {
+          const m = c.match(/\d+/g)!.map(Number)
+          const f = (v: number) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4) }
+          return 0.2126 * f(m[0]) + 0.7152 * f(m[1]) + 0.0722 * f(m[2])
+        }
+        const ratio = (a: string, b: string) => {
+          const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p)
+          return +((x + 0.05) / (y + 0.05)).toFixed(2)
+        }
+        const bgOf = (el: HTMLElement) => {
+          let e: HTMLElement | null = el
+          while (e) {
+            const b = getComputedStyle(e).backgroundColor
+            if (b && !b.includes('rgba(0, 0, 0, 0)')) return b
+            e = e.parentElement
+          }
+          return 'rgb(0, 0, 0)'
+        }
+        const out: { sel: string; ratio: number }[] = []
+        for (const sel of ['.reg-signed', '.statusbar .hint', '.console-empty', '.topbar .meta', '.mem-ascii']) {
+          const el = document.querySelector(sel) as HTMLElement | null
+          if (!el) continue
+          out.push({ sel, ratio: ratio(getComputedStyle(el).color, bgOf(el)) })
+        }
+        return { measured: out.length, low: out.filter((r) => r.ratio < 4.5) }
+      })
+      // Guard the guard: if the selectors stop matching, the filter above goes
+      // empty and the test would pass having measured nothing.
+      console.log(`measured ${result.measured}`)
+      expect(result.measured, 'no secondary-text selectors matched').toBeGreaterThanOrEqual(4)
+      expect(result.low, `below AA: ${JSON.stringify(result.low)}`).toEqual([])
+    })
+  }
+})

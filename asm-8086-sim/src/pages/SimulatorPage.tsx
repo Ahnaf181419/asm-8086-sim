@@ -203,6 +203,7 @@ export default function SimulatorPage() {
               aria-valuetext={`${SPEEDS[speedIndex]} instructions per frame`}
               onChange={(e) => sim.setSpeed(SPEEDS[Number(e.target.value)] ?? SPEEDS[2])}
             />
+            <span className="speed-value" aria-hidden="true">{SPEEDS[speedIndex]}/frame</span>
           </label>
           <select
             value={selectedExample}
@@ -217,9 +218,6 @@ export default function SimulatorPage() {
               </option>
             ))}
           </select>
-          <button onClick={() => nav('/lessons')} title="course lessons">
-            📖 lessons
-          </button>
         </div>
 
         <TerminalPanel title="SOURCE — editor.asm" className="editor-panel" right={

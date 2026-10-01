@@ -66,7 +66,11 @@ html[data-theme='amber'] {
   --border-bright: #66491d;
   --text: #ffe0a3;
   --text-dim: #cca05c;
-  --text-faint: #997439;
+  /* Contrast-measured like the green :root value above. The earlier pass tuned
+     --text-faint for green only; amber/cyan/slate each redefined it by eye and
+     landed below AA on secondary text (slate at 3.55:1). Measured worst case
+     against this theme's own --panel2. */
+  --text-faint: #aa813f;
   --text-ghost: #664d26;
   --accent: #ffb000;
   --accent-dim: #cc8d00;
@@ -91,7 +95,7 @@ html[data-theme='cyan'] {
   --border-bright: #204b60;
   --text: #c0f0ff;
   --text-dim: #70b0cc;
-  --text-faint: #4e8099;
+  --text-faint: #5891ad;
   --text-ghost: #355866;
   --accent: #00e5ff;
   --accent-dim: #00b0c8;
@@ -116,7 +120,7 @@ html[data-theme='slate'] {
   --border-bright: #444e5e;
   --text: #e6edf3;
   --text-dim: #9aa4b2;
-  --text-faint: #6c7887;
+  --text-faint: #8593a6;
   --text-ghost: #48525e;
   --accent: #58a6ff;
   --accent-dim: #388bfd;
@@ -381,6 +385,8 @@ select, input[type='text'] {
 label.inline { display: flex; align-items: center; gap: 6px; color: var(--text-dim); font-size: 12px; cursor: pointer; }
 
 input[type='range'] { accent-color: var(--accent-dim); width: 110px; }
+input[type='checkbox'] { accent-color: var(--accent-dim); }
+.speed-value { color: var(--text-faint); font-size: 11px; min-width: 3.2em; }
 
 /* ── status bar ──────────────────────────────── */
 .statusbar {
