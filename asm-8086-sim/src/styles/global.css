@@ -522,8 +522,15 @@ input[type='checkbox'] { accent-color: var(--accent-dim); }
 .statusbar .spacer { flex: 1; }
 
 /* ── lessons ─────────────────────────────────── */
-.lessons-layout { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 0; height: 100%; overflow: hidden; }
+/* grid-template-rows is load-bearing: without it the single implicit row is
+   `auto`, which sizes to the TALLEST ITEM's content. The nav grew to its full
+   1270px, its own overflow-y had nothing to do, and .lessons-layout clipped the
+   bottom 400px — the last lessons were unreachable. */
+.lessons-layout { display: grid; grid-template-columns: 250px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 0; height: 100%; overflow: hidden; }
 .lessons-nav {
+  /* min-height:0 lets a grid/flex child shrink below its content so overflow
+     can scroll it; the default `auto` minimum keeps it content-sized. */
+  min-height: 0;
   border-right: 1px solid var(--border);
   background: var(--panel);
   overflow-y: auto;
@@ -554,7 +561,18 @@ input[type='checkbox'] { accent-color: var(--accent-dim); }
    open and its summary hidden — the sidebar renders exactly as it did before
    the wrapper existed. */
 .lessons-nav-wrap {
-  display: contents;
+  /* A real grid item, and the scroll container — NOT `display: contents`.
+     That trick caused two separate bugs on this element: a closed <details>
+     rendered nothing on desktop (Chrome 131+ hides closed content through
+     ::details-content whatever the wrapper's display), and even when open,
+     ::details-content became the un-constrained grid item, so the nav grew to
+     full height and the list was clipped. Scrolling lives here, on a box that
+     definitely exists, so the engine's <details> box tree cannot break it. */
+  display: block;
+  min-height: 0;
+  overflow-y: auto;
+  border-right: 1px solid var(--border);
+  background: var(--panel);
 }
 .lessons-nav-summary {
   display: none;
@@ -776,7 +794,7 @@ input[type='checkbox'] { accent-color: var(--accent-dim); }
   .console-panel { flex: 0 0 clamp(130px, 22vh, 280px); }
   .regs-panel { flex: 0 0 auto; }
   .mem-panel { flex: 0 0 clamp(220px, 42vh, 460px); }
-  .lessons-layout { grid-template-columns: 1fr; height: auto; overflow: visible; }
+  .lessons-layout { grid-template-columns: 1fr; grid-template-rows: auto; height: auto; overflow: visible; }
   /* Below the sidebar breakpoint the nav becomes a disclosure: a one-line
      summary naming the current lesson, tappable to reveal the full list. The
      previous rule wrapped every link into a strip above the content, which on

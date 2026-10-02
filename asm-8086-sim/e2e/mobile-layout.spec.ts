@@ -231,3 +231,36 @@ test.describe('simulator chrome leaves room for code on a phone', () => {
     expect(top, `first code line starts ${Math.round(top)}px down a 667px screen`).toBeLessThan(320)
   })
 })
+
+test.describe('the whole lesson list is reachable', () => {
+  // Second regression on this nav that shipped invisible to the suite. The
+  // first was the list not rendering at all; this one was the list rendering
+  // but being clipped — .lessons-layout had no grid-template-rows, so the
+  // implicit `auto` row sized to content, the nav grew to its full height, its
+  // overflow-y had nothing to do, and the parent clipped the last lessons.
+  // "Is it in the DOM" and even "is it visible" both passed throughout. The
+  // contract is that every lesson can actually be REACHED.
+  for (const project of ['desktop', 'phone'] as const) {
+    test(`${project}: the last lesson can be scrolled to`, async ({ page }, testInfo) => {
+      test.skip(testInfo.project.name !== project, `${project} only`)
+      await page.goto('/lessons')
+      await page.waitForLoadState('networkidle')
+      if (project === 'phone') await page.locator('.lessons-nav-summary').click()
+
+      // whichever element owns the scrolling at this width
+      const sel = project === 'desktop' ? '.lessons-nav-wrap' : '.lessons-nav'
+      const scrolled = await page.evaluate((s) => {
+        const e = document.querySelector(s) as HTMLElement | null
+        if (!e) return null
+        e.scrollTop = e.scrollHeight
+        return { clientH: e.clientHeight, scrollH: e.scrollHeight }
+      }, sel)
+      expect(scrolled, `${sel} is missing`).not.toBeNull()
+      // it must genuinely overflow — otherwise this test proves nothing
+      expect(scrolled!.scrollH, 'nav no longer overflows; this guard is vacuous')
+        .toBeGreaterThan(scrolled!.clientH + 1)
+
+      await expect(page.locator('.lessons-nav a').last()).toBeInViewport()
+    })
+  }
+})
