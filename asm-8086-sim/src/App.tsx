@@ -58,12 +58,20 @@ export default function App() {
           </select>
           <button
             onClick={() => setCrt((c) => !c)}
-            title="Toggle CRT raster scanline overlay"
-            aria-label="Toggle CRT raster scanline overlay"
+            /* "CRT" named the hardware, not the effect, so the control only
+               made sense to someone who already knew what it did — and the
+               explanation lived in a title, which never fires on touch.
+               "scanlines" says what you get. The accessible name starts with
+               the visible text so it satisfies WCAG 2.5.3 (Label in Name) at
+               both widths, where the label shortens to "scan". State comes
+               from aria-pressed, so it is not repeated in the name. */
+            title="Scanlines — the faint horizontal banding of a CRT monitor, drawn over the page. Cosmetic only."
+            aria-label="Scanlines, a CRT raster overlay"
             aria-pressed={crt}
             className={`topbar-control${crt ? ' on' : ''}`}
           >
-            CRT<span className="crt-state">: {crt ? 'ON' : 'OFF'}</span>
+            scan<span className="crt-long">lines</span>
+            <span className="crt-state">: {crt ? 'ON' : 'OFF'}</span>
           </button>
         </div>
         <div className="meta">8086 / MASM · personal study aid</div>

@@ -284,7 +284,7 @@ describe('App shell', () => {
       </MemoryRouter>,
     )
     const theme = screen.getByRole('combobox', { name: 'Display theme' })
-    const crt = screen.getByRole('button', { name: 'Toggle CRT raster scanline overlay' })
+    const crt = screen.getByRole('button', { name: 'Scanlines, a CRT raster overlay' })
     for (const el of [theme, crt]) {
       expect(el.style.fontSize).toBe('')
       expect(el.classList.contains('topbar-control')).toBe(true)
@@ -354,7 +354,7 @@ describe('App chrome', () => {
       </MemoryRouter>,
     )
     expect(screen.getByRole('combobox', { name: 'Display theme' })).toBeTruthy()
-    const crt = screen.getByRole('button', { name: 'Toggle CRT raster scanline overlay' })
+    const crt = screen.getByRole('button', { name: 'Scanlines, a CRT raster overlay' })
     expect(crt.getAttribute('aria-pressed')).not.toBeNull()
   })
 })

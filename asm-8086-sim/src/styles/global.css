@@ -930,7 +930,10 @@ input[type='checkbox'] { accent-color: var(--accent-dim); }
     overflow: hidden;
     appearance: none;
   }
-  .topbar-control .crt-state { display: none; }
+  /* Compact to "scan" on a phone: the button is 44px wide there. "scan" is
+     still a prefix of the accessible name, so Label in Name holds. */
+  .topbar-control .crt-state,
+  .topbar-control .crt-long { display: none; }
   button.topbar-control:not(.on) { text-decoration: line-through; }
   .topbar nav { flex: 1 1 100%; margin-left: 0; justify-content: space-between; flex-wrap: wrap; }
   /* four links at 12px side padding sum to ~380px, wider than a 375px phone. */
