@@ -34,7 +34,18 @@ function runUntil(m: { run: (n: number) => unknown }, pred: () => boolean, guard
   return pred()
 }
 
-describe('kit system — blinking digit N, then rotating N-row column (N=5)', () => {
+// These tests drive the real 8086 interpreter: `runUntil` advances the machine
+// in 20,000-instruction slices up to 2,500 times waiting for a display state.
+// Individually they take seconds; inside the full parallel suite, under CPU
+// contention, two of them were crossing vitest's 5s default and failing
+// intermittently — observed twice before the cause was identified, and never
+// reproducible in isolation. The budget is raised at the describe level so the
+// whole file is covered rather than whichever test happens to be slowest today.
+// This is not masking a slow assertion: each test still asserts an exact
+// display state, and they pass in about 6-8s.
+const EMULATOR_TIMEOUT = 30_000
+
+describe('kit system — blinking digit N, then rotating N-row column (N=5)', { timeout: EMULATOR_TIMEOUT }, () => {
   it('phase 1 draws the digit 5 glyph on display 2', () => {
     const { m, bytes } = boot('dot-matrix-rotate-blink')
     const glyphShown = () => bytes().slice(5, 10).every((v, i) => v === FIVE[i])
@@ -72,7 +83,7 @@ describe('kit system — blinking digit N, then rotating N-row column (N=5)', ()
   })
 })
 
-describe('trainer system — BL-driven N-row column across the whole matrix (N=5)', () => {
+describe('trainer system — BL-driven N-row column across the whole matrix (N=5)', { timeout: EMULATOR_TIMEOUT }, () => {
   it('lights five rows in the LAST column of the matrix first', () => {
     const { m, bytes } = boot('dot-matrix-rotate-bl')
     const b = bytes
@@ -87,7 +98,7 @@ describe('trainer system — BL-driven N-row column across the whole matrix (N=5
     expect(runUntil(m, () => b()[37] === PATTERN && b()[38] === 0 && sum(b()) === PATTERN)).toBe(true)
   })
 
-  it('wraps from the first column back to the last (full lap)', { timeout: 30_000 }, () => {
+  it('wraps from the first column back to the last (full lap)', () => {
     const { m, bytes } = boot('dot-matrix-rotate-bl')
     const b = bytes
     expect(runUntil(m, () => b()[0] === PATTERN && sum(b()) === PATTERN)).toBe(true)
