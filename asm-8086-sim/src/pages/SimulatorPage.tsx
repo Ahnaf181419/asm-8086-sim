@@ -231,6 +231,7 @@ export default function SimulatorPage() {
               <CodeEditor value={source} onChange={onChange} currentLine={currentLine} />
             </Suspense>
           </div>
+          <p className="editor-note">INDEC.ASM and OUTDEC.ASM are included automatically when the program calls them.</p>
         </TerminalPanel>
 
         <TerminalPanel title="OUTPUT — INT 21H CONSOLE" className="console-panel">
@@ -266,7 +267,7 @@ export default function SimulatorPage() {
               ))}
             </span>
           ) : (
-            <span className="hint">F5 run/pause · F10 step · F4 reset · INDEC.ASM / OUTDEC.ASM auto-include</span>
+            <span className="hint">F5 run/pause · F10 step · F4 reset</span>
           )}
         </div>
       </div>

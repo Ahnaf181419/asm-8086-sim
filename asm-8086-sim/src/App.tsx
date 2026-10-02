@@ -63,7 +63,7 @@ export default function App() {
             aria-pressed={crt}
             className={`topbar-control${crt ? ' on' : ''}`}
           >
-            CRT: {crt ? 'ON' : 'OFF'}
+            CRT<span className="crt-state">: {crt ? 'ON' : 'OFF'}</span>
           </button>
         </div>
         <div className="meta">8086 / MASM · personal study aid</div>

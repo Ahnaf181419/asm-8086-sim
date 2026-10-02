@@ -340,3 +340,21 @@ describe('flag explanations are reachable without hover', () => {
     expect(zf.getAttribute('aria-expanded')).toBe('true')
   })
 })
+
+describe('App chrome', () => {
+  // Guard for the compact phone layout: the theme picker and CRT toggle may
+  // be restyled but must stay in the document with their accessible names.
+  it('keeps the theme control and CRT toggle reachable by name', async () => {
+    const { default: App } = await import('../src/App')
+    render(
+      <MemoryRouter>
+        <Routes>
+          <Route path="/" element={<App />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    expect(screen.getByRole('combobox', { name: 'Display theme' })).toBeTruthy()
+    const crt = screen.getByRole('button', { name: 'Toggle CRT raster scanline overlay' })
+    expect(crt.getAttribute('aria-pressed')).not.toBeNull()
+  })
+})
