@@ -55,5 +55,7 @@ export interface BusSnapshot {
   devices: Partial<DeviceSnapshotMap>
   lastCycle?: BusCycle | null
   recentCycles?: BusCycle[]
+  // Device names the program has addressed this run (see HardwareBus.touched)
+  touched?: string[]
   ppi?: { portA: number; portB: number; portC: number; control: number }
 }

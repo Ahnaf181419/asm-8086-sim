@@ -60,9 +60,11 @@ function decodeSeg(byte: number): string {
 
 // one floating "kit window": MFC-style caption from the C++ SetWindowText
 // strings + the device content. Positions come from grid-area classes.
-function KitPanel({ name, children }: { name: HwPanelName; children: ReactNode }) {
+// `active` = the running program has addressed this device (HwPanelName keys
+// equal the device `name` strings, so bus.snapshot().touched maps directly).
+function KitPanel({ name, active, children }: { name: HwPanelName; active: boolean; children: ReactNode }) {
   return (
-    <div className={`hw-panel ${name}-panel`}>
+    <div className={`hw-panel ${name}-panel${active ? ' hw-panel-active' : ''}`}>
       <div className="hw-panel-title" title={HW_TITLES[name]}>
         {HW_TITLES[name]}
       </div>
@@ -360,6 +362,7 @@ export function HardwareLab({ initialExampleId }: { initialExampleId?: string })
   useRunShortcuts({ toggleRun, step: machine.step, reset: machine.reset, flush: debounced.flush })
 
   const devices = snapshot.devices
+  const touched = new Set(snapshot.touched ?? [])
   const snap = machine.state.snap
   const isBare = isBareAsm(source)
   const curStmt = snap?.curStmt
@@ -538,44 +541,44 @@ export function HardwareLab({ initialExampleId }: { initialExampleId?: string })
         {(viewMode === 'split' || viewMode === 'board') && (
           <div className="hw-board">
             <div className="hw-grid">
-              <KitPanel name="dot-matrix">
+              <KitPanel name="dot-matrix" active={touched.has('dot-matrix')}>
                 <DotMatrixPanel state={devices['dot-matrix']} />
               </KitPanel>
-              <KitPanel name="seven-segment">
+              <KitPanel name="seven-segment" active={touched.has('seven-segment')}>
                 <SevenSegmentPanel state={devices['seven-segment']} />
               </KitPanel>
-              <KitPanel name="ascii-lcd">
+              <KitPanel name="ascii-lcd" active={touched.has('ascii-lcd')}>
                 <AsciiLcdPanel state={devices['ascii-lcd']} />
               </KitPanel>
-              <KitPanel name="thermometer">
+              <KitPanel name="thermometer" active={touched.has('thermometer')}>
                 <ThermometerPanel
                   state={devices.thermometer}
                   onSetCelsius={setCelsius}
                 />
               </KitPanel>
-              <KitPanel name="leds">
+              <KitPanel name="leds" active={touched.has('leds')}>
                 <LedsPanel state={devices.leds} />
               </KitPanel>
-              <KitPanel name="switches">
+              <KitPanel name="switches" active={touched.has('switches')}>
                 <SwitchesPanel
                   state={devices.switches}
                   onToggleBit={(i) => toggleBit('switches', i)}
                 />
               </KitPanel>
-              <KitPanel name="push-buttons">
+              <KitPanel name="push-buttons" active={touched.has('push-buttons')}>
                 <PushButtonsPanel
                   state={devices['push-buttons']}
                   onToggleBit={(i) => toggleBit('buttons', i)}
                 />
               </KitPanel>
-              <KitPanel name="keyboard">
+              <KitPanel name="keyboard" active={touched.has('keyboard')}>
                 <KeyboardPanel
                   state={devices.keyboard}
                   onPressKey={pressKey}
                   onClearBuffer={clearKeyboardBuffer}
                 />
               </KitPanel>
-              <KitPanel name="pressure">
+              <KitPanel name="pressure" active={touched.has('pressure')}>
                 <PressurePanel
                   state={devices.pressure}
                   onSetPercent={setPercent}

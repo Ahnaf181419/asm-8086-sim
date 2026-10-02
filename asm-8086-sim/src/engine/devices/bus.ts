@@ -36,6 +36,10 @@ export class HardwareBus {
   // before the next cycle overwrote it. flush() delivers one notification
   // per frame; UI-driven mutations still notify() immediately.
   private pendingNotify = false
+  // Names of devices the program has addressed since the last reset().
+  // Persistent for the run, unlike the 30-slot cycle ring, so a UI cue built
+  // on it does not flicker off once a device's cycles scroll out.
+  private touched = new Set<string>()
 
   private recordCycle(cycle: BusCycle) {
     this.cycleLog[this.cycleLogLen % HardwareBus.CYCLE_LOG_CAP] = cycle
@@ -77,6 +81,7 @@ export class HardwareBus {
     this.cycleLog = new Array(HardwareBus.CYCLE_LOG_CAP)
     this.cycleLogLen = 0
     this.seq = 0
+    this.touched.clear()
     this.pendingNotify = false
     this.notify()
   }
@@ -102,6 +107,7 @@ export class HardwareBus {
     }
     const device = this.deviceAt(port)
     if (device) {
+      this.touched.add(device.name)
       const handled = device.onRead(port, 8)
       if (handled !== undefined) return handled & 0xff
     }
@@ -117,16 +123,25 @@ export class HardwareBus {
       // Port A (19H) on MDA-8086 drives 7-segment display
       if (port === PPI_PORT_A) {
         const seg = this.deviceAt(SEVEN_SEGMENT_ADDRESS)
-        if (seg) seg.onWrite(SEVEN_SEGMENT_ADDRESS, val8, 8)
+        if (seg) {
+          this.touched.add(seg.name)
+          seg.onWrite(SEVEN_SEGMENT_ADDRESS, val8, 8)
+        }
       } else if (port === PPI_PORT_B) {
         // Port B (1BH) on MDA-8086 drives LEDs
         const leds = this.deviceAt(LED_ADDRESS)
-        if (leds) leds.onWrite(LED_ADDRESS, val8, 8)
+        if (leds) {
+          this.touched.add(leds.name)
+          leds.onWrite(LED_ADDRESS, val8, 8)
+        }
       }
       return
     }
     const device = this.deviceAt(port)
-    if (device) device.onWrite(port, val8, 8)
+    if (device) {
+      this.touched.add(device.name)
+      device.onWrite(port, val8, 8)
+    }
     const idx = port - MIN_IO_ADDRESS
     this.ports[idx] = (this.ports[idx] & 0xff00) | val8
   }
@@ -156,6 +171,7 @@ export class HardwareBus {
       devices,
       lastCycle: this.lastCycle,
       recentCycles: this.recentCyclesView(),
+      touched: [...this.touched],
       ppi: {
         portA: this.ppiPorts[PPI_PORT_A],
         portB: this.ppiPorts[PPI_PORT_B],

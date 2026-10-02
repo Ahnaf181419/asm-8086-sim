@@ -27,6 +27,18 @@
   user-select: none;
 }
 
+/* "this program addresses this device": set once any IN/OUT of the current
+   run has reached the peripheral (PPI-routed writes count for the 7-segment
+   and LEDs). Wayfinding only: inactive panels stay fully live and unchanged;
+   the active one just gets an accent border and caption. Not animated. */
+.hw-panel-active {
+  border-color: var(--accent-dim);
+}
+.hw-panel-active .hw-panel-title {
+  color: var(--accent);
+  border-bottom-color: var(--accent-dim);
+}
+
 .hw-panel-body {
   flex: 1 1 auto;
   min-height: 0;

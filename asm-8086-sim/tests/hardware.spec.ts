@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { HardwareBus } from '../src/engine/devices/bus'
-import { LED_ADDRESS, SWITCHES_ADDRESS, KEYBOARD_ADDRESS } from '../src/engine/devices/portMap'
+import { LED_ADDRESS, SWITCHES_ADDRESS, KEYBOARD_ADDRESS, PPI_PORT_A, PPI_PORT_B, SEVEN_SEGMENT_ADDRESS } from '../src/engine/devices/portMap'
 import { LedsDevice } from '../src/engine/devices/leds'
 import { assemble } from '../src/engine/assembler'
 import { Machine } from '../src/engine/cpu'
@@ -469,3 +469,58 @@ OUT DX, AL
   })
 })
 
+
+describe('HardwareBus touched devices', () => {
+  const mk = () => {
+    const bus = new HardwareBus()
+    bus.attach(new LedsDevice())
+    bus.attach(new SwitchesDevice())
+    bus.attach(new SevenSegmentDevice())
+    return bus
+  }
+
+  it('a fresh bus reports none', () => {
+    expect(mk().snapshot().touched).toEqual([])
+  })
+
+  it('writing the LED port marks only leds', () => {
+    const bus = mk()
+    bus.dispatchWrite(LED_ADDRESS, 0x01, 8)
+    expect(bus.snapshot().touched).toEqual(['leds'])
+  })
+
+  it('reading the switches port marks switches', () => {
+    const bus = mk()
+    bus.dispatchRead(SWITCHES_ADDRESS, 8)
+    expect(bus.snapshot().touched).toEqual(['switches'])
+  })
+
+  it('PPI port B marks leds and PPI port A marks seven-segment', () => {
+    const bus = mk()
+    bus.dispatchWrite(PPI_PORT_B, 0x0f, 8)
+    expect(bus.snapshot().touched).toEqual(['leds'])
+    bus.dispatchWrite(PPI_PORT_A, 0x3f, 8)
+    expect([...bus.snapshot().touched!].sort()).toEqual(['leds', 'seven-segment'])
+  })
+
+  it('reset clears the set', () => {
+    const bus = mk()
+    bus.dispatchWrite(LED_ADDRESS, 0x01, 8)
+    expect(bus.snapshot().touched).toEqual(['leds'])
+    bus.reset()
+    expect(bus.snapshot().touched).toEqual([])
+  })
+
+  it('snapshot cache does not go stale and the mark outlives the 30-cycle ring', () => {
+    const bus = mk()
+    bus.dispatchWrite(LED_ADDRESS, 0x01, 8)
+    expect(bus.snapshot().touched).toEqual(['leds'])
+    bus.dispatchRead(SWITCHES_ADDRESS, 8)
+    expect([...bus.snapshot().touched!].sort()).toEqual(['leds', 'switches'])
+    for (let i = 0; i < 40; i++) bus.dispatchWrite(SEVEN_SEGMENT_ADDRESS, i, 8)
+    const t = bus.snapshot().touched!
+    expect(bus.snapshot().recentCycles!.some((c) => c.port === LED_ADDRESS)).toBe(false)
+    expect(t).toContain('leds')
+    expect(t).toContain('seven-segment')
+  })
+})
